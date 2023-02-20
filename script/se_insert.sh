@@ -362,5 +362,5 @@ else
 	find ${BUCKUP_PATH}/template -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/tempaligned -mtime +7 -type d -name "*" -exec rm -rf {} \;
 fi
-echo "weeklytest_insert" > ${INIT_PATH}/test_type_file
+echo "se_insert" > ${INIT_PATH}/test_type_file
 
