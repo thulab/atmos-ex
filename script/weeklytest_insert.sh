@@ -144,22 +144,6 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
-start_monitor() { # 启动iotdb-monitor
-	cd ${MONITOR_PATH}
-	#配置benchmark参数
-	sed -i "s/^TEST_DATA_STORE_IP=.*$/TEST_DATA_STORE_IP=${MYSQLHOSTNAME}/g" ${MONITOR_PATH}/conf/config.properties
-	sed -i "s/^TEST_DATA_STORE_PORT=.*$/TEST_DATA_STORE_PORT=${PORT}/g" ${MONITOR_PATH}/conf/config.properties
-	sed -i "s/^TEST_DATA_STORE_DB=.*$/TEST_DATA_STORE_DB=${DBNAME}/g" ${MONITOR_PATH}/conf/config.properties
-	sed -i "s/^TEST_DATA_STORE_USER=.*$/TEST_DATA_STORE_USER=${USERNAME}/g" ${MONITOR_PATH}/conf/config.properties
-	sed -i "s/^TEST_DATA_STORE_PW=.*$/TEST_DATA_STORE_PW=${PASSWORD}/g" ${MONITOR_PATH}/conf/config.properties
-	if [ ! -d "${MONITOR_PATH}/logs" ]; then
-		monitor_start=$(${MONITOR_PATH}/ser-benchmark.sh >/dev/null 2>&1 &)
-	else
-		rm -rf ${MONITOR_PATH}/logs
-		monitor_start=$(${MONITOR_PATH}/ser-benchmark.sh >/dev/null 2>&1 &)
-	fi
-	cd ~/
-}
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
 	if [ -d "${BM_PATH}/logs" ]; then
