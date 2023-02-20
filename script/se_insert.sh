@@ -4,6 +4,7 @@ ACCOUNT=atmos
 test_type=se_insert
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
+ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BUCKUP_PATH=/nasdata/repository/se_insert
 REPOS_PATH=/nasdata/repository/master
@@ -295,7 +296,7 @@ test_operation() {
 
 	#启动写入程序
 	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${INIT_PATH}/conf/${ts_type} ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${ts_type} ${BM_PATH}/conf/config.properties
 	sed -i "s/^REMARK=.*$/REMARK=${commit_id}/g" ${BM_PATH}/conf/config.properties
 	start_benchmark
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`

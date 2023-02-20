@@ -4,6 +4,7 @@ ACCOUNT=atmos
 test_type=weeklytest_insert
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
+ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BUCKUP_PATH=/nasdata/repository/weeklytest_insert
 REPOS_PATH=/nasdata/repository/master
@@ -351,7 +352,7 @@ test_operation() {
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${INIT_PATH}/conf/$1 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/$1 ${BM_PATH}/conf/config.properties
 }
 
 ##准备开始测试
