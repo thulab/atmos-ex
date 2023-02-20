@@ -1,7 +1,7 @@
 #!/bin/sh
 #登录用户名
 ACCOUNT=atmos
-INIT_PATH=/home/atmos/zk_test
+INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos_ex
 test_type_file=${INIT_PATH}/test_type_file
 
