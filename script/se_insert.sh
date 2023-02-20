@@ -4,11 +4,10 @@ ACCOUNT=atmos
 test_type=se_insert
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
-
-BUCKUP_PATH=/data/se_insert
-REPOS_PATH=/data/repository/master
+BUCKUP_PATH=/nasdata/repository/se_insert
+REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
-TEST_INIT_PATH=/data/qa
+TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_DATANODE_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
@@ -23,7 +22,7 @@ PORT="13306"
 USERNAME="iotdbatm"
 PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_result_se_insert" #数据库中表的名称
+TABLENAME="ex_se_insert" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############公用函数##########################
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
@@ -60,36 +59,9 @@ errorLogSize=0
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
 sendEmail() {
-	error_type=$1
-	date_time=`date +%Y%m%d%H%M%S`
-	mailto='qingxin.feng@hotmail.com'
-	test_type=${HOSTNAME}
-	case $error_type in
-		1)
-		#1.代码更新失败
-			headline=''${test_type}'代码更新失败'
-			mailbody='错误类型：'${test_type}'代码更新失败<BR>报错时间：'${date_time}''
-			msgbody='错误类型：'${test_type}'代码更新失败\n报错时间：'${date_time}''
-			;;
-		2)
-		#2.编译失败
-			headline=''${test_type}'代码编译失败'
-			mailbody='错误类型：'${test_type}'代码编译失败<BR>报错时间：'${date_time}'<BR>报错Commit：'${commit_id}'<BR>提交人：'${author}''
-			msgbody='错误类型：'${test_type}'代码编译失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'<BR>提交人：'${author}''
-			;;
-		3)
-		#3.测试失败
-			headline=''${test_type}'代码测试失败'
-			mailbody='错误类型：'${test_type}'代码测试失败<BR>报错时间：'${date_time}'<BR>报错Commit：'${commit_id}'<BR>提交人：'${author}''
-			msgbody='错误类型：'${test_type}'代码测试失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'<BR>提交人：'${author}''
-			;;
-		#*)
-		#exit -1
-		#;;
-	esac
-	curl 'https://oapi.dingtalk.com/robot/send?access_token=f2d691d45da9a0307af8bbd853e90d0785dbaa3a3b0219dd2816882e19859e62' -H 'Content-Type: application/json' -d '{"msgtype": "text","text": {"content": "[Atmos]'${msgbody}'"}}' > /dev/null 2>&1 &
+sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
-check_benchmark_pid() { # 检查benchmark-moitor的pid，有就停止
+check_benchmark_pid() { # 检查benchmark的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到监控程序！"
@@ -265,9 +237,9 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	D_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_datanode_error.log | awk {'print $1'})
 	C_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_confignode_error.log | awk {'print $1'})
 	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
-			ErrorLogSize=0
+		ErrorLogSize=0
 	else
-			ErrorLogSize=1
+		ErrorLogSize=1
 	fi
 }
 backup_test_data() { # 备份测试数据
@@ -295,8 +267,8 @@ test_operation() {
 		set_protocol_class 2 2 2
 	elif [ "${protocol_class}" = "223" ]; then
 		set_protocol_class 2 2 3
-        elif [ "${protocol_class}" = "211" ]; then
-                set_protocol_class 2 1 1
+    elif [ "${protocol_class}" = "211" ]; then
+        set_protocol_class 2 1 1
 	else
 		echo "协议设置错误！"
 		return
@@ -352,7 +324,7 @@ test_operation() {
 
 	#备份本次测试
 	mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-        rm -rf ${TEST_IOTDB_PATH}/data
+    rm -rf ${TEST_IOTDB_PATH}/data
 	mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 	cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 }
@@ -361,9 +333,9 @@ for (( comp_test = 1; comp_test <= 3;))
 do
 	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-        commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-        author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-        commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+    commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+    author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+    commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	if [ "${commit_id}" = "" ]; then
 		sleep 600s
 	else
