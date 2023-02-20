@@ -2,7 +2,7 @@
 #登录用户名
 ACCOUNT=atmos
 INIT_PATH=/data/atmos/zk_test
-ATMOS_PATH=${INIT_PATH}/atmos_ex
+ATMOS_PATH=${INIT_PATH}/atmos-ex
 test_type_file=${INIT_PATH}/test_type_file
 
 
