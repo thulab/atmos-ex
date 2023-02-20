@@ -19,6 +19,7 @@ do
 
 	sleep 1
 	if [ "$test_type" = "ontesting" ]; then
+		echo “测试执行中。。。”
 		sleep 300s
 	elif [ "$test_type" = "api_test" ]; then
 		nohup sh ${ATMOS_PATH}/script/api_test.sh > ${INIT_PATH}/${test_type}.log 2>&1 &
