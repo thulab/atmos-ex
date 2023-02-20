@@ -328,39 +328,38 @@ test_operation() {
 	mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 	cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 }
-#启动后无限循环执行-之后加入crontab之后可以去掉该层循环
-for (( comp_test = 1; comp_test <= 3;))
-do
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-    commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	if [ "${commit_id}" = "" ]; then
-		sleep 600s
-	else
-		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-		init_items
-		test_date_time=`date +%Y%m%d%H%M%S`
-		p_index=$(($RANDOM % ${#protocol_list[*]}))
-		t_index=$(($RANDOM % ${#ts_list[*]}))	
-		for (( j = 0; j < ${#protocol_list[*]}; j++ ))
+##准备开始测试
+echo "ontesting" > ${INIT_PATH}/test_type_file
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
+result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+if [ "${commit_id}" = "" ]; then
+	sleep 600s
+else
+	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	init_items
+	test_date_time=`date +%Y%m%d%H%M%S`
+	p_index=$(($RANDOM % ${#protocol_list[*]}))
+	t_index=$(($RANDOM % ${#ts_list[*]}))	
+	for (( j = 0; j < ${#protocol_list[*]}; j++ ))
+	do
+		for (( i = 0; i < ${#ts_list[*]}; i++ ))
 		do
-			for (( i = 0; i < ${#ts_list[*]}; i++ ))
-			do
-				echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
-				test_operation ${protocol_list[$j]} ${ts_list[$i]}
-			done
-		done	
-		###############################测试完成###############################
-		echo "本轮测试${test_date_time}已结束."
-		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-		#清理过期文件 - 当前策略保留4天
-		find ${BUCKUP_PATH}/common -mtime +7 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/aligned -mtime +7 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/template -mtime +7 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/tempaligned -mtime +7 -type d -name "*" -exec rm -rf {} \;
-	fi
-done
+			echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
+			test_operation ${protocol_list[$j]} ${ts_list[$i]}
+		done
+	done	
+	###############################测试完成###############################
+	echo "本轮测试${test_date_time}已结束."
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	#清理过期文件 - 当前策略保留4天
+	find ${BUCKUP_PATH}/common -mtime +7 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/aligned -mtime +7 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/template -mtime +7 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/tempaligned -mtime +7 -type d -name "*" -exec rm -rf {} \;
+fi
+echo "weeklytest_insert" > ${INIT_PATH}/test_type_file
 

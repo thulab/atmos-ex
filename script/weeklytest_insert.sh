@@ -353,42 +353,42 @@ mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${INIT_PATH}/conf/$1 ${BM_PATH}/conf/config.properties
 }
-#启动后无限循环执行-之后加入crontab之后可以去掉该层循环
-for (( comp_test = 1; comp_test <= 3;))
-do
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM commit_history WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-    commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	if [ "${commit_id}" = "" ]; then
-		sleep 600s
-	else
-		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-		init_items
-		test_date_time=`date +%Y%m%d%H%M%S`
-		###############################测试开始###############################
-		p_index=$(($RANDOM % ${#protocol_list[*]}))
-		t_index=$(($RANDOM % ${#ts_list[*]}))		
-		for (( j = 0; j < ${#protocol_list[*]}; j++ ))
-		do
-			#for (( i = 0; i < ${#ts_list[*]}; i++ ))
-			#do
-				#echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
-				echo "开始测试${protocol_list[$p_index]}协议下的common时间序列！"
-				test_operation ${protocol_list[$j]} 
-			#done
-		done
-		###############################测试完成###############################
-		echo "本轮测试${test_date_time}已结束."
-		update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 
-		#清理过期文件 - 当前策略保留4天
-		find ${BUCKUP_PATH}/unseq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/unseq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/seq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
-		find ${BUCKUP_PATH}/seq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
-	fi
-done
+##准备开始测试
+echo "ontesting" > ${INIT_PATH}/test_type_file
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM commit_history WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
+result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+if [ "${commit_id}" = "" ]; then
+	sleep 600s
+else
+	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	init_items
+	test_date_time=`date +%Y%m%d%H%M%S`
+	###############################测试开始###############################
+	p_index=$(($RANDOM % ${#protocol_list[*]}))
+	t_index=$(($RANDOM % ${#ts_list[*]}))		
+	for (( j = 0; j < ${#protocol_list[*]}; j++ ))
+	do
+		#for (( i = 0; i < ${#ts_list[*]}; i++ ))
+		#do
+			#echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
+			echo "开始测试${protocol_list[$p_index]}协议下的common时间序列！"
+			test_operation ${protocol_list[$j]} 
+		#done
+	done
+	###############################测试完成###############################
+	echo "本轮测试${test_date_time}已结束."
+	update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+
+	#清理过期文件 - 当前策略保留4天
+	find ${BUCKUP_PATH}/unseq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/unseq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/seq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/seq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
+fi
+echo "weeklytest_insert" > ${INIT_PATH}/test_type_file
 
