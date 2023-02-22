@@ -302,12 +302,12 @@ collect_data_before() { # 收集iotdb数据大小，顺、乱序文件数量
 		#cd ${TEST_DATANODE_PATH}/data/datanode/data/unsequence
 		numOfUnse0Level_before=$(find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*-0-*.tsfile" | wc -l)
 	fi
-	D_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
-			ErrorLogSize=0
+	D_errorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_datanode_error.log | awk {'print $1'})
+	C_errorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_confignode_error.log | awk {'print $1'})
+	if [ "${D_errorLogSize}" = "0" ] && [ "${C_errorLogSize}" = "0" ]; then
+			errorLogSize=0
 	else
-			ErrorLogSize=1
+			errorLogSize=1
 	fi
 }
 collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
@@ -341,12 +341,12 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 	if [ "$cost_time" = "" ]; then
 		cost_time=$(find ./* -name log_datanode_compaction.log | xargs grep "CrossSpaceCompaction task finishes successfully" | awk '{print $16}')
 	fi
-	D_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_ErrorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
-			ErrorLogSize=0
+	D_errorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_datanode_error.log | awk {'print $1'})
+	C_errorLogSize=$(du -sh ${TEST_DATANODE_PATH}/logs/log_confignode_error.log | awk {'print $1'})
+	if [ "${D_errorLogSize}" = "0" ] && [ "${C_errorLogSize}" = "0" ]; then
+			errorLogSize=0
 	else
-			ErrorLogSize=1
+			errorLogSize=1
 	fi
 }
 insert_database() { # 收集iotdb数据大小，顺、乱序文件数量

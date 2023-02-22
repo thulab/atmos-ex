@@ -1,12 +1,12 @@
 #!/bin/sh
 #登录用户名
 ACCOUNT=atmos
-test_type=weeklytest_insert
+test_type=routine_test
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/weeklytest_insert
+BUCKUP_PATH=/nasdata/repository/routine_test
 REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
 TEST_INIT_PATH=/data/atmos
@@ -15,18 +15,19 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223)
-ts_list=(common aligned template tempaligned)
+protocol_list=(111 223 222 211)
+ts_list=(SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
 PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_weeklytest_insert" #数据库中表的名称
+TABLENAME="ex_routine_test" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
+#insert_list=(seq_w unseq_w)
 insert_list=(seq_w unseq_w seq_rw unseq_rw)
-query_data_type=(no_overflow is_overflow)
+query_data_type=(seq unseq)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9 Q10)
 query_type=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 ############公用函数##########################
@@ -35,6 +36,8 @@ init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
 ts_type=0
+data_type=0
+op_type=0
 okPoint=0
 okOperation=0
 failPoint=0
@@ -66,7 +69,7 @@ local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'
 sendEmail() {
 sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
-check_benchmark_pid() { # 检查benchmark-moitor的pid，有就停止
+check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到监控程序！"
@@ -112,15 +115,16 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#关闭影响写入性能的其他功能
-	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	#sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	#sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	#sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	#添加启动监控功能
 	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
+	sed -i "s/^# cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS,IOTDB/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_metric_level=.*$/cn_metric_level=ALL/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
+	sed -i "s/^# cn_metric_iotdb_reporter_host=.*$/cn_metric_iotdb_reporter_host=172.20.70.11/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	#添加启动监控功能
 	sed -i "s/^# dn_enable_metric=.*$/dn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_enable_performance_stat=.*$/dn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
@@ -200,7 +204,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ ! -d "$csvOutput" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 7200 ]; then
+			if [ $t_time -ge 72000 ]; then
 				echo "测试失败"
 				mkdir -p ${BM_PATH}/data/csvOutput
 				cd ${BM_PATH}/data/csvOutput
@@ -249,22 +253,27 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo rm -rf ${TEST_IOTDB_PATH}/data
+    sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 }
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+mv_config_file() { # 移动配置文件
+	rm -rf ${BM_PATH}/conf/config.properties
+	cp -rf ${INIT_PATH}/conf/$1 ${BM_PATH}/conf/config.properties
+}
 test_operation() {
 	protocol_class=$1
 	#写入测试
+	ts_type='common'
 	for (( i = 0; i < ${#insert_list[*]}; i++ ))
 		do
 		echo "开始${insert_list[${i}]}写入！"
-		ts_type=${insert_list[${i}]}
+		data_type=${insert_list[${i}]}
 		#清理环境，确保无就程序影响
-		check_benchmark_pid
+		check_monitor_pid
 		check_iotdb_pid
 		#复制当前程序到执行位置
 		set_env
@@ -282,8 +291,9 @@ test_operation() {
 			echo "协议设置错误！"
 			return
 		fi
-		#启动iotdb
+		#启动iotdb和monitor监控
 		start_iotdb
+		#start_monitor
 		data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)	
 		sleep 10
 			
@@ -294,15 +304,15 @@ test_operation() {
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
-			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
+			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-			update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+			update_sql="update commit_history set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 			result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-			return
+			continue
 		fi
 		
 		#启动写入程序
-		mv_config_file ${insert_list[${i}]}
+		mv_config_file ${data_type}
 
 		start_benchmark
 		start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
@@ -314,7 +324,7 @@ test_operation() {
 		
 		#停止IoTDB程序和监控程序
 		pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
-		check_benchmark_pid
+		#check_monitor_pid
 		check_iotdb_pid
 
 		#收集启动后基础监控数据
@@ -325,19 +335,55 @@ test_operation() {
 		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
 
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
-		echo ${commit_id}版本${ts_type}写入${okPoint}数据点平均耗时${Latency}秒。吞吐率为：${throughput} 点/秒
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
+		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-		
-		#备份本次测试
-		backup_test_data
+		#查询测试
+		for (( j = 0; j < ${#query_list[*]}; j++ ))
+			do
+			echo "开始${query_list[${j}]}查询！"
+			op_type=${query_list[${j}]}
+			check_iotdb_pid
+			sleep 1
+			start_iotdb
+			sleep 30	
+			####判断IoTDB是否正常启动
+			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
+			if [ "${iotdb_state}" = "Total line number = 1" ]; then
+				echo "IoTDB正常启动，准备开始测试"
+			else
+				echo "IoTDB未能正常启动，写入负值测试结果！"
+				cost_time=-3
+				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},'${protocol_class}')"
+				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				continue
+			fi
+			mv_config_file ${op_type}
+			for (( m = 1; m <= 1; m++ ))
+			do
+				#op_type=${m}_${query_list[${j}]}
+				start_benchmark
+				start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+				#等待1分钟
+				sleep 10
+				monitor_test_status
+				#收集启动后基础监控数据
+				collect_monitor_data
+				#测试结果收集写入数据库
+				csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
+				read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
+				read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
+				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},'${protocol_class}')"
+				echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
+				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			done
+			#停止IoTDB程序和监控程序
+            check_iotdb_pid
+		done
+		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 	done
 }
-mv_config_file() { # 移动配置文件
-	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${ATMOS_PATH}/conf/weeklytest_insert/$1 ${BM_PATH}/conf/config.properties
-}
-
 ##准备开始测试
 echo "ontesting" > ${INIT_PATH}/test_type_file
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
@@ -351,28 +397,23 @@ else
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	###############################测试开始###############################
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
-	t_index=$(($RANDOM % ${#ts_list[*]}))		
-	for (( j = 0; j < ${#protocol_list[*]}; j++ ))
-	do
-		#for (( i = 0; i < ${#ts_list[*]}; i++ ))
-		#do
-			#echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
-			echo "开始测试${protocol_list[$p_index]}协议下的common时间序列！"
-			test_operation ${protocol_list[$j]} 
-		#done
-	done
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-
-	#清理过期文件 - 当前策略保留4天
-	find ${BUCKUP_PATH}/unseq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/unseq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/seq_w -mtime +1 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/seq_rw -mtime +1 -type d -name "*" -exec rm -rf {} \;
-fi
-echo "weeklytest_insert" > ${INIT_PATH}/test_type_file
-
+	t_index=$(($RANDOM % ${#ts_list[*]}))	
+		#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
+		#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
+		test_operation 111 
+		#test_operation 222 
+		test_operation 223 
+		#test_operation 211 
+		###############################测试完成###############################
+		echo "本轮测试${test_date_time}已结束."
+		update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
+		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+		#清理过期文件 - 当前策略保留4天
+		find ${BUCKUP_PATH}/common -mtime +4 -type d -name "*" -exec rm -rf {} \;
+		find ${BUCKUP_PATH}/aligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
+		find ${BUCKUP_PATH}/template -mtime +4 -type d -name "*" -exec rm -rf {} \;
+		find ${BUCKUP_PATH}/tempaligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
+		sudo reboot
+	fi
+done
