@@ -262,7 +262,7 @@ clear_expired_file() { # 清理超过七天的文件
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${INIT_PATH}/conf/$1 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1 ${BM_PATH}/conf/config.properties
 }
 test_operation() {
 	protocol_class=$1
