@@ -3,8 +3,8 @@
 ########################################################
 
 ################### 被测数据库配置 #######################
-# 被测试的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件
-DB_SWITCH=IoTDB-014-SESSION_BY_RECORD
+# 被测试的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件，注意版本需要匹配
+DB_SWITCH=IoTDB-100-SESSION_BY_RECORD
 # 主机列表，如果有多个主机则使用英文逗号进行分割
 HOST=127.0.0.1
 # 端口列表，需要和HOST数量一致，保持一一对应。如果有多个端口则使用英文逗号进行分割。
@@ -136,12 +136,26 @@ HTTP_CLIENT_POOL_SIZE=1000
 # 表压缩方式，NONE, ROW, PAGE
 COMPRESSION=NONE
 
+############## 被测系统为TimescaleDB Cluster时扩展参数 ########
+# timescaledb的副本数
+TIMESCALEDB_REPLICATION_FACTOR=1
+
+############## 被测系统为TDengine 3时扩展参数 ########
+# TDengine 的WAL级别
+TDENGINE_WAL_LEVEL=2
+# TDengine 的副本数
+TDENGINE_REPLICA=3
+
 ################### 操作时间配置 #########################
 # 时间戳间隔，即生成的数据两个时间戳之间的固定长度(如果定长生成)，非正常速率
 POINT_STEP=1000
-# 操作执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_INTERVAL-实际执行时间) ms
-# 如果值为-1，则于POINT_STEP一致
-OP_INTERVAL=0
+# 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
+# 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
+OP_MIN_INTERVAL=0
+# 是否随机选取操作最小执行间隔：
+# 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
+# 如果为false，每次操作最小执行间隔的取值为 OP_MIN_INTERVAL
+OP_MIN_INTERVAL_RANDOM=false
 # 时间戳精度，均支持ms，只有IoTDB和InfluxDB支持us
 TIMESTAMP_PRECISION=ms
 
@@ -256,7 +270,7 @@ MAX_K=170000
 ################ 操作信息：查询操作参数 ###################
 # 在读写混合的场景下，是否优先查询最近写入的数据
 IS_RECENT_QUERY=false
-# 时间过滤条件的时间起点变化步长，若设为0则每个查询的时间过滤条件是一样的
+# 时间过滤条件的时间起点变化步长，若设为0则每个查询的时间过滤条件是一样的，单位：POINT_STEP
 STEP_SIZE=1
 # 每条查询语句中查询涉及到的传感器数量
 QUERY_SENSOR_NUM=1
@@ -289,16 +303,15 @@ RECORD_SPLIT_MAX_LINE=10000000
 
 ############## 输出结果：输出数据库参数 ####################
 # 数据库的IP地址
-TEST_DATA_STORE_IP=166.111.7.145
-#TEST_DATA_STORE_IP=192.168.10.70
+TEST_DATA_STORE_IP=127.0.0.1
 # 数据库的端口号
-TEST_DATA_STORE_PORT=33306
+TEST_DATA_STORE_PORT=6667
 # 数据库的名称
-TEST_DATA_STORE_DB=QA_SE_INSE
+TEST_DATA_STORE_DB=result
 # 数据库用户名
 TEST_DATA_STORE_USER=root
 # 数据库用户密码
-TEST_DATA_STORE_PW=Ise_Nel_2017
+TEST_DATA_STORE_PW=root
 # 数据库写超时，单位毫秒
 TEST_DATA_WRITE_TIME_OUT=300000
 # 数据库写入并发池最多限制
