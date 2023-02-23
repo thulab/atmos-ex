@@ -378,3 +378,4 @@ else
 	find ${BUCKUP_PATH}/SESSION_BY_RECORDS -mtime +2 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/SESSION_BY_TABLET -mtime +2 -type d -name "*" -exec rm -rf {} \;
 fi
+echo "api_insert" > ${INIT_PATH}/test_type_file
