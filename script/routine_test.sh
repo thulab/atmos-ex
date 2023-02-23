@@ -415,5 +415,4 @@ else
 	find ${BUCKUP_PATH}/aligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/template -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/tempaligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
-	sudo reboot
 fi

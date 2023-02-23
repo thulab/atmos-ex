@@ -377,5 +377,4 @@ else
 	find ${BUCKUP_PATH}/SESSION_BY_RECORD -mtime +2 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/SESSION_BY_RECORDS -mtime +2 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/SESSION_BY_TABLET -mtime +2 -type d -name "*" -exec rm -rf {} \;
-	sudo reboot
 fi
