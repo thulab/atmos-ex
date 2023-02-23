@@ -381,6 +381,7 @@ test_operation() {
 			#停止IoTDB程序和监控程序
             check_iotdb_pid
 		done
+		backup_test_data
 		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 	done
 }
