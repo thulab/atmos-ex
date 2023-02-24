@@ -252,9 +252,9 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	fi
 }
 backup_test_data() { # 备份测试数据
-	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${insert_list}/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${insert_list}/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 }
 clear_expired_file() { # 清理超过七天的文件
