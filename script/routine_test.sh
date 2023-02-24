@@ -408,7 +408,7 @@ else
 	#test_operation 211 
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	#清理过期文件 - 当前策略保留4天
 	find ${BUCKUP_PATH}/common -mtime +4 -type d -name "*" -exec rm -rf {} \;

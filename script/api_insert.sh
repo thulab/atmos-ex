@@ -370,8 +370,8 @@ else
 	#test_operation 211 JDBC
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	#result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	#清理过期文件 - 当前策略保留4天
 	find ${BUCKUP_PATH}/JDBC -mtime +2 -type d -name "*" -exec rm -rf {} \;
 	find ${BUCKUP_PATH}/SESSION_BY_RECORD -mtime +2 -type d -name "*" -exec rm -rf {} \;
