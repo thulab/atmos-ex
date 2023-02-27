@@ -291,7 +291,7 @@ test_operation() {
 			check_iotdb_pid
 			sleep 1
 			start_iotdb
-			sleep 10
+			sleep 30
 				
 			####判断IoTDB是否正常启动
 			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
