@@ -340,6 +340,7 @@ test_operation() {
 		done
 		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 		#备份本次测试
+		ts_type=${query_data_type[${j}]}
 		backup_test_data
 	done
 }
