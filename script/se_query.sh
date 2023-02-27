@@ -269,7 +269,7 @@ test_operation() {
 		ts_type=${query_data_type[${j}]}
 		echo "开始${ts_type}时间序列相关查询！"
 		#清理环境，确保无就程序影响
-		check_monitor_pid
+		check_benchmark_pid
 		check_iotdb_pid
 		#复制当前程序到执行位置
 		set_env
@@ -340,7 +340,7 @@ test_operation() {
 			cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
 			mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}
 			#停止IoTDB程序和监控程序
-			check_monitor_pid
+			check_benchmark_pid
 			check_iotdb_pid
 			sleep 5
 		done
