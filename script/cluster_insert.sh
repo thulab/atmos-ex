@@ -394,13 +394,13 @@ test_operation() {
 		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		node_id=${j}
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}',${author},${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${is_overflow}')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${is_overflow}')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		
 		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN
 		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
+		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
+		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
 	done
 	sudo cp ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/
 }
