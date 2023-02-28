@@ -402,7 +402,7 @@ test_operation() {
 		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
 		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
 	done
-	sudo cp ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/
+	sudo cp ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/
 }
 
 ##准备开始测试
