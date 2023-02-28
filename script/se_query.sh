@@ -301,6 +301,7 @@ test_operation() {
 			sleep 10
 			####判断IoTDB是否正常启动
 			for ((i=0;i<100;i++))
+			do
 				iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
 				if [ "${iotdb_state}" = "Total line number = 1" ] || [ i = 10 ]; then
 					break
