@@ -434,13 +434,13 @@ else
 	###############################普通时间序列###############################
 	echo "开始测试普通时间序列顺序写入！"
 	test_operation common noOverflow 223
-	#echo "开始测试普通时间序列乱续写入！"
+	echo "开始测试普通时间序列乱续写入！"
 	test_operation common isOverflow 223
 	###############################对齐时间序列###############################
-	#echo "开始测试对齐时间序列顺序写入！"
-	#test_operation aligned noOverflow 223
-	#echo "开始测试对齐时间序列乱续写入！"
-	#test_operation aligned isOverflow 223
+	echo "开始测试对齐时间序列顺序写入！"
+	test_operation aligned noOverflow 223
+	echo "开始测试对齐时间序列乱续写入！"
+	test_operation aligned isOverflow 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
