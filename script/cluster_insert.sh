@@ -412,10 +412,10 @@ test_operation() {
 		
 		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN
 		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
+		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
+		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
 	done
-	sudo cp ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/
+	sudo cp -rf ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/
 }
 
 ##准备开始测试
@@ -435,7 +435,7 @@ else
 	echo "开始测试普通时间序列顺序写入！"
 	test_operation common noOverflow 223
 	#echo "开始测试普通时间序列乱续写入！"
-	#test_operation common isOverflow 223
+	test_operation common isOverflow 223
 	###############################对齐时间序列###############################
 	#echo "开始测试对齐时间序列顺序写入！"
 	#test_operation aligned noOverflow 223
