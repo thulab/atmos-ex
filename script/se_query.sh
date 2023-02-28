@@ -258,7 +258,7 @@ backup_test_data() { # 备份测试数据
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${ATMOS_PATH}/conf/se_query/$1 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/se_query/$1/$2 ${BM_PATH}/conf/config.properties
 }
 test_operation() {
 	protocol_class=$1
@@ -289,6 +289,7 @@ test_operation() {
 		fi
 		#mkdir -p ${TEST_IOTDB_PATH}/data
 		cp -rf ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
+		sleep 10
 		for (( i = 0; i < ${#query_list[*]}; i++ ))
 		do
 			query_type=${query_list[${i}]}
@@ -297,7 +298,7 @@ test_operation() {
 			sleep 1
 			start_iotdb
 			#start_monitor
-			sleep 20
+			sleep 15
 			####判断IoTDB是否正常启动
 			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
 			#iotdb_state='Total line number = 1'
