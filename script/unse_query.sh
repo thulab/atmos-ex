@@ -298,10 +298,16 @@ test_operation() {
 			sleep 1
 			start_iotdb
 			#start_monitor
-			sleep 15
+			sleep 10
 			####判断IoTDB是否正常启动
-			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
-			#iotdb_state='Total line number = 1'
+			for ((i=0;i<100;i++))
+			do
+				iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
+				if [ "${iotdb_state}" = "Total line number = 1" ] || [ i = 10 ]; then
+					break
+				fi
+				sleep 10
+			done			
 			if [ "${iotdb_state}" = "Total line number = 1" ]; then
 				echo "IoTDB正常启动，准备开始测试"
 			else
