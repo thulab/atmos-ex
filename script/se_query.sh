@@ -297,7 +297,7 @@ test_operation() {
 			sleep 1
 			start_iotdb
 			#start_monitor
-			sleep 10
+			sleep 20
 			####判断IoTDB是否正常启动
 			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
 			#iotdb_state='Total line number = 1'
@@ -346,9 +346,7 @@ test_operation() {
 		done
 		echo "${ts_type}时间序列查询测试已结束."
 		#备份本次测试
-		rm -rf ${TEST_IOTDB_PATH}/data
-		mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-		mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
+		backup_test_data ${ts_type}
 	done
 }
 
