@@ -323,7 +323,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			fi
 		done
 		flag=0
-		for (( j = 1; j <= 3; j++ ))
+		for (( j = 1; j <= 1; j++ ))
 		do
 			str1=$(ssh ${ACCOUNT}@${B_IP_list[${j}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
@@ -333,7 +333,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				flag=$[${flag}+1]
 			fi
 		done
-		if [ "$flag" = "3" ]; then
+		if [ "$flag" = "1" ]; then
 			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			break
 		fi
