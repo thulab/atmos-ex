@@ -361,8 +361,8 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-    sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
+    sudo rm -rf ${TEST_DATANODE_PATH}/data
+	sudo mv ${TEST_DATANODE_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
 	}
 test_operation() {
@@ -394,13 +394,13 @@ test_operation() {
 		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		node_id=${j}
-		insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${test_date_time},'${commit_id}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${is_overflow}')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}',${author},${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${is_overflow}')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		
-		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/${j}/CN
-		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/${j}/DN
-		sudo scp -r ${ACCOUNT}@${D_IP_list[${j}]}:${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/${j}/CN/
-		sudo scp -r ${ACCOUNT}@${C_IP_list[${j}]}:${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/${j}/DN/
+		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN
+		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN
+		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
+		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
 	done
 	sudo cp ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}/
 }
@@ -433,10 +433,8 @@ else
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	#清理过期文件 - 当前策略保留4天
-	find ${BUCKUP_PATH}/common -mtime +4 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/aligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/template -mtime +4 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/tempaligned -mtime +4 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/noOverflow -mtime +4 -type d -name "*" -exec rm -rf {} \;
+	find ${BUCKUP_PATH}/isOverflow -mtime +4 -type d -name "*" -exec rm -rf {} \;
 fi
 echo "cluster_insert" > ${INIT_PATH}/test_type_file
 
