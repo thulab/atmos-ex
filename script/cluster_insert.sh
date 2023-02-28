@@ -368,10 +368,23 @@ backup_test_data() { # 备份测试数据
 test_operation() {
 	ts_type=$1
 	is_overflow=$2
+	protocol_class=$3
 	echo "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
 	modify_iotdb_config
+	if [ "${protocol_class}" = "111" ]; then
+		set_protocol_class 1 1 1
+	elif [ "${protocol_class}" = "222" ]; then
+		set_protocol_class 2 2 2
+	elif [ "${protocol_class}" = "223" ]; then
+		set_protocol_class 2 2 3
+    elif [ "${protocol_class}" = "211" ]; then
+        set_protocol_class 2 1 1
+	else
+		echo "协议设置错误！"
+		return
+	fi
 	
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${ATMOS_PATH}/conf/cluster_insert/${ts_type}/${is_overflow} ${BM_PATH}/conf/config.properties
@@ -420,14 +433,14 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	###############################普通时间序列###############################
 	echo "开始测试普通时间序列顺序写入！"
-	test_operation common noOverflow
+	test_operation common noOverflow 223
 	#echo "开始测试普通时间序列乱续写入！"
-	#test_operation common isOverflow
+	#test_operation common isOverflow 223
 	###############################对齐时间序列###############################
 	#echo "开始测试对齐时间序列顺序写入！"
-	#test_operation aligned noOverflow
+	#test_operation aligned noOverflow 223
 	#echo "开始测试对齐时间序列乱续写入！"
-	#test_operation aligned isOverflow	
+	#test_operation aligned isOverflow 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
