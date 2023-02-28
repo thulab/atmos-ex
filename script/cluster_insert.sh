@@ -9,7 +9,7 @@ BM_PATH=${INIT_PATH}/iot-benchmark
 BUCKUP_PATH=/nasdata/repository/cluster_insert
 REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
-TEST_PATH=/data/atmos/zk_test/test
+TEST_PATH=/data/atmos/zk_test/first-rest-test
 TEST_DATANODE_PATH=${TEST_PATH}/DN/apache-iotdb
 TEST_CONFIGNODE_PATH=${TEST_PATH}/CN/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
