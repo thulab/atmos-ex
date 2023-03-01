@@ -258,7 +258,7 @@ backup_test_data() { # 备份测试数据
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${ATMOS_PATH}/conf/se_query/$1/$2 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${BM_PATH}/conf/config.properties
 }
 test_operation() {
 	protocol_class=$1
