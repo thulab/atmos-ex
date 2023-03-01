@@ -446,9 +446,6 @@ else
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-	#清理过期文件 - 当前策略保留4天
-	find ${BUCKUP_PATH}/noOverflow -mtime +4 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/isOverflow -mtime +4 -type d -name "*" -exec rm -rf {} \;
 fi
 echo "cluster_insert" > ${INIT_PATH}/test_type_file
 

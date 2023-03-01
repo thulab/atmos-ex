@@ -371,9 +371,6 @@ else
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-	#清理过期文件 - 当前策略保留4天
-	find ${BUCKUP_PATH}/no_overflow -mtime +3 -type d -name "*" -exec rm -rf {} \;
-	find ${BUCKUP_PATH}/is_overflow -mtime +3 -type d -name "*" -exec rm -rf {} \;
 fi
 echo "weeklytest_query" > ${INIT_PATH}/test_type_file
 
