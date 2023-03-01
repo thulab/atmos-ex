@@ -360,11 +360,15 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	fi
 }
 backup_test_data() { # 备份测试数据
-	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_DATANODE_PATH}/data
-	sudo mv ${TEST_DATANODE_PATH} ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}
-	}
+	sudo mv ${TEST_DATANODE_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+}
+mv_config_file() { # 移动配置文件
+	rm -rf ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/cluster_insert/$1/$2 ${BM_PATH}/conf/config.properties
+}
 test_operation() {
 	ts_type=$1
 	is_overflow=$2
@@ -386,10 +390,7 @@ test_operation() {
 		return
 	fi
 	
-	rm -rf ${BM_PATH}/conf/config.properties
-	cp -rf ${ATMOS_PATH}/conf/cluster_insert/${ts_type}/${is_overflow} ${BM_PATH}/conf/config.properties
-	sed -i "s/^REMARK=.*$/REMARK=${commit_id}/g" ${BM_PATH}/conf/config.properties
-	
+	mv_config_file ${ts_type} ${is_overflow}
 	setup_3C3D -c3 -d3 -t1
 		
 	echo "测试开始！"
@@ -410,12 +411,12 @@ test_operation() {
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${is_overflow}')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		
-		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN
-		sudo mkdir -p ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/CN/"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/${j}/DN/"
+		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${is_overflow}/${j}/CN
+		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id_${is_overflow}}/${j}/DN
+		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${is_overflow}/${j}/CN"
+		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id_${is_overflow}}/${j}/DN"
 	done
-	sudo cp -rf ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${is_overflow}/${ts_type}/${commit_date_time}_${commit_id}/
+	sudo cp -rf ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${is_overflow}/
 }
 
 ##准备开始测试

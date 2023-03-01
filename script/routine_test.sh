@@ -252,17 +252,17 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	fi
 }
 backup_test_data() { # 备份测试数据
-	sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${data_type}/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/${ts_type}/${data_type}/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${ts_type}/${data_type}/${commit_date_time}_${commit_id}_${protocol_class}
-}
-clear_expired_file() { # 清理超过七天的文件
-	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
+	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1 ${BM_PATH}/conf/config.properties
+}
+clear_expired_file() { # 清理超过七天的文件
+	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
 test_operation() {
 	protocol_class=$1
@@ -381,7 +381,7 @@ test_operation() {
 			#停止IoTDB程序和监控程序
             check_iotdb_pid
 		done
-		backup_test_data
+		backup_test_data ${data_type}
 		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 	done
 }
