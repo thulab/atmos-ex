@@ -187,8 +187,9 @@ do
 	echo "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
 	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf ${TEST_PATH}"
+	ssh ${ACCOUNT}@${IP_list[${i}]} "mkdir -p ${TEST_PATH}"
 	#复制三项到客户机
-	scp -r ${TEST_PATH} ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}
+	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
 done
 for (( i = 1; i <= $config_num; i++ ))
 do
