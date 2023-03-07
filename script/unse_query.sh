@@ -368,7 +368,7 @@ commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 if [ "${commit_id}" = "" ]; then
-	sleep 600s
+	sleep 60s
 else
 	echo "当前版本${commit_id}未执行过测试，即将启动"
 	init_items
