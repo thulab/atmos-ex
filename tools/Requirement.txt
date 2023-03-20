@@ -1,0 +1,49 @@
+setenforce 0
+sed -i '/^SEliNUX=/s/enforcing/Disabled/' /etc/selinux/config
+
+
+
+adduser atmos --home /data/atmos -g root
+passwd atmos
+
+
+vim /etc/sudoers
+atmos ALL=(ALL)       ALL
+atmos ALL=(ALL)       NOPASSWD: ALL
+
+
+vim /data/atmos/.bashrc
+export JAVA_HOME=/usr/local/jdk-11.0.17
+export JRE_HOME=/usr/local/jdk-11.0.17/jre
+export CLASSPATH=.:$JAVA_HOME/lib:$JRE_HOME/lib:$CLASSPATH
+export PATH=$JAVA_HOME/bin:$JRE_HOME/bin:$PATH
+export MAVEN_HOME=/usr/local/apache-maven-3.8.7
+export PATH=$MAVEN_HOME/bin:$PATH
+
+rpm -ivh https://repo.mysql.com//mysql57-community-release-el7-11.noarch.rpm
+yum search mysql-community
+rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+yum install mysql-community-client.x86_64 -y
+
+yum install git psmisc lsof samba samba-client  -y 
+smbpasswd -a atmos
+
+mkdir -p /nasdata/repository
+chmod 777 -R /nasdata
+
+
+chmod +x /etc/rc.d/rc.local
+chmod +x /etc/rc.local
+systemctl enable rc-local.service
+systemctl start rc-local.service
+systemctl status rc-local.service
+vim /etc/rc.local
+mount -t cifs //11.101.17.110/repository /nasdata/repository -o username=atmos,password=XXXXXX
+	
+
+
+mkdir -p /data/atmos/zk_test
+cd zk_test/
+touch test_type_file
+echo "weeklytest_insert" > test_type_file
+git clone https://github.com/thulab/atmos-ex
