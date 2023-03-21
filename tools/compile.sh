@@ -4,7 +4,9 @@ ACCOUNT=atmos
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
 IOTDB_PATH=${INIT_PATH}/iotdb
+FILENAME=${INIT_PATH}/gitlog.txt
 REPO_PATH=/data/repository/master
+filter_list_folder_name=(client-cpp client-go client-py code-coverage compile-tools distribution docker docs example external-api external-pipe-api flink-iotdb-connector flink-tsfile-connector grafana-connector grafana-plugin hadoop hive-connector influxdb-protocol integration integration-test isession licenses mlnode openapi pipe-api rewrite-tsfile-tool schema-engine-rocksdb schema-engine-tag site spark-iotdb-connector spark-tsfile subscription-api test testcontainer tools trigger-api udf-api zeppelin-interpreter)
 
 ############mysql信息##########################
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
@@ -68,14 +70,40 @@ do
 				rm -rf ${REPO_PATH}/${commit_id}
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author) values(${commit_date_time},'${commit_id}','${author}')"
-				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-				echo "${commit_id}测试任务已发布！"
+				#获取本次更新的变更文件列表
+				git log -1 --name-only > $FILENAME
+				#按照文件夹名称排除不必要测试文件夹
+				for (( i = 0; i < ${#filter_list_folder_name[*]}; i++ ))
+				do
+					sed -i '/${filter_list_folder_name[${i}]}/d' $FILENAME
+				done
+				file_num=0
+				non_file_num=0
+				while read line;do
+					filename=$(basename $line)
+					if echo "$filename" | grep -q -E '\.java$'
+					then
+						file_num=$[${file_num}+1]
+					else
+						non_file_num=$[${non_file_num}+1]
+					fi
+				done <  $FILENAME
+				if [ "${file_num}" = "0" ]; then
+					#不需要测试
+					str_noneed='NoNeed'
+					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,iotdb_sql,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
+					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				else
+					#正常下派所有任务
+					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author) values(${commit_date_time},'${commit_id}','${author}')"
+					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+					echo "${commit_id}测试任务已发布！"
+				fi
 			else
 				echo "${commit_id}编译失败！"
 				str_err='CError'
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,iotdb_sql,weeklytest_insert,weeklytest_query,api_test,routine_test,config_insert,ts_performance) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
-                mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,iotdb_sql,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
+                		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				msgbody='错误类型：'${test_type}'代码编译失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'\n提交人：'${author}''
 				sendEmail ${msgbody}
 			fi
