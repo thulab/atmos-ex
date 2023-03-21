@@ -347,7 +347,6 @@ test_operation() {
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			echo ${commit_id}版本${ts_type}时间序列${data_type}查询${okPoint}数据点的${query_type}耗时为：${Latency}ms
 			#备份本次测试
-			mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
 			cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
 			mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}
 			#停止IoTDB程序和监控程序
@@ -356,6 +355,7 @@ test_operation() {
 			sleep 5
 		done
 		echo "${ts_type}时间序列查询测试已结束."
+		mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
 		#备份本次测试
 		backup_test_data ${ts_type}
 	done
