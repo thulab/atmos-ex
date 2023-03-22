@@ -354,7 +354,7 @@ test_operation() {
 		echo "${ts_type}时间序列查询测试已结束."
 		mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
 		#备份本次测试
-		backup_test_data ${ts_type}
+		#backup_test_data ${ts_type}
 	done
 }
 
@@ -365,6 +365,7 @@ result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} $
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
+commit_id=f741a6e
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
