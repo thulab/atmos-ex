@@ -75,7 +75,7 @@ do
 				#按照文件夹名称排除不必要测试文件夹
 				for (( ix = 0; ix < ${#filter_list_folder_name[*]}; ix++ ))
 				do
-					sed -i '/${filter_list_folder_name[${ix}]}/d' $FILENAME
+					sed -i "/${filter_list_folder_name[${ix}]}/d" $FILENAME
 				done
 				file_num=0
 				non_file_num=0
