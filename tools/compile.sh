@@ -73,9 +73,9 @@ do
 				#获取本次更新的变更文件列表
 				git log -1 --name-only > $FILENAME
 				#按照文件夹名称排除不必要测试文件夹
-				for (( i = 0; i < ${#filter_list_folder_name[*]}; i++ ))
+				for (( ix = 0; ix < ${#filter_list_folder_name[*]}; ix++ ))
 				do
-					sed -i '/${filter_list_folder_name[${i}]}/d' $FILENAME
+					sed -i '/${filter_list_folder_name[${ix}]}/d' $FILENAME
 				done
 				file_num=0
 				non_file_num=0
