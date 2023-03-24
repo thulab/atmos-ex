@@ -356,7 +356,7 @@ test_operation() {
 				check_iotdb_pid
 				#备份本次测试
 				cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
-				mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}
+				mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}_${sensor_type_list[${s}]}
 			done
 		done
 		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
