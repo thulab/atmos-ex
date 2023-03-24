@@ -306,7 +306,7 @@ test_operation() {
 	config_value=$4
 	echo "开始测试${ts_type}时间序列下${config_name}参数为${config_value}时对写入性能的影响！"
 	#清理环境，确保无就程序影响
-	check_monitor_pid
+	check_benchmark_pid
 	check_iotdb_pid
 	#复制当前程序到执行位置
 	set_env
