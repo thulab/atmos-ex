@@ -142,9 +142,6 @@ set_protocol_class() {
 	sed -i "s/^# data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 }
 start_iotdb() { # 启动iotdb
-sudo -s <<EOF
-echo 3 >/proc/sys/vm/drop_caches
-EOF
 	cd ${TEST_IOTDB_PATH}
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
