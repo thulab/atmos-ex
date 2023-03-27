@@ -495,5 +495,5 @@ else
 	update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 fi
-echo "api_insert" > ${INIT_PATH}/test_type_file
+echo "compaction" > ${INIT_PATH}/test_type_file
 
