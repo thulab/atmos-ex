@@ -255,13 +255,6 @@ collect_data_before() { # 收集iotdb数据大小，顺、乱序文件数量
 		#cd ${TEST_IOTDB_PATH}/data/datanode/data/unsequence
 		numOfUnse0Level_before=$(find ${TEST_IOTDB_PATH}/data/datanode/data/unsequence -name "*-0-*.tsfile" | wc -l)
 	fi
-	D_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
-		ErrorLogSize=0
-	else
-		ErrorLogSize=1
-	fi
 }
 collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 	#收集启动后基础监控数据
