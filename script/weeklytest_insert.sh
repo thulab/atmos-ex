@@ -368,5 +368,4 @@ else
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 fi
-echo "weeklytest_insert" > ${INIT_PATH}/test_type_file
-
+echo "${test_type}" > ${INIT_PATH}/test_type_file
