@@ -146,7 +146,7 @@ commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed
 if [ "${commit_id}" = "" ]; then
 	sleep 600s
 else
-
+	init_items
 	# 获取git commit对比判定是否启动测试
 	cd ${TC_PATH}
 	last_cid1=$(git log --pretty=format:"%h" -1)
@@ -216,7 +216,7 @@ else
 	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	#停止IoTDB程序
 	check_iotdb_pid
-	if [ ${flag} -eq 0 ]; then
+	if [ "${flag}" = "0" ]; then
 		#收集测试结果
 		cd ${TEST_TOOL_PATH}
 		pass_num=$(grep -n 'result="PASS" tests=' ${TEST_TOOL_PATH}/result.xml | wc -l)
@@ -226,7 +226,6 @@ else
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
 		#echo "${insert_sql}"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-		cp -rf ${TEST_TOOL_PATH}/result.xml /home/cluster/apache-tomcat/webapps/ROOT/result.xml
 	else
 		#收集测试结果
 		cd ${TEST_TOOL_PATH}
@@ -239,7 +238,7 @@ else
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	fi
 	#备份本次测试
-	backup_test_data master
+	backup_test_data 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
