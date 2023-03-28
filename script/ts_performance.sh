@@ -311,7 +311,7 @@ test_operation() {
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		insert_database load-tsfile
-		update_sql="update commit_history set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 		return
 	fi
@@ -348,7 +348,7 @@ test_operation() {
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		insert_database export-tsfile
-		update_sql="update commit_history set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 		return
 	fi
@@ -398,7 +398,7 @@ else
 	test_operation 211 tempaligned unsequence
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update commit_history set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 fi
 echo "${test_type}" > ${INIT_PATH}/test_type_file
