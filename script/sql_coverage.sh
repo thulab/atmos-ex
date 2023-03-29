@@ -219,8 +219,8 @@ else
 	if [ "${flag}" = "0" ]; then
 		#收集测试结果
 		cd ${TEST_TOOL_PATH}
-		pass_num=$(grep -n 'result="PASS" tests=' ${TEST_TOOL_PATH}/result.xml | wc -l)
-		fail_num=$(grep -n 'result="FAIL" sqlPASSED' ${TEST_TOOL_PATH}/result.xml | wc -l)
+		pass_num=$(grep -n 'run" result="PASS"' ${TEST_TOOL_PATH}/result.xml | wc -l)
+		fail_num=$(grep -n 'result="run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
