@@ -113,6 +113,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
+	sed -i '$a dn_metric_internal_reporter_type=MEMORY' ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 }
 set_protocol_class() { 
 	config_node=$1
