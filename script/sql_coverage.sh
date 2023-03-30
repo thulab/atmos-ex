@@ -145,7 +145,7 @@ commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 if [ "${commit_id}" = "" ]; then
-	sleep 600s
+	sleep 60s
 else
 	init_items
 	# 获取git commit对比判定是否启动测试

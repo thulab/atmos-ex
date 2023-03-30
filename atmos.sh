@@ -37,5 +37,5 @@ do
 	else
 		nohup sh ${ATMOS_PATH}/script/${test_type}.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	fi
-	sleep 600s
+	sleep 300s
 done
