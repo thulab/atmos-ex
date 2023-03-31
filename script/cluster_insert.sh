@@ -291,6 +291,7 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 		for ((j = 1; j <= $bm_num; j++)); do
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
+			#ssh ${ACCOUNT}@${B_IP_list[${j}]} "sed -i \"s/^HOST=.*$/HOST=$${D_IP_list[${j}]}/g\" ${BM_PATH}/conf/config.properties"
 			#echo "启动BM： ${B_IP_list[${j}]} ..."
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
 		done
@@ -393,6 +394,7 @@ test_operation() {
 	fi
 	
 	mv_config_file ${ts_type} ${data_type}
+	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
 	setup_3C3D -c3 -d3 -t1
 		
 	echo "测试开始！"
