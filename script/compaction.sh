@@ -201,7 +201,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		numOfcompactioning=$(find . -name "*compaction.log" | wc -l)
 		compaction_status=0
 		if [ ${numOfcompactioning} -le 0 ]; then
-			sleep 70s
+			sleep 100s
 			numOfcompactioning=$(find . -name "*compaction.log" | wc -l)
 			if [ ${numOfcompactioning} -le 0 ]; then
 				log_compaction=${TEST_IOTDB_PATH}/logs/log_datanode_compaction.log
