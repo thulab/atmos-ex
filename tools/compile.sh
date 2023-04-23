@@ -112,6 +112,8 @@ do
 		fi
 	done
 	echo "当前查询到的10个commitid确认完毕！"
+	echo "别闲着，做一轮服务器空间清理任务吧。删除25天之前的测试记录"
+	find /data/repository/*/*/ -mtime +25 -type d -name "*" -exec rm -rf {} \;
 	sleep 300s
 done
 
