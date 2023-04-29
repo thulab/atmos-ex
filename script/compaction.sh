@@ -377,12 +377,12 @@ test_operation() {
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
+		throughput=-3
 		insert_database ${protocol_class}
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 		return
-	fi
-	
+	fi	
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
@@ -416,6 +416,21 @@ test_operation() {
 	collect_data_before
 	#启动iotdb和monitor监控
 	start_iotdb
+	sleep 10	
+	####判断IoTDB是否正常启动
+	iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
+        #iotdb_state='Total line number = 1'
+	if [ "${iotdb_state}" = "Total line number = 1" ]; then
+		echo "IoTDB正常启动，准备开始测试"
+	else
+		echo "IoTDB未能正常启动，写入负值测试结果！"
+		cost_time=-3
+		throughput=-3
+		insert_database ${protocol_class}
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+		return
+	fi
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
@@ -447,6 +462,21 @@ test_operation() {
 	collect_data_before
 	#启动iotdb和monitor监控
 	start_iotdb
+	sleep 10	
+	####判断IoTDB是否正常启动
+	iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
+        #iotdb_state='Total line number = 1'
+	if [ "${iotdb_state}" = "Total line number = 1" ]; then
+		echo "IoTDB正常启动，准备开始测试"
+	else
+		echo "IoTDB未能正常启动，写入负值测试结果！"
+		cost_time=-3
+		throughput=-3
+		insert_database ${protocol_class}
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+		return
+	fi
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
