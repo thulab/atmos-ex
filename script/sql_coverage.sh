@@ -131,6 +131,13 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
+stop_iotdb() { # 停止iotdb
+	cd ${TEST_IOTDB_PATH}
+	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+	sleep 10
+	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+	cd ~/
+}
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
@@ -216,6 +223,8 @@ else
 	done
 	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	#停止IoTDB程序
+	stop_iotdb
+	sleep 30
 	check_iotdb_pid
 	if [ "${flag}" = "0" ]; then
 		#收集测试结果

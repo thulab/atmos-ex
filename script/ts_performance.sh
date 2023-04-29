@@ -134,6 +134,13 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
+stop_iotdb() { # 停止iotdb
+	cd ${TEST_IOTDB_PATH}
+	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+	sleep 10
+	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+	cd ~/
+}
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
 	if [ -d "${BM_PATH}/logs" ]; then
@@ -327,6 +334,8 @@ test_operation() {
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	
 	#停止IoTDB程序和监控程序
+	stop_iotdb
+	sleep 30
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}
@@ -365,6 +374,8 @@ test_operation() {
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	
 	#停止IoTDB程序和监控程序
+	stop_iotdb
+	sleep 30
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}/tools/

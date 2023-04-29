@@ -147,6 +147,13 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
+stop_iotdb() { # 停止iotdb
+	cd ${TEST_IOTDB_PATH}
+	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+	sleep 10
+	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+	cd ~/
+}
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
 	if [ -d "${BM_PATH}/logs" ]; then
@@ -288,7 +295,8 @@ test_operation() {
 			return
 		fi
 		#mkdir -p ${TEST_IOTDB_PATH}/data
-		mv ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
+		#mv ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
+		cp -rf ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
 		sleep 10
 		for (( i = 0; i < ${#query_list[*]}; i++ ))
 		do
@@ -347,12 +355,14 @@ test_operation() {
 			cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
 			mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}
 			#停止IoTDB程序和监控程序
+			stop_iotdb
+			sleep 30
 			check_benchmark_pid
 			check_iotdb_pid
 			sleep 5
 		done
 		echo "${ts_type}时间序列查询测试已结束."
-		mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
+		#mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
 		#备份本次测试
 		#backup_test_data ${ts_type}
 	done

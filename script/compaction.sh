@@ -144,6 +144,13 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
+stop_iotdb() { # 停止iotdb
+	cd ${TEST_IOTDB_PATH}
+	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+	sleep 10
+	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+	cd ~/
+}
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
 	if [ -d "${BM_PATH}/logs" ]; then
@@ -382,6 +389,8 @@ test_operation() {
 	sleep 30
 	monitor_test_status
 	#停止IoTDB程序和监控程序
+	stop_iotdb
+	sleep 30
 	#check_monitor_pid
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
@@ -413,6 +422,8 @@ test_operation() {
 	sleep 30
 	monitor_test_status
 	#停止IoTDB程序和监控程序
+	stop_iotdb
+	sleep 30
 	#check_monitor_pid
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
@@ -442,6 +453,8 @@ test_operation() {
 	sleep 30
 	monitor_test_status
 	#停止IoTDB程序和监控程序
+	stop_iotdb
+	sleep 30
 	#check_monitor_pid
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
