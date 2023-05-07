@@ -162,6 +162,8 @@ else
 	git_pull=$(timeout 100s git pull)
 	# 获取更新后git commit对比判定是否启动测试
 	commit_id1=$(git log --pretty=format:"%h" -1)
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	test_date_time=$(date +%Y%m%d%H%M%S)
 	#开始测试
