@@ -380,11 +380,12 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		dataFileSize=${dataFileSize}
 	fi
 	numOfSe0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l")
-	if [ ! -d "${TEST_DATANODE_PATH}/data/datanode/data/unsequence" ]; then
-		numOfUnse0Level=0
-	else
-		numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	fi
+	numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
+	#if [ ! -d "${TEST_DATANODE_PATH}/data/datanode/data/unsequence" ]; then
+	#	numOfUnse0Level=0
+	#else
+	#	numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
+	#fi
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
