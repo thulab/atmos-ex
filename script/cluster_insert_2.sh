@@ -302,8 +302,8 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 		for ((j = 1; j <= $bm_num; j++)); do
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
-			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
-			scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
+			#ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
+			#scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
 			#echo "启动BM： ${B_IP_list[${j}]} ..."
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
 		done
@@ -390,8 +390,8 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		dataFileSize1=${dataFileSize1}
 	fi
 	
-	dataFileSize2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data2/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
-	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data2/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
+	dataFileSize2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data1/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
+	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data1/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
 	if [ "$UNIT" = "M" ]; then
 		dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'/'1024'}'`
 	elif [ "$UNIT" = "K" ]; then
@@ -407,8 +407,8 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	numOfUnse0Level=0
 	numOfSe0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/sequence -name "*.tsfile" | wc -l")
 	numOfUnse0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	numOfSe0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data2/datanode/data/sequence -name "*.tsfile" | wc -l")
-	numOfUnse0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data2/datanode/data/unsequence -name "*.tsfile" | wc -l")
+	numOfSe0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data1/datanode/data/sequence -name "*.tsfile" | wc -l")
+	numOfUnse0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data1/datanode/data/unsequence -name "*.tsfile" | wc -l")
 	let numOfSe0Level=${numOfSe0Level1}+${numOfSe0Level2}
 	let numOfUnse0Level=${numOfUnse0Level1}+${numOfUnse0Level2}
 }

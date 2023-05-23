@@ -1,5 +1,5 @@
 setenforce 0
-sed -i '/^SEliNUX=/s/enforcing/Disabled/' /etc/selinux/config
+sed -i '/^SELINUX=/s/enforcing/Disabled/' /etc/selinux/config
 
 
 
