@@ -185,7 +185,7 @@ do
 		dcn_str=${dcn_str},${data_node_config_nodes[${j}]}
 	fi
 done
-
+echo "开始重置环境！"
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
@@ -201,6 +201,7 @@ do
 	#复制三项到客户机
 	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
 done
+echo "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
 	#修改IoTDB ConfigNode的配置
@@ -209,6 +210,7 @@ do
 	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^# schema_replication_factor.*$/schema_replication_factor=${config_schema_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
 	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^# data_replication_factor.*$/data_replication_factor=${config_data_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
 done
+echo "开始部署DatagNode！"
 for (( i = 1; i <= $data_num; i++ ))
 do
 	#修改IoTDB DataNode的配置
@@ -444,7 +446,6 @@ test_operation() {
 	mv_config_file ${ts_type} ${data_type}
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
 	setup_nCmD -c3 -d5 -t1
-		
 	echo "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 
