@@ -95,6 +95,8 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	#变更合并目标文件大小（因为目前准备的数据文件大小只有1.1G）
+	sed -i "s/^# target_compaction_file_size=.*$/target_compaction_file_size=1073741824/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	#添加启动监控功能
 	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
@@ -478,6 +480,7 @@ test_operation() {
 	sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^enable_cross_space_compaction=.*$/enable_cross_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	sed -i "s/^target_compaction_file_size=.*$/target_compaction_file_size=2147483648/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	#收集启动前基础监控数据
 	collect_data_before
 	#启动iotdb和monitor监控

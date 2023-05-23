@@ -1,12 +1,12 @@
 #!/bin/sh
 #登录用户名
 ACCOUNT=atmos
-test_type=cluster_insert
+test_type=cluster_insert_2
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/cluster_insert
+BUCKUP_PATH=/nasdata/repository/cluster_insert_2
 REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
 TEST_PATH=/data/atmos/zk_test/first-rest-test
@@ -19,15 +19,17 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223)
 ts_list=(common aligned template tempaligned)
 
-IP_list=(0 11.101.17.131 11.101.17.132 11.101.17.133)
-D_IP_list=(0 11.101.17.131 11.101.17.132 11.101.17.133)
-C_IP_list=(0 11.101.17.131 11.101.17.132 11.101.17.133)
-B_IP_list=(0 11.101.17.130)
+IP_list=(0 172.20.70.6 172.20.70.7 172.20.70.8 172.20.70.9 172.20.70.10 172.20.70.12 172.20.70.22 172.20.70.23 172.20.70.24)
+D_IP_list=(0 172.20.70.22 172.20.70.23 172.20.70.24 172.20.70.7 172.20.70.8 172.20.70.9)
+C_IP_list=(0 172.20.70.22 172.20.70.23 172.20.70.24 172.20.70.7 172.20.70.8 172.20.70.9)
+B_IP_list=(0 172.20.70.9)
 config_schema_replication_factor=(0 3 3 3 3 3 3)
 config_data_replication_factor=(0 3 3 3 3 3 3)
-config_node_config_nodes=(0 11.101.17.131:10710 11.101.17.131:10710 11.101.17.131:10710)
-data_node_config_nodes=(0 11.101.17.131:10710 11.101.17.132:10710 11.101.17.133:10710)
-Control=11.101.17.130
+#config_node_config_nodes=(0 172.20.70.6:10710 172.20.70.6:10710 172.20.70.6:10710)
+#data_node_config_nodes=(0 172.20.70.6:10710 172.20.70.6:10710 172.20.70.6:10710)
+config_node_config_nodes=(0 172.20.70.22:10710 172.20.70.22:10710 172.20.70.22:10710)
+data_node_config_nodes=(0 172.20.70.22:10710 172.20.70.23:10710 172.20.70.24:10710)
+Control=172.20.70.20
 
 ############mysql信息##########################
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
@@ -35,7 +37,7 @@ PORT="13306"
 USERNAME="iotdbatm"
 PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_cluster_insert" #数据库中表的名称
+TABLENAME="ex_cluster_insert_2" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############公用函数##########################
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
@@ -130,8 +132,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
 	sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
 	#修改集群名称
-	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
 	#添加启动监控功能
 	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
@@ -144,6 +146,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	#添加多路径
+	#sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 }
 set_protocol_class() { 
 	config_node=$1
@@ -269,7 +273,7 @@ do
 	for (( t_wait = 0; t_wait <= 100; t_wait++ ))
 	do
 	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
-	  if [ "$str1" = "Total line number = 6" ]; then
+	  if [ "$str1" = "Total line number = 8" ]; then
 		echo "All Nodes is ready"
 		flag=1
 		break
@@ -294,7 +298,8 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 		for ((j = 1; j <= $bm_num; j++)); do
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
-			#ssh ${ACCOUNT}@${B_IP_list[${j}]} "sed -i \"s/^HOST=.*$/HOST=$${D_IP_list[${j}]}/g\" ${BM_PATH}/conf/config.properties"
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
+			scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
 			#echo "启动BM： ${B_IP_list[${j}]} ..."
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
 		done
@@ -304,10 +309,10 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 fi
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	maxNumofOpenFiles=(0 0 0 0)
-	maxNumofThread=(0 0 0 0)
+	maxNumofOpenFiles=(0 0 0 0 0 0)
+	maxNumofThread=(0 0 0 0 0 0)
 	while true; do
-		for (( j = 1; j <= 3; j++ ))
+		for (( j = 1; j <= 5; j++ ))
 		do
 			temp_file_num_d=0
 			temp_thread_num_d=0
@@ -420,7 +425,7 @@ test_operation() {
 	
 	mv_config_file ${ts_type} ${data_type}
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
-	setup_nCmD -c3 -d3 -t1
+	setup_nCmD -c3 -d5 -t1
 		
 	echo "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
@@ -429,7 +434,9 @@ test_operation() {
 	sleep 60
 	monitor_test_status
 	#测试结果收集写入数据库
-	for ((j = 1; j <= 3; j++)); do
+	rm -rf ${BM_PATH}/data/csvOutput/*
+	scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/data/csvOutput/*result.csv ${BM_PATH}/data/csvOutput/
+	for ((j = 1; j <= 5; j++)); do
 		#收集启动后基础监控数据
 		collect_monitor_data ${j}
 		csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
@@ -440,10 +447,10 @@ test_operation() {
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${data_type}')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		
-		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/CN
-		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/CN"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/DN"
+		#sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/CN
+		#sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/DN
+		#ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/CN"
+		#ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/${j}/DN"
 	done
 	sudo cp -rf ${BM_PATH}/data/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}/
 }
