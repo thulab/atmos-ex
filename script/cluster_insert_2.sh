@@ -19,17 +19,15 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223)
 ts_list=(common aligned template tempaligned)
 
-IP_list=(0 172.20.70.6 172.20.70.7 172.20.70.8 172.20.70.9 172.20.70.10 172.20.70.12 172.20.70.22 172.20.70.23 172.20.70.24)
-D_IP_list=(0 172.20.70.22 172.20.70.23 172.20.70.24 172.20.70.7 172.20.70.8 172.20.70.9)
-C_IP_list=(0 172.20.70.22 172.20.70.23 172.20.70.24 172.20.70.7 172.20.70.8 172.20.70.9)
-B_IP_list=(0 172.20.70.9)
+IP_list=(0 11.101.17.211 11.101.17.212 11.101.17.213 11.101.17.214 11.101.17.215)
+D_IP_list=(0 11.101.17.211 11.101.17.212 11.101.17.213 11.101.17.214 11.101.17.215)
+C_IP_list=(0 11.101.17.211 11.101.17.212 11.101.17.213 11.101.17.214 11.101.17.215)
+B_IP_list=(0 11.101.17.210)
 config_schema_replication_factor=(0 3 3 3 3 3 3)
 config_data_replication_factor=(0 3 3 3 3 3 3)
-#config_node_config_nodes=(0 172.20.70.6:10710 172.20.70.6:10710 172.20.70.6:10710)
-#data_node_config_nodes=(0 172.20.70.6:10710 172.20.70.6:10710 172.20.70.6:10710)
-config_node_config_nodes=(0 172.20.70.22:10710 172.20.70.22:10710 172.20.70.22:10710)
-data_node_config_nodes=(0 172.20.70.22:10710 172.20.70.23:10710 172.20.70.24:10710)
-Control=172.20.70.20
+config_node_config_nodes=(0 11.101.17.211:10710 11.101.17.211:10710 11.101.17.211:10710)
+data_node_config_nodes=(0 11.101.17.211:10710 11.101.17.212:10710 11.101.17.213:10710)
+Control=11.101.17.210
 
 ############mysql信息##########################
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
@@ -147,7 +145,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	#添加多路径
-	#sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	sed -i "s%^# dn_wal_dirs=data/datanode/wal.*$%dn_wal_dirs=/ssd/datanode/wal%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 }
 set_protocol_class() { 
 	config_node=$1
@@ -195,6 +194,9 @@ do
 	echo "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
 	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf ${TEST_PATH}"
+	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf /data/datanode/*"
+	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf /data1/datanode/*"
+	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf /ssd/datanode/*"
 	ssh ${ACCOUNT}@${IP_list[${i}]} "mkdir -p ${TEST_PATH}"
 	#复制三项到客户机
 	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
@@ -373,24 +375,40 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 }
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	TEST_IP=$1
-	dataFileSize=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 ${TEST_DATANODE_PATH}/data/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
-	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 ${TEST_DATANODE_PATH}/data/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
+	dataFileSize=0
+	dataFileSize1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
+	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
 	if [ "$UNIT" = "M" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
+		dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'/'1024'}'`
 	elif [ "$UNIT" = "K" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
+		dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'/'1048576'}'`
     elif [ "$UNIT" = "T" ]; then
-        dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'*'1024'}'`
+        dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'*'1024'}'`
 	else
-		dataFileSize=${dataFileSize}
+		dataFileSize1=${dataFileSize1}
 	fi
-	numOfSe0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l")
-	numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	#if [ ! -d "${TEST_DATANODE_PATH}/data/datanode/data/unsequence" ]; then
-	#	numOfUnse0Level=0
-	#else
-	#	numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	#fi
+	
+	dataFileSize2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data2/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
+	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data2/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
+	if [ "$UNIT" = "M" ]; then
+		dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'/'1024'}'`
+	elif [ "$UNIT" = "K" ]; then
+		dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'/'1048576'}'`
+    elif [ "$UNIT" = "T" ]; then
+        dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'*'1024'}'`
+	else
+		dataFileSize2=${dataFileSize2}
+	fi
+	let dataFileSize=${dataFileSize1}+${dataFileSize2}
+	
+	numOfSe0Level=0
+	numOfUnse0Level=0
+	numOfSe0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/sequence -name "*.tsfile" | wc -l")
+	numOfUnse0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/unsequence -name "*.tsfile" | wc -l")
+	numOfSe0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data2/datanode/data/sequence -name "*.tsfile" | wc -l")
+	numOfUnse0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data2/datanode/data/unsequence -name "*.tsfile" | wc -l")
+	let numOfSe0Level=${numOfSe0Level1}+${numOfSe0Level2}
+	let numOfUnse0Level=${numOfUnse0Level1}+${numOfUnse0Level2}
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
