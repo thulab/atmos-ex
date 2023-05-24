@@ -401,7 +401,8 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	else
 		dataFileSize2=${dataFileSize2}
 	fi
-	let dataFileSize=${dataFileSize1}+${dataFileSize2}
+	#let dataFileSize=${dataFileSize1}+${dataFileSize2}
+	dataFileSize=$(echo "$dataFileSize1 $dataFileSize2" | awk '{ printf "%.2f", $1+$2 }')
 	
 	numOfSe0Level=0
 	numOfUnse0Level=0
