@@ -130,6 +130,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_IOTDB_PATH}/conf/iotdb-datanode.properties
+	#添加series_slot_num的替换，防止历史数据无法启动
+	sed -i "s/^# series_slot_num=.*$/series_slot_num=10000/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 }
 set_protocol_class() { 
 	config_node=$1
