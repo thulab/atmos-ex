@@ -430,7 +430,7 @@ test_operation() {
 		cost_time=-3
 		throughput=-3
 		insert_database export-csv
-		update_sql="update commit_history set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 		return
 	fi
