@@ -299,6 +299,8 @@ test_operation() {
 		mv ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
 		#cp -rf ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
 		sleep 10
+		sudo reboot
+		sleep 60		
 		for (( i = 0; i < ${#query_list[*]}; i++ ))
 		do
 			query_type=${query_list[${i}]}
