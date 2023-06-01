@@ -307,8 +307,8 @@ test_operation() {
 		####判断IoTDB是否正常启动
 		for (( t_wait = 0; t_wait <= 100; t_wait++ ))
 		do
-		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
-		  if [ "${iotdb_state}" = "Total line number = 1" ]; then
+		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+		  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			break
 			
 		  else
@@ -316,7 +316,7 @@ test_operation() {
 			continue
 		  fi
 		done
-		if [ "${iotdb_state}" = "Total line number = 1" ]; then
+		if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			echo "IoTDB正常启动，准备开始测试"
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
@@ -370,8 +370,8 @@ test_operation() {
 			####判断IoTDB是否正常启动
 			for (( t_wait = 0; t_wait <= 100; t_wait++ ))
 			do
-			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
-			  if [ "${iotdb_state}" = "Total line number = 1" ]; then
+			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				break
 				
 			  else
@@ -379,7 +379,7 @@ test_operation() {
 				continue
 			  fi
 			done
-			if [ "${iotdb_state}" = "Total line number = 1" ]; then
+			if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				echo "IoTDB正常启动，准备开始测试"
 			else
 				echo "IoTDB未能正常启动，写入负值测试结果！"
