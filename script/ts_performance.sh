@@ -403,57 +403,6 @@ test_operation() {
 	collect_data_after ${TEST_IOTDB_PATH}/tools/
 	insert_database export-tsfile
 	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
-	#############################导出CSV#############################
-	#收集启动前基础监控数据
-	collect_data_before ${TEST_IOTDB_PATH}
-	sed -i "s/^# max_deduplicated_path_num=1000.*$/max_deduplicated_path_num=600000/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# query_timeout_threshold=60000.*$/query_timeout_threshold=600000/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
-	#启动iotdb
-	start_iotdb
-	sleep 10	
-	####判断IoTDB是否正常启动
-	for (( t_wait = 0; t_wait <= 100; t_wait++ ))
-	do
-	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show version" | grep 'Total line number = 1')
-	  if [ "${iotdb_state}" = "Total line number = 1" ]; then
-		break
-		
-	  else
-		sleep 30
-		continue
-	  fi
-	done
-	if [ "${iotdb_state}" = "Total line number = 1" ]; then
-		echo "IoTDB正常启动，准备开始测试"
-	else
-		echo "IoTDB未能正常启动，写入负值测试结果！"
-		cost_time=-3
-		throughput=-3
-		insert_database export-csv
-		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-		return
-	fi
-	
-	#start_monitor
-	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
-	#等待30秒
-	sleep 30
-	start_time=`date`
-	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
-	ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
-	monitor_test_status
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	
-	#停止IoTDB程序和监控程序
-	stop_iotdb
-	sleep 30
-	check_iotdb_pid
-	#收集启动后基础监控数据，并写入数据库
-	collect_data_after ${TEST_IOTDB_PATH}/tools/
-	insert_database export-csv
-	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
 	#备份本次测试
 }
 
