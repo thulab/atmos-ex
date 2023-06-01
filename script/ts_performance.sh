@@ -203,13 +203,15 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 7200 ]; then
 				echo "测试失败"  #倒序输入形成负数结果
-				end_time=-1		
+				end_time=-1
+				cost_time=-100
 				break
 			fi
 			continue
 		else
 			echo "${data_type}已完成"
 			end_time=`date`
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			break
 		fi
 	done
@@ -269,7 +271,7 @@ insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	${numOfSe0Level_after},${numOfUnse0Level_before},${numOfUnse0Level_after},\
 	${ts_dataSize},${ts_numOfPoints},${ts_rate},'${start_time}',\
 	'${end_time}','${dataFileSize_before}','${dataFileSize_after}',${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${remark_value}')"
-	echo ${ts_type}时间序列 ${data_type} 合并耗时为：${cost_time} 秒
+	echo ${ts_type}时间序列 ${data_type} 操作耗时为：${cost_time} 秒
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo ${insert_sql}
 }
@@ -341,7 +343,7 @@ test_operation() {
 	start_time=`date`
 	ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -f ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root --sgLevel 2 --verify true --onSuccess none >${TEST_IOTDB_PATH}/tools/log.txt &)
 	monitor_test_status
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	
 	#停止IoTDB程序和监控程序
@@ -392,7 +394,7 @@ test_operation() {
 	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
 	ts_state=$(${TEST_IOTDB_PATH}/tools/export-tsfile.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_tsfile -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
 	monitor_test_status
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	
 	#停止IoTDB程序和监控程序
@@ -443,7 +445,7 @@ test_operation() {
 	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
 	ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
 	monitor_test_status
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	
 	#停止IoTDB程序和监控程序
