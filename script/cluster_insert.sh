@@ -337,7 +337,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				temp_file_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
 			else
 				echo "无法计算！"
-			fi		
+			fi	
 			#监控打开文件数量			
 			let temp_file_num=${temp_file_num_d}+${temp_file_num_c}
 			if [ ${maxNumofOpenFiles[${j}]} -lt ${temp_file_num} ]; then
@@ -360,8 +360,17 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				flag=$[${flag}+1]
 			fi
 		done
+		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
+		if [ $t_time -ge 7200 ]; then
+			echo "测试失败"  #倒序输入形成负数结果
+			end_time=-1
+			cost_time=-1
+			break
+		fi
 		if [ "$flag" = "1" ]; then
 			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			break
 		fi
 	done
@@ -435,7 +444,7 @@ test_operation() {
 		csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
 		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
 		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		node_id=${j}
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles[${j}]},${maxNumofThread[${j}]},'${data_type}')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
@@ -479,7 +488,7 @@ else
 	test_operation aligned unseq_w 223
 	echo "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
-	echo "开始测试对齐时间序列乱续写入！"
+	echo "开始测试对齐时间序列乱续读写混合！"
 	test_operation aligned unseq_rw 223
 	###############################模板时间序列###############################
 	#echo "开始测试模板时间序列顺序写入！"
