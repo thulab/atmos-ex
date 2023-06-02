@@ -296,8 +296,8 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 		for ((j = 1; j <= $bm_num; j++)); do
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
-			#ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
-			#scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
+			scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
 			#echo "启动BM： ${B_IP_list[${j}]} ..."
 			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
 		done
@@ -340,7 +340,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				temp_file_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
 			else
 				echo "无法计算！"
-			fi	
+			fi		
 			#监控打开文件数量			
 			let temp_file_num=${temp_file_num_d}+${temp_file_num_c}
 			if [ ${maxNumofOpenFiles[${j}]} -lt ${temp_file_num} ]; then
