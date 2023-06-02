@@ -381,40 +381,21 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	TEST_IP=$1
 	dataFileSize=0
-	dataFileSize1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
-	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
+	dataFileSize=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 ${TEST_DATANODE_PATH}/data/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
+	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 ${TEST_DATANODE_PATH}/data/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
 	if [ "$UNIT" = "M" ]; then
-		dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'/'1024'}'`
+		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
 	elif [ "$UNIT" = "K" ]; then
-		dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'/'1048576'}'`
+		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
     elif [ "$UNIT" = "T" ]; then
-        dataFileSize1=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize1'*'1024'}'`
+        dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'*'1024'}'`
 	else
-		dataFileSize1=${dataFileSize1}
-	fi
-	
-	dataFileSize2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data1/datanode/data | awk {'print \$1'} | awk '{sub(/.$/,\"\")}1'")
-	UNIT=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "du -h -d0 /data1/datanode/data | awk {'print \$1'} | awk -F '' '\$0=\$NF'")
-	if [ "$UNIT" = "M" ]; then
-		dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'/'1048576'}'`
-    elif [ "$UNIT" = "T" ]; then
-        dataFileSize2=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize2'*'1024'}'`
-	else
-		dataFileSize2=${dataFileSize2}
-	fi
-	#let dataFileSize=${dataFileSize1}+${dataFileSize2}
-	dataFileSize=$(echo "$dataFileSize1 $dataFileSize2" | awk '{ printf "%.2f", $1+$2 }')
-	
+		dataFileSize=${dataFileSize}
+	fi	
 	numOfSe0Level=0
 	numOfUnse0Level=0
-	numOfSe0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/sequence -name "*.tsfile" | wc -l")
-	numOfUnse0Level1=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	numOfSe0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data1/datanode/data/sequence -name "*.tsfile" | wc -l")
-	numOfUnse0Level2=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find /data1/datanode/data/unsequence -name "*.tsfile" | wc -l")
-	let numOfSe0Level=${numOfSe0Level1}+${numOfSe0Level2}
-	let numOfUnse0Level=${numOfUnse0Level1}+${numOfUnse0Level2}
+	numOfSe0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l")
+	numOfUnse0Level=$(ssh ${ACCOUNT}@${D_IP_list[${TEST_IP}]} "find ${TEST_DATANODE_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l")
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
