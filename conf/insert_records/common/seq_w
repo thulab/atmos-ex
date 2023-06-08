@@ -31,7 +31,7 @@ TOPIC_NAME=test-topic
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=10000
+LOOP=86400
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
 # generateDataMode      生成数据模式，生成Benchmark本身识别的数据
@@ -150,7 +150,7 @@ TDENGINE_REPLICA=3
 
 ################### 操作时间配置 #########################
 # 时间戳间隔，即生成的数据两个时间戳之间的固定长度(如果定长生成)，非正常速率
-POINT_STEP=5000
+POINT_STEP=1000
 # 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
 # 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
 OP_MIN_INTERVAL=0
@@ -235,11 +235,11 @@ READ_OPERATION_TIMEOUT_MS=300000
 # 每个Batch写入数据总点数=DEVICE_NUM_PER_WRITE * SENSOR_NUMBER * BATCH_SIZE_PER_WRITE
 BATCH_SIZE_PER_WRITE=1
 # 每批写入设备数，必须能整除批写入数据行数
-DEVICE_NUM_PER_WRITE=100
+DEVICE_NUM_PER_WRITE=10
 # 是否在写入数据前，创建SCHEMA
 CREATE_SCHEMA=true
 # 开始写入数据的时间戳
-START_TIME=2018-9-20T00:00:00+08:00
+START_TIME=2022-01-01T00:00:00+08:00
 
 ######### 复制的生成模式，是否添加异常，异常率和异常倍率 ############
 # verificationWriteMode模式下使用复制文件模式，此时必须将
@@ -266,7 +266,7 @@ OUT_OF_ORDER_MODE=POISSON
 # 乱序写入的数据的比例
 OUT_OF_ORDER_RATIO=0.5
 # 是否为等长时间戳
-IS_REGULAR_FREQUENCY=false
+IS_REGULAR_FREQUENCY=true
 # 泊松分布的期望和方差
 LAMBDA=2200.0
 # 泊松分布模型的随机数的最大值
@@ -322,7 +322,7 @@ TEST_DATA_WRITE_TIME_OUT=300000
 # 数据库写入并发池最多限制
 TEST_DATA_MAX_CONNECTION=1
 # 对本次实验的备注，作为表名的一部分存入数据库(如MySQL)中，注意不要有.等特殊字符
-REMARK=shunxu
+REMARK=
 
 ############ 输出结果：MySQL数据库补充参数 #################
 # 真实写入到MySQL数据库的比例
