@@ -378,10 +378,10 @@ else
 	t_index=$(($RANDOM % ${#ts_list[*]}))		
 	for (( j = 0; j < ${#protocol_list[*]}; j++ ))
 	do
-		for (( i = 0; i < ${#ts_list[*]}; i++ ))
+		for (( im = 0; im < ${#ts_list[*]}; im++ ))
 		do
-			echo "开始测试${protocol_list[$j]}协议下的${ts_list[$i]}时间序列！"
-			test_operation ${protocol_list[$j]} ${ts_list[$i]} 
+			echo "开始测试${protocol_list[$j]}协议下的${ts_list[$im]}时间序列！"
+			test_operation ${protocol_list[$j]} ${ts_list[$im]} 
 		done
 	done
 	###############################测试完成###############################
