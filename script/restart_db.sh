@@ -336,6 +336,7 @@ test_operation() {
 	collect_data_after ${TEST_IOTDB_PATH}
 	insert_database restart_db
 	#备份本次测试
+	backup_test_data common	
 }
 
 ##准备开始测试
