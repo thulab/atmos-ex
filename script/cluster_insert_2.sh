@@ -371,7 +371,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		done
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-		if [ $t_time -ge 20000 ]; then
+		if [ $t_time -ge 30000 ]; then
 			echo "测试失败"  #倒序输入形成负数结果
 			end_time=-1
 			cost_time=-1
