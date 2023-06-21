@@ -97,6 +97,9 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	#变更合并目标文件大小（因为目前准备的数据文件大小只有1.1G）
 	sed -i "s/^# target_compaction_file_size=.*$/target_compaction_file_size=1073741824/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	#修改集群名称
+	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
 	#添加启动监控功能
 	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties

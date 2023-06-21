@@ -118,6 +118,9 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+	#修改集群名称
+	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
 	#添加启动监控功能
 	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-confignode.properties
