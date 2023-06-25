@@ -423,6 +423,7 @@ test_operation() {
 	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+	echo "${insert_sql}"
 	#备份本次测试
 	#backup_test_data ${ts_type}
 }
