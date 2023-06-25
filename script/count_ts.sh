@@ -351,6 +351,7 @@ test_operation() {
 	for (( j = 0; j < ${#ts_list[*]}; j++ ))
 	do
 		mv_config_file ${ts_list[${j}]}
+		echo "开始创建${ts_list[${j}]}时间序列！"
 		start_benchmark
 		#等待1分钟
 		sleep 60
@@ -363,43 +364,53 @@ test_operation() {
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
 	#统计总体时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试统计全部时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "count timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^Schema | sed -n '1,1p' | awk -F, '{print $2}')
 	#统计common时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试统计普通时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "count timeseries root.test_common_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_common <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计aligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试统计对齐时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "count timeseries root.test_aligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计template时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试统计模板时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "count timeseries root.test_temp_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_temp <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计tempaligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试统计对齐模板时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "count timeseries root.test_tempaligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	
 	#统计查询总体时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询全部时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^Schema | sed -n '1,1p' | awk -F, '{print $2}')
 	#统计查询common时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询普通时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "show timeseries root.test_common_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_common <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询aligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询对齐时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "show timeseries root.test_aligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询template时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询模板时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "show timeseries root.test_temp_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_temp <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询tempaligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询对齐模板时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 600 -e "show timeseries root.test_tempaligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
 	read countCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	
@@ -435,7 +446,7 @@ else
 	#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	###############################SESSION_BY_TABLET###############################
-	echo "开始测试SESSION_BY_TABLET！"
+	echo "开始测试时间序列的创建和查询耗时！"
 	test_operation 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
