@@ -308,8 +308,7 @@ test_operation() {
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_temp,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) \ 
-		values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_temp},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
@@ -358,10 +357,10 @@ test_operation() {
 		csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
 		read schemaCost[${j}] <<<$(cat ${csvOutputfile} | grep ^Schema | sed -n '1,1p' | awk -F, '{print $2}')
 	done
-	createCost_common=schemaCost[0]
-	createCost_aligned=schemaCost[1]
-	createCost_template=schemaCost[2]
-	createCost_tempaligned=schemaCost[3]
+	createCost_common=${schemaCost[0]}
+	createCost_aligned=${schemaCost[1]}
+	createCost_template=${schemaCost[2]}
+	createCost_tempaligned=${schemaCost[3]}
 	#刷一下准备开始采集
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
 	#统计总体时间序列耗时
@@ -423,8 +422,7 @@ test_operation() {
 	check_iotdb_pid
 	end_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_temp,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) \ 
-	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_temp},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo "${insert_sql}"
 	#备份本次测试
