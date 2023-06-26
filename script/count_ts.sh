@@ -367,7 +367,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/out.log
 	echo "开始测试统计全部时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
-	read countCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk -F, '{print $2}')
+	read countCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计common时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
 	echo "开始测试统计普通时间序列耗时！"
@@ -393,7 +393,7 @@ test_operation() {
 	#rm -rf ${TEST_IOTDB_PATH}/out.log
 	#echo "开始测试查询全部时间序列耗时！"
 	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk -F, '{print $2}')
+	#read showCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询common时间序列耗时
 	#rm -rf ${TEST_IOTDB_PATH}/out.log
 	#echo "开始测试查询普通时间序列耗时！"
