@@ -36,17 +36,17 @@ cost_time=0
 createCost_all=0
 createCost_common=0
 createCost_aligned=0
-createCost_temp=0
+createCost_template=0
 createCost_tempaligned=0
 countCost_all=0
 countCost_common=0
 countCost_aligned=0
-countCost_temp=0
+countCost_template=0
 countCost_tempaligned=0
 showCost_all=0
 showCost_common=0
 showCost_aligned=0
-showCost_temp=0
+showCost_template=0
 showCost_tempaligned=0
 numOfSe0Level=0
 numOfUnse0Level=0
@@ -308,7 +308,7 @@ test_operation() {
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_template,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_template,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_template},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_template},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
@@ -382,7 +382,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/out.log
 	echo "开始测试统计模板时间序列耗时！"
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.test_temp_0.**" >> ${TEST_IOTDB_PATH}/out.log)
-	read countCost_temp <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	read countCost_template <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计tempaligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/out.log
 	echo "开始测试统计对齐模板时间序列耗时！"
@@ -390,30 +390,30 @@ test_operation() {
 	read countCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	
 	#统计查询总体时间序列耗时
-	#rm -rf ${TEST_IOTDB_PATH}/out.log
-	#echo "开始测试查询全部时间序列耗时！"
-	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询全部时间序列耗时！"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/out.log)
+	read showCost_all <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询common时间序列耗时
-	#rm -rf ${TEST_IOTDB_PATH}/out.log
-	#echo "开始测试查询普通时间序列耗时！"
-	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_common_0.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_common <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询普通时间序列耗时！"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_common_0.**" >> ${TEST_IOTDB_PATH}/out.log)
+	read showCost_common <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询aligned时间序列耗时
-	#rm -rf ${TEST_IOTDB_PATH}/out.log
-	#echo "开始测试查询对齐时间序列耗时！"
-	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_aligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询对齐时间序列耗时！"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_aligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
+	read showCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询template时间序列耗时
-	#rm -rf ${TEST_IOTDB_PATH}/out.log
-	#echo "开始测试查询模板时间序列耗时！"
-	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_temp_0.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_temp <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询模板时间序列耗时！"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_temp_0.**" >> ${TEST_IOTDB_PATH}/out.log)
+	read showCost_template <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计查询tempaligned时间序列耗时
-	#rm -rf ${TEST_IOTDB_PATH}/out.log
-	#echo "开始测试查询对齐模板时间序列耗时！"
-	#pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_tempaligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
-	#read showCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
+	rm -rf ${TEST_IOTDB_PATH}/out.log
+	echo "开始测试查询对齐模板时间序列耗时！"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "show timeseries root.test_tempaligned_0.**" >> ${TEST_IOTDB_PATH}/out.log)
+	read showCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/out.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	
 	#停止IoTDB程序和监控程序
 	stop_iotdb
@@ -422,7 +422,7 @@ test_operation() {
 	check_iotdb_pid
 	end_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_temp,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_temp,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_temp},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_temp},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_template,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_template,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_template},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_template},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo "${insert_sql}"
 	#备份本次测试
