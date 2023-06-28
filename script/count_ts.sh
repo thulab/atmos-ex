@@ -429,7 +429,7 @@ test_operation() {
 	#read showCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/showCost_tempaligned.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_tempaligned=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))
-	
+		
 	#停止IoTDB程序和监控程序
 	stop_iotdb
 	sleep 30
@@ -441,6 +441,12 @@ test_operation() {
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo "${insert_sql}"
 	#备份本次测试
+	tail -n 1 showCost_all.log >> showResult.log
+	tail -n 1 showCost_common.log >> showResult.log
+	tail -n 1 showCost_aligned.log >> showResult.log
+	tail -n 1 showCost_template.log >> showResult.log
+	tail -n 1 showCost_tempaligned.log >> showResult.log
+	rm -rf ${TEST_IOTDB_PATH}/showCost_*.log
 	backup_test_data ${protocol_class}
 }
 ##准备开始测试
