@@ -201,6 +201,10 @@ do
 	#复制三项到客户机
 	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
 done
+for ((j = 1; j <= $bm_num; j++)); do
+	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
+	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
+done
 echo "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
