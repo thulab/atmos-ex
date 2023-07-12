@@ -275,11 +275,30 @@ do
 	  exit -1
 	fi
 done
+if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
+	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
+	#启动benchmark
+	if [ "$bm_num" != '' ];
+	then
+		for ((j = 1; j <= $bm_num; j++)); do
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
+			scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
+			#echo "启动BM： ${B_IP_list[${j}]} ..."
+			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
+		done
+		wait
+		echo "All BMs have been started"
+	fi	
+	sleep 60
+fi
 #获取Leader节点IP
 Leader_IP=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"show data regions of database root.test.g_0\" | grep 'Leader' | awk -F\| '{print $9}'")
 for (( i = 1; i < ${#D_IP_list[*]}; i++ ))
 do
 	if [ "$D_IP_list[${i}]" != "$Leader_IP" ]; then
+		mv_config_file ${ts_type} ${data_type}
 		sed -i "s/^HOST=.*$/HOST=$D_IP_list[${i}]/g" ${BM_PATH}/conf/config.properties
 		break
 	fi
@@ -287,7 +306,7 @@ done
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	#启动benchmark
-	sleep 60
+	sleep 10
 	if [ "$bm_num" != '' ];
 	then
 		for ((j = 1; j <= $bm_num; j++)); do
@@ -429,6 +448,8 @@ test_operation() {
 	fi
 
 	mv_config_file ${ts_type} ${data_type}
+	sed -i "s/^HOST=.*$/HOST=$D_IP_list[1]/g" ${BM_PATH}/conf/config.properties
+	sed -i "s/^LOOP=.*$/LOOP=1/g" ${BM_PATH}/conf/config.properties
 
 	setup_nCmD -c3 -d3 -t1
 		

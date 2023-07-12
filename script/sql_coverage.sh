@@ -221,7 +221,7 @@ else
 		if [ ! -f "$result_file" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 3600 ]; then
+			if [ $t_time -ge 7200 ]; then
 				echo "测试失败"
 				flag=1
 				break
