@@ -183,7 +183,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			temp_thread_num_d=0
 		else
 			temp_file_num_d=$(jps | grep DataNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_d=$(pstree -p $(ps -e | grep DataNode | awk '{print $1}') | wc -l)
+			temp_thread_num_d=$(pstree -p $(ps aux | grep -v grep | grep DataNode | awk '{print $2}') | wc -l)
 		fi
 		pid=$(jps | grep ConfigNode | awk '{print $1}')
 		if [ "${pid}" = "" ]; then
@@ -191,7 +191,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			temp_thread_num_c=0
 		else
 			temp_file_num_c=$(jps | grep ConfigNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_c=$(pstree -p $(ps -e | grep ConfigNode | awk '{print $1}') | wc -l)
+			temp_thread_num_c=$(pstree -p $(ps aux | grep -v grep | grep ConfigNode | awk '{print $2}') | wc -l)
 		fi
 		pid=$(jps | grep IoTDB | awk '{print $1}')
 		if [ "${pid}" = "" ]; then
@@ -199,7 +199,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			temp_thread_num_i=0
 		else
 			temp_file_num_i=$(jps | grep IoTDB | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_i=$(pstree -p $(ps -e | grep IoTDB | awk '{print $1}') | wc -l)
+			temp_thread_num_i=$(pstree -p $(ps aux | grep -v grep | grep IoTDB| awk '{print $2}') | wc -l)
 		fi
 		let temp_file_num=${temp_file_num_d}+${temp_file_num_c}+${temp_file_num_i}
 		if [ ${maxNumofOpenFiles} -lt ${temp_file_num} ]; then

@@ -336,17 +336,17 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			elif [ "$dn_pid" = "" ] && [ "${cn_pid}" != "" ]; then
 				temp_file_num_d=0
 				temp_thread_num_d=0
-				temp_thread_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "pstree -p \$(ps -e | grep ConfigNode | awk '{print \$1}') | wc -l" 2>/dev/null)
+				temp_thread_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "pstree -p \$(ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}') | wc -l" 2>/dev/null)
 				temp_file_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
 			elif [ "$dn_pid" != "" ] && [ "${cn_pid}" = "" ]; then
-				temp_thread_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "pstree -p \$(ps -e | grep DataNode | awk '{print \$1}') | wc -l" 2>/dev/null)
+				temp_thread_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "pstree -p \$(ps aux | grep -v grep | grep DataNode | awk '{print \$2}') | wc -l" 2>/dev/null)
 				temp_file_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "ps aux | grep -v grep | grep DataNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
 				temp_file_num_c=0
 				temp_thread_num_c=0
 			elif [ "$dn_pid" != "" ] && [ "${cn_pid}" != "" ]; then
-				temp_thread_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "pstree -p \$(ps -e | grep DataNode | awk '{print \$1}') | wc -l" 2>/dev/null)
+				temp_thread_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "pstree -p \$(ps aux | grep -v grep | grep DataNode | awk '{print \$2}') | wc -l" 2>/dev/null)
 				temp_file_num_d=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "ps aux | grep -v grep | grep DataNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
-				temp_thread_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "pstree -p \$(ps -e | grep ConfigNode | awk '{print \$1}') | wc -l" 2>/dev/null)
+				temp_thread_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "pstree -p \$(ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}') | wc -l" 2>/dev/null)
 				temp_file_num_c=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "ps aux | grep -v grep | grep ConfigNode | awk '{print \$2}' | xargs /usr/sbin/lsof -p | wc -l" 2>/dev/null)
 			else
 				echo "无法计算！"
