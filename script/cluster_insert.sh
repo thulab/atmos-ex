@@ -187,13 +187,17 @@ for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
 	ssh ${ACCOUNT}@${IP_list[${i}]} "sudo reboot"
-	sleep 60
+done
+sleep 180
+for (( i = 1; i < ${#IP_list[*]}; i++ ))
+do
 	echo "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
 	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf ${TEST_PATH}"
 	ssh ${ACCOUNT}@${IP_list[${i}]} "mkdir -p ${TEST_PATH}"
 	#复制三项到客户机
 	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
+	sleep 10
 done
 for ((j = 1; j <= $bm_num; j++)); do
 	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
@@ -294,7 +298,7 @@ done
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	#启动benchmark
-	sleep 60
+	sleep 10
 	if [ "$bm_num" != '' ];
 	then
 		for ((j = 1; j <= $bm_num; j++)); do
@@ -440,7 +444,7 @@ test_operation() {
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 
 	#等待1分钟
-	sleep 60
+	sleep 30
 	monitor_test_status
 	#测试结果收集写入数据库
 	rm -rf ${BM_PATH}/TestResult/csvOutput/*
