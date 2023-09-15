@@ -278,7 +278,7 @@ for (( j = 1; j <= $data_num; j++ ))
 do
 	for (( t_wait = 0; t_wait <= 100; t_wait++ ))
 	do
-	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
+	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 6" ]; then
 		echo "All Nodes is ready"
 		flag=1

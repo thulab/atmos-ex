@@ -191,6 +191,9 @@ do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
 	ssh ${ACCOUNT}@${IP_list[${i}]} "sudo reboot"
 	sleep 60
+done
+for (( i = 1; i < ${#IP_list[*]}; i++ ))
+do
 	echo "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
 	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf ${TEST_PATH}"
@@ -200,6 +203,7 @@ do
 	ssh ${ACCOUNT}@${IP_list[${i}]} "mkdir -p ${TEST_PATH}"
 	#复制三项到客户机
 	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
+	sleep 10
 done
 for ((j = 1; j <= $bm_num; j++)); do
 	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
@@ -280,7 +284,7 @@ for (( j = 1; j <= $data_num; j++ ))
 do
 	for (( t_wait = 0; t_wait <= 100; t_wait++ ))
 	do
-	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
+	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 8" ]; then
 		echo "All Nodes is ready"
 		flag=1
