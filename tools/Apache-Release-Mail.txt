@@ -1,0 +1,61 @@
+Hello  all :
+ 
++1
+
+The binary distribution:
+version number in CLI [ok]
+start in CentOS7, jdk8 [ok]
+performance verification passed:  [ok]
+////////////////////////////### Server Configurations ###//////////////////
+CPU=16
+Memory=32G
+Disk=1.8T HDD
+Ethernet=1000Mbit
+///////////////////////////////////////////////////////////////////////////
+////////////////////////////### IoTDB Configurations ###///////////////////
+MAX_HEAP_SIZE="20G" in datanode-env.sh
+MAX_HEAP_SIZE="6G" in confignode-env.sh
+schema_replication_factor=3
+data_replication_factor=3
+all_compaction=false
+///////////////////////////////////////////////////////////////////////////
+////////////////////////////### Client Mode ###////////////////////////////
+Insert Non-Aligned/Aligned timeseries with SESSION_BY_TABLET
+CLIENT_NUMBER=10
+GROUP_NUMBER=10
+DEVICE_NUMBER=(50 in 3C5D) (500 in 3C5D)
+SENSOR_NUMBER=500
+BATCH_SIZE_PER_WRITE=100
+LOOP=10000
+///////////////////////////////////////////////////////////////////////////
+
+////////////////////////////### Test Result ###////////////////////////////
+3C3D: Timeseries Num : 25,000；Loaded 25,000,000,000points；
+Non-Aligned Timseries:
+Throughput(points/s):16,276,600  Cost Time(s):1,573
+Latency(ms): Avg 25.47, Min 3.77, MiddleAvg 4.78, Max 18,300.4
+Aligned Timseries:
+Throughput(points/s):23,380,500  Cost Time(s):1,103
+Latency(ms): Avg 18.09, Min 3.55, MiddleAvg 4.47, Max 21,272
+
+3C5D:Timeseries Num : 250,000；Loaded 250,000,000,000points；
+Non-Aligned Timseries:
+Throughput(points/s):40,000,800  Cost Time(s):5,396
+Latency(ms): Avg 9.69, Min 3.47, MiddleAvg 5.08, Max 5,381.92
+Aligned Timseries:
+Throughput(points/s):48,026,300  Cost Time(s):5,256
+Latency(ms): Avg 9.17, Min 3.09, MiddleAvg 4.47, Max 5,388.1
+///////////////////////////////////////////////////////////////////////////
+
+
+Avg: Average time cost of all ingestion operations. [ms]
+MiddleAvg: Average time cost of ingestion operations without 5% head and tail. [ms]
+Min: Min single operation time cost of all ingestion operations. [ms]
+Max: Max single operation  time cost of all ingestion operations. [ms]
+There results are tested with iot-benchmark(https://github.com/thulab/iot-benchmark)
+ 
+That’s all.
+Please feel free to contact me if you have any questions
+Thank you.
+Best Reagrds!
+Qingxin Feng
