@@ -52,7 +52,7 @@ Avg: Average time cost of all ingestion operations. [ms]
 MiddleAvg: Average time cost of ingestion operations without 5% head and tail. [ms]
 Min: Min single operation time cost of all ingestion operations. [ms]
 Max: Max single operation  time cost of all ingestion operations. [ms]
-There results are tested with iot-benchmark(https://github.com/thulab/iot-benchmark)
+These results are tested with iot-benchmark(https://github.com/thulab/iot-benchmark)
  
 That’s all.
 Please feel free to contact me if you have any questions
