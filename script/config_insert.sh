@@ -106,7 +106,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 		sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 		sed -i "s/^enable_cross_space_compaction=.*$/enable_cross_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 		#测试合并优先级 INNER_CROSS、CROSS_INNER、BALANCE
-		sed -i "s/^# compaction_priority=.*$/primitive_array_size=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
+		sed -i "s/^# compaction_priority=.*$/compaction_priority=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	elif [ "${config_name}" = "target_chunk_size" ]; then
 		sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 		sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
