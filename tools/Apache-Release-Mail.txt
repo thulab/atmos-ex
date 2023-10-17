@@ -54,8 +54,8 @@ Min: Min single operation time cost of all ingestion operations. [ms]
 Max: Max single operation  time cost of all ingestion operations. [ms]
 These results are tested with iot-benchmark(https://github.com/thulab/iot-benchmark)
  
-That’s all.
+That's all.
 Please feel free to contact me if you have any questions
 Thank you.
-Best Reagrds!
+Best Regards!
 Qingxin Feng
