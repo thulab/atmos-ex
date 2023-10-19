@@ -188,7 +188,8 @@ while true; do
                         #结果写入mysql
                         cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
                         insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-                        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+                        echo ${insert_sql}
+						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
                 else
                         #收集测试结果
                         cd ${TEST_TOOL_PATH}
