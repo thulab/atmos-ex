@@ -140,9 +140,6 @@ while true; do
 				sleep 2
 				pip_uninstall=$(pip3 uninstall apache-iotdb -y >/dev/null 2>&1 &)
 				sleep 2
-				cd ${IOTDB_PATH}/iotdb-client/client-py/dist/
-				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl >/dev/null 2>&1 &)
-				sleep 2
                 #开始测试
                 #清理环境，确保无旧程序影响
                 check_iotdb_pid
@@ -153,6 +150,9 @@ while true; do
                 #启动iotdb和monitor监控
                 start_iotdb
                 sleep 60
+				cd ${IOTDB_PATH}/iotdb-client/client-py/dist/
+				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl >/dev/null 2>&1 &)
+				sleep 20
                 start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
                 start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > ${INIT_PATH}/log_python_api)
                 echo "开始监控。。。"
