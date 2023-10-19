@@ -184,7 +184,7 @@ while true; do
                         cd ${TEST_TOOL_PATH}
                         InsertRecord=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
                         InsertRecords=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
-						InsertTablet=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertTablet " | awk '{print $5}')
+						InsertTablet=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
                         #结果写入mysql
                         cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
                         insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
