@@ -52,14 +52,6 @@ set_env() {
                 mkdir -p ${TEST_IOTDB_PATH}
         fi
         cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${TEST_IOTDB_PATH}/
-        # 拷贝工具到测试路径
-        if [ ! -d "${TEST_TOOL_PATH}" ]; then
-                mkdir -p ${TEST_TOOL_PATH}
-        else
-                rm -rf ${TEST_TOOL_PATH}
-                mkdir -p ${TEST_TOOL_PATH}
-        fi
-        cp -rf ${TOOL_PATH}/* ${TEST_TOOL_PATH}/
 }
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
         #修改IoTDB的配置
@@ -144,12 +136,12 @@ while true; do
                         continue
                 fi
 				cd ${IOTDB_PATH}/iotdb-client/client-py
-				comp_py=$(sh ./release.sh)
+				comp_py=$(sh ./release.sh >/dev/null 2>&1 &)
 				sleep 2
-				pip_uninstall=$(pip3 uninstall apache-iotdb)
+				pip_uninstall=$(pip3 uninstall apache-iotdb -y >/dev/null 2>&1 &)
 				sleep 2
 				cd ${IOTDB_PATH}/iotdb-client/client-py/dist/
-				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl)
+				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl >/dev/null 2>&1 &)
 				sleep 2
                 #开始测试
                 #清理环境，确保无旧程序影响
