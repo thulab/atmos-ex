@@ -129,7 +129,7 @@ while true; do
                 test_date_time=$(date +%Y%m%d%H%M%S)
 				rm -rf ${INIT_PATH}/log_python_api
                 #代码编译
-                comp_mvn=$(timeout 300s mvn clean package -pl distribution -am -DskipTests)
+                comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
                 if [ $? -eq 0 ]
                 then
                         echo "编译完成，准备开始测试！"
