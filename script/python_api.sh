@@ -52,14 +52,6 @@ set_env() {
                 mkdir -p ${TEST_IOTDB_PATH}
         fi
         cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${TEST_IOTDB_PATH}/
-        # 拷贝工具到测试路径
-        if [ ! -d "${TEST_TOOL_PATH}" ]; then
-                mkdir -p ${TEST_TOOL_PATH}
-        else
-                rm -rf ${TEST_TOOL_PATH}
-                mkdir -p ${TEST_TOOL_PATH}
-        fi
-        cp -rf ${TOOL_PATH}/* ${TEST_TOOL_PATH}/
 }
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
         #修改IoTDB的配置
@@ -144,12 +136,9 @@ while true; do
                         continue
                 fi
 				cd ${IOTDB_PATH}/iotdb-client/client-py
-				comp_py=$(sh ./release.sh)
+				comp_py=$(sh ./release.sh >/dev/null 2>&1 &)
 				sleep 2
-				pip_uninstall=$(pip3 uninstall apache-iotdb)
-				sleep 2
-				cd ${IOTDB_PATH}/iotdb-client/client-py/dist/
-				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl)
+				pip_uninstall=$(pip3 uninstall apache-iotdb -y >/dev/null 2>&1 &)
 				sleep 2
                 #开始测试
                 #清理环境，确保无旧程序影响
@@ -161,6 +150,9 @@ while true; do
                 #启动iotdb和monitor监控
                 start_iotdb
                 sleep 60
+				cd ${IOTDB_PATH}/iotdb-client/client-py/dist/
+				pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl >/dev/null 2>&1 &)
+				sleep 20
                 start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
                 start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > ${INIT_PATH}/log_python_api)
                 echo "开始监控。。。"
@@ -190,13 +182,14 @@ while true; do
                 if [ $flag -eq 0 ]; then
                         #收集测试结果
                         cd ${TEST_TOOL_PATH}
-                        InsertRecord=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
-                        InsertRecords=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
-						InsertTablet=$(find ./* -name ${INIT_PATH}/log_python_api | xargs grep "InsertTablet " | awk '{print $5}')
+                        InsertRecord=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
+                        InsertRecords=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
+						InsertTablet=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
                         #结果写入mysql
                         cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
                         insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-                        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+                        echo ${insert_sql}
+						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
                 else
                         #收集测试结果
                         cd ${TEST_TOOL_PATH}
