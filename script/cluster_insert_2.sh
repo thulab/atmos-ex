@@ -190,8 +190,8 @@ for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
 	ssh ${ACCOUNT}@${IP_list[${i}]} "sudo reboot"
-	sleep 60
 done
+sleep 180
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	echo "setting env to ${IP_list[${i}]} ..."
