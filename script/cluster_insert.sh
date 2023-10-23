@@ -174,6 +174,7 @@ then
   exit -1
 fi
 #拼接config_node参数
+dcn_str=''
 for (( j = 1; j <= ${config_num}; j++ ))
 do
 	if [ "$dcn_str" == '' ]; then
