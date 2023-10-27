@@ -55,7 +55,7 @@ set_env() {
 }
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
         #修改IoTDB的配置
-        sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"2G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+        sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"2G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 }
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
         monitor_pid=$(jps | grep InterFace | awk '{print $1}')

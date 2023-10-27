@@ -123,8 +123,8 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"6G\"/g" ${TEST_CONFIGNODE_PATH}/conf/confignode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"6G\"/g" ${TEST_CONFIGNODE_PATH}/conf/confignode-env.sh
 	#关闭影响写入性能的其他功能
 	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
 	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties

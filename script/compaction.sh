@@ -115,7 +115,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#关闭影响写入性能的其他功能
 	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
@@ -364,7 +364,7 @@ test_operation() {
 	###############################seq_space合并###############################
 	comp_type=seq_space
 	#修改IoTDB的配置
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#添加series_slot_num的替换，防止历史数据无法启动
 	sed -i "s/^# series_slot_num=.*$/series_slot_num=10000/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	#关闭影响写入性能的其他功能
@@ -423,7 +423,7 @@ test_operation() {
 	###############################unseq_space合并###############################
 	comp_type=unseq_space
 	#修改IoTDB的配置
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#关闭影响写入性能的其他功能
 	sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
@@ -478,7 +478,7 @@ test_operation() {
 	###############################cross_space合并###############################
 	comp_type=cross_space
 	#修改IoTDB的配置
-	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#关闭影响写入性能的其他功能
 	sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
