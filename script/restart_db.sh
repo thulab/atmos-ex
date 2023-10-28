@@ -338,6 +338,24 @@ test_operation() {
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}
 	insert_database restart_db
+	
+	#备份日志文件夹
+	mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/R1
+	
+	#增加异地关机优化检测
+	collect_data_before ${TEST_IOTDB_PATH}/
+	#启动iotdb
+	start_iotdb
+	sleep 10	
+	monitor_test_status
+	sleep 10
+	stop_iotdb
+	sleep 10
+	check_iotdb_pid
+	#收集启动后基础监控数据，并写入数据库
+	collect_data_after ${TEST_IOTDB_PATH}
+	insert_database restart_db_2
+	
 	#备份本次测试
 	backup_test_data common	
 }
