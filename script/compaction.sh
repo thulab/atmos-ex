@@ -213,7 +213,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		numOfcompactioning=$(find . -name "*compaction.log" | wc -l)
 		compaction_status=0
 		if [ ${numOfcompactioning} -le 0 ]; then
-			sleep 70s
+			sleep 180s
 			numOfcompactioning=$(find . -name "*compaction.log" | wc -l)
 			if [ ${numOfcompactioning} -le 0 ]; then
 				log_compaction=${TEST_IOTDB_PATH}/logs/log_datanode_compaction.log
@@ -402,7 +402,7 @@ test_operation() {
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
-	sleep 30
+	sleep 120
 	monitor_test_status
 	#停止IoTDB程序和监控程序
 	stop_iotdb
@@ -459,7 +459,7 @@ test_operation() {
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
-	sleep 30
+	sleep 120
 	monitor_test_status
 	#停止IoTDB程序和监控程序
 	stop_iotdb
@@ -515,7 +515,7 @@ test_operation() {
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
 	#等待30分钟
-	sleep 30
+	sleep 120
 	monitor_test_status
 	#停止IoTDB程序和监控程序
 	stop_iotdb
