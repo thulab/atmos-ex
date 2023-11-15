@@ -1,7 +1,7 @@
 #!/bin/bash
 #登录用户名
 ACCOUNT=cluster
-test_type=native-api-test
+test_type=native_api_test
 #初始环境存放路径
 INIT_PATH=/home/cluster/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
