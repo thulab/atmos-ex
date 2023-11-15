@@ -52,6 +52,8 @@ set_env() {
                 mkdir -p ${TEST_IOTDB_PATH}
         fi
         cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${TEST_IOTDB_PATH}/
+		mkdir -p ${TEST_IOTDB_PATH}/activation
+		cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 }
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
         #修改IoTDB的配置

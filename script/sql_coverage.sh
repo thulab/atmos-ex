@@ -85,6 +85,8 @@ set_env() {
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	mkdir -p ${TEST_IOTDB_PATH}/activation
+	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 	# 拷贝工具到测试路径
 	if [ ! -d "${TEST_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_TOOL_PATH}

@@ -95,6 +95,8 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	mkdir -p ${TEST_IOTDB_PATH}/activation
+	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 	#变更合并目标文件大小（因为目前准备的数据文件大小只有1.1G）
 	sed -i "s/^# target_compaction_file_size=.*$/target_compaction_file_size=1073741824/g" ${TEST_IOTDB_PATH}/conf/iotdb-common.properties
 	#修改集群名称
