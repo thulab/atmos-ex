@@ -374,25 +374,25 @@ else
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	###############################SESSION_BY_TABLET###############################
 	echo "开始测试SESSION_BY_TABLET！"
-	test_operation 111 SESSION_BY_TABLET
+	#test_operation 111 SESSION_BY_TABLET
 	#test_operation 222 SESSION_BY_TABLET
 	test_operation 223 SESSION_BY_TABLET
 	#test_operation 211 SESSION_BY_TABLET
 	###############################SESSION_BY_RECORDS###############################
 	echo "开始测试SESSION_BY_RECORDS！"
-	test_operation 111 SESSION_BY_RECORDS
+	#test_operation 111 SESSION_BY_RECORDS
 	#test_operation 222 SESSION_BY_RECORDS
 	test_operation 223 SESSION_BY_RECORDS
 	#test_operation 211 SESSION_BY_RECORDS
 	###############################SESSION_BY_RECORD###############################
 	echo "开始测试SESSION_BY_RECORD！"
-	test_operation 111 SESSION_BY_RECORD
+	#test_operation 111 SESSION_BY_RECORD
 	#test_operation 222 SESSION_BY_RECORD
 	test_operation 223 SESSION_BY_RECORD
 	#test_operation 211 SESSION_BY_RECORD
 	###############################JDBC###############################
 	echo "开始测试JDBC！"
-	test_operation 111 JDBC
+	#test_operation 111 JDBC
 	#test_operation 222 JDBC
 	test_operation 223 JDBC
 	#test_operation 211 JDBC

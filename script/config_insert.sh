@@ -415,59 +415,59 @@ else
 	#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	###############################wal_mode###############################
-	test_operation 111 aligned wal_mode ASYNC
+	test_operation 223 aligned wal_mode ASYNC
 	#sleep 1800
-	test_operation 111 aligned wal_mode DISABLE
+	test_operation 223 aligned wal_mode DISABLE
 	#sleep 1800
-	test_operation 111 aligned wal_mode SYNC
+	test_operation 223 aligned wal_mode SYNC
 	#sleep 1800
 	###############################array_size###############################
-	test_operation 111 aligned array_size 32
+	test_operation 223 aligned array_size 32
 	#sleep 1800
-	test_operation 111 aligned array_size 64
+	test_operation 223 aligned array_size 64
 	#sleep 1800
-	test_operation 111 aligned array_size 128
+	test_operation 223 aligned array_size 128
 	#sleep 1800
-	test_operation 111 aligned array_size 256
+	test_operation 223 aligned array_size 256
 	#sleep 1800
 	###############################time_partition###############################
-	test_operation 111 aligned time_partition 604800000000
+	test_operation 223 aligned time_partition 604800000000
 	#sleep 1800
-	test_operation 111 aligned time_partition 86400000
+	test_operation 223 aligned time_partition 86400000
 	#sleep 1800
-	test_operation 111 aligned time_partition 604800000
+	test_operation 223 aligned time_partition 604800000
 	#sleep 1800
 	###############################chunk_metadata_size###############################
-	test_operation 111 aligned chunk_metadata_size 0.1
+	test_operation 223 aligned chunk_metadata_size 0.1
 	#sleep 1800
-	test_operation 111 aligned chunk_metadata_size 0.2
+	test_operation 223 aligned chunk_metadata_size 0.2
 	#sleep 1800
-	test_operation 111 aligned chunk_metadata_size 0.3
+	test_operation 223 aligned chunk_metadata_size 0.3
 	#sleep 1800
-	test_operation 111 aligned chunk_metadata_size 0.5
+	test_operation 223 aligned chunk_metadata_size 0.5
 	#sleep 1800
 	###############################compaction_priority###############################
-	test_operation 111 aligned compaction_priority BALANCE
+	test_operation 223 aligned compaction_priority BALANCE
 	#sleep 1800
-	test_operation 111 aligned compaction_priority INNER_CROSS
+	test_operation 223 aligned compaction_priority INNER_CROSS
 	#sleep 1800
-	test_operation 111 aligned compaction_priority CROSS_INNER
+	test_operation 223 aligned compaction_priority CROSS_INNER
 	#sleep 1800
 	###############################target_chunk_size###############################
-	test_operation 111 aligned target_chunk_size 1048576
+	test_operation 223 aligned target_chunk_size 1048576
 	#sleep 1800
-	test_operation 111 aligned target_chunk_size 2097152
+	test_operation 223 aligned target_chunk_size 2097152
 	#sleep 1800
-	test_operation 111 aligned target_chunk_size 4194304
+	test_operation 223 aligned target_chunk_size 4194304
 	#sleep 1800
 	###############################max_cross_compaction_candidate_file_size###############################
-	test_operation 111 aligned max_cross_compaction_candidate_file_size 5368709120
+	test_operation 223 aligned max_cross_compaction_candidate_file_size 5368709120
 	#sleep 1800
-	test_operation 111 aligned max_cross_compaction_candidate_file_size 1073741824
+	test_operation 223 aligned max_cross_compaction_candidate_file_size 1073741824
 	#sleep 1800
-	test_operation 111 aligned max_cross_compaction_candidate_file_size 10737418240
+	test_operation 223 aligned max_cross_compaction_candidate_file_size 10737418240
 	#sleep 1800
-	test_operation 111 aligned max_cross_compaction_candidate_file_size 21474836480
+	test_operation 223 aligned max_cross_compaction_candidate_file_size 21474836480
 	#sleep 1800
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."

@@ -15,7 +15,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223)
+protocol_list=(223)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
