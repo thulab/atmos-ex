@@ -6,6 +6,7 @@ INIT_PATH=/data/atmos/zk_test
 IOTDB_PATH=${INIT_PATH}/iotdb
 FILENAME=${INIT_PATH}/gitlog.txt
 REPO_PATH=/data/repository/master
+REPO_PATH_BK=/newnasdata/repository/master
 filter_list_folder_name=(client-cpp client-go client-py code-coverage compile-tools distribution docker docs example external-api external-pipe-api flink-iotdb-connector flink-tsfile-connector grafana-connector grafana-plugin hadoop hive-connector influxdb-protocol integration integration-test isession licenses mlnode openapi pipe-api rewrite-tsfile-tool schema-engine-rocksdb schema-engine-tag site spark-iotdb-connector spark-tsfile subscription-api test testcontainer tools trigger-api udf-api zeppelin-interpreter)
 
 ############mysql信息##########################
@@ -70,6 +71,10 @@ do
 				rm -rf ${REPO_PATH}/${commit_id}
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
+				#向新的网盘环境复制一份备份
+				rm -rf ${REPO_PATH_BK}/${commit_id}
+				mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
+				cp -rf ${IOTDB_PATH}/distribution/target/iotdb-enterprise-*-bin/iotdb-enterprise-*-bin/* ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
 				#获取本次更新的变更文件列表
 				git log -1 --name-only > $FILENAME
 				#按照文件夹名称排除不必要测试文件夹
