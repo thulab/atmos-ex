@@ -196,7 +196,7 @@ while true; do
                         #收集测试结果
                         cd ${TEST_TOOL_PATH}
                         InsertRecord=-3
-                        InsertRecords-3
+                        InsertRecords=-3
 						InsertTablet=-3
                         #结果写入mysql
                         cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
