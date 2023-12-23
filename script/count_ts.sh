@@ -214,7 +214,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				mkdir -p ${BM_PATH}/data/csvOutput
 				cd ${BM_PATH}/data/csvOutput
 				touch Stuck_result.csv
-				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
+				array1="Schema cost(s),-1"
 				for ((i=0;i<100;i++))
 				do
 					echo $array1 >> Stuck_result.csv
