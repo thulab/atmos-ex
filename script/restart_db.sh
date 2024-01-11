@@ -144,6 +144,7 @@ stop_iotdb() { # 停止iotdb
 	sleep 10
 	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 	cd ~/
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 }
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
@@ -159,7 +160,6 @@ start_benchmark() { # 启动benchmark
 	cd ~/
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	maxNumofOpenFiles=0
 	for (( t_wait = 0; t_wait <= 100; ))
 	do
@@ -212,7 +212,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		else
 			echo "${data_type}已完成"
 			cd ${TEST_IOTDB_PATH}/logs/
-			start_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB-DataNode environment variables" | awk '{print $1 FS $2}')
+			#start_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB-DataNode environment variables" | awk '{print $1 FS $2}')
 			end_time=$(find ./* -name log_datanode_all.log | xargs grep "Congratulation, IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			break
