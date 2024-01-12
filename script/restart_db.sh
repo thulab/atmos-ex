@@ -144,7 +144,6 @@ stop_iotdb() { # 停止iotdb
 	sleep 10
 	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 	cd ~/
-	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 }
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
@@ -160,6 +159,7 @@ start_benchmark() { # 启动benchmark
 	cd ~/
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	maxNumofOpenFiles=0
 	for (( t_wait = 0; t_wait <= 100; ))
 	do
@@ -202,7 +202,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ ${ts_status} -le 0 ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 14400 ]; then
+			if [ $t_time -ge 7200 ]; then
 				echo "测试失败"  #倒序输入形成负数结果
 				end_time=-1
 				cost_time=-100
