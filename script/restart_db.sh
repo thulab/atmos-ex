@@ -213,6 +213,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			echo "${data_type}已完成"
 			cd ${TEST_IOTDB_PATH}/logs/
 			#start_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB-DataNode environment variables" | awk '{print $1 FS $2}')
+			start_time=$(find ./* -name log_datanode_all.log | xargs sed -n '1p' | awk '{print $1 FS $2}')
 			end_time=$(find ./* -name log_datanode_all.log | xargs grep "Congratulation, IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			break
