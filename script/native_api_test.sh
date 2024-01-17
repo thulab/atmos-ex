@@ -7,6 +7,7 @@ INIT_PATH=/home/cluster/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 IOTDB_PATH=${INIT_PATH}/iotdb
 TOOL_PATH=${INIT_PATH}/java-native-api-test
+BK_PATH=${INIT_PATH}/native_api_test_report
 #测试数据运行路径
 TEST_INIT_PATH=/data/qa
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -223,6 +224,10 @@ while true; do
 		fi
 		#备份本次测试
 		#backup_test_data
+		rm -rf ${BK_PATH}/site
+		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
+		git commit -m '${last_cid}'
+		git push -f
 		###############################测试完成###############################
 		echo "本轮测试${test_date_time}已结束."
 		#清理过期文件 - 当前策略保留4天
