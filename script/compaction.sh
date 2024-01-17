@@ -174,6 +174,7 @@ start_benchmark() { # 启动benchmark
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	maxNumofOpenFiles=0
+	maxNumofThread=0
 	for (( t_wait = 0; t_wait <= 100; ))
 	do
 		#监控打开文件数量
