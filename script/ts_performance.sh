@@ -481,8 +481,9 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
 	t_index=$(($RANDOM % ${#ts_list[*]}))		
-	test_operation 211 common sequence
+	#test_operation 211 common sequence
 	test_operation 211 common unsequence
+	test_operation 211 common sequence
 	test_operation 211 aligned sequence
 	test_operation 211 aligned unsequence
 	test_operation 211 template sequence
