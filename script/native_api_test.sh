@@ -228,7 +228,7 @@ while true; do
 		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
 		cd ${BK_PATH}/
 		git add .
-		git commit -m '${last_cid}'
+		git commit -m '${last_cid}_${failures_num}'
 		git push -f
 		###############################测试完成###############################
 		echo "本轮测试${test_date_time}已结束."
