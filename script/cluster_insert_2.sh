@@ -139,13 +139,13 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
 	sed -i "s/^# cn_metric_level=.*$/cn_metric_level=ALL/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
+	sed -i "s/^cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
 	#添加启动监控功能
 	sed -i "s/^# dn_enable_metric=.*$/dn_enable_metric=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_enable_performance_stat=.*$/dn_enable_performance_stat=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s/^# dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	sed -i "s/^dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	#添加多路径
 	sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
 	sed -i "s%^# dn_wal_dirs=data/datanode/wal.*$%dn_wal_dirs=/ssd/datanode/wal%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
