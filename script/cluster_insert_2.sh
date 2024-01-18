@@ -218,8 +218,8 @@ do
 	#修改IoTDB ConfigNode的配置
 	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_internal_address.*$/cn_internal_address=${C_IP_list[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties"
 	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_seed_config_node.*$/cn_seed_config_node=${config_node_config_nodes[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^# schema_replication_factor.*$/schema_replication_factor=${config_schema_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^# data_replication_factor.*$/data_replication_factor=${config_data_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^schema_replication_factor.*$/schema_replication_factor=${config_schema_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^data_replication_factor.*$/data_replication_factor=${config_data_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
 done
 echo "开始部署DataNode！"
 for (( i = 1; i <= $data_num; i++ ))
