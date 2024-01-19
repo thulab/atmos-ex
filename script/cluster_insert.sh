@@ -498,8 +498,10 @@ else
 	###############################对齐时间序列###############################
 	echo "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
+	test_operation aligned seq_w 222
 	echo "开始测试对齐时间序列乱续写入！"
 	test_operation aligned unseq_w 223
+	test_operation aligned unseq_w 222
 	echo "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
 	echo "开始测试对齐时间序列乱续读写混合！"
@@ -522,11 +524,6 @@ else
 	#test_operation tempaligned seq_rw 223
 	#echo "开始测试对齐模板时间序列乱续读写混合！"
 	#test_operation tempaligned unseq_rw 223
-	###############################222对齐时间序列###############################
-	echo "开始测试222对齐时间序列顺序写入！"
-	test_operation aligned seq_w 222
-	echo "开始测试222对齐时间序列乱续写入！"
-	test_operation aligned unseq_w 222
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
