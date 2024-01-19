@@ -285,7 +285,6 @@ backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -463,6 +462,7 @@ test_operation() {
 	insert_database export-csv
 	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
 	#备份本次测试
+	backup_test_data ${ts_type}
 }
 
 ##准备开始测试
