@@ -436,6 +436,7 @@ test_operation() {
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		throughput=-3
+		echo ${iotdb_state}
 		insert_database export-csv
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
