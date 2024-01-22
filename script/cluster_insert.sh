@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-ACCOUNT=atmos
+ACCOUNT=root
 test_type=cluster_insert
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
