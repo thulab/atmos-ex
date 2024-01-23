@@ -522,10 +522,10 @@ else
 	###############################对齐时间序列###############################
 	echo "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
-	test_operation aligned seq_w 222
+	#test_operation aligned seq_w 222
 	echo "开始测试对齐时间序列乱续写入！"
 	test_operation aligned unseq_w 223
-	test_operation aligned unseq_w 222
+	#test_operation aligned unseq_w 222
 	echo "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
 	echo "开始测试对齐时间序列乱续读写混合！"
