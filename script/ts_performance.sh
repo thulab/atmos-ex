@@ -483,14 +483,14 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
 	t_index=$(($RANDOM % ${#ts_list[*]}))		
-	test_operation 211 common sequence
-	test_operation 211 common unsequence
-	test_operation 211 aligned sequence
-	test_operation 211 aligned unsequence
-	test_operation 211 template sequence
-	test_operation 211 template unsequence
-	test_operation 211 tempaligned sequence
-	test_operation 211 tempaligned unsequence
+	test_operation 223 common sequence
+	test_operation 223 common unsequence
+	test_operation 223 aligned sequence
+	test_operation 223 aligned unsequence
+	test_operation 223 template sequence
+	test_operation 223 template unsequence
+	test_operation 223 tempaligned sequence
+	test_operation 223 tempaligned unsequence
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
