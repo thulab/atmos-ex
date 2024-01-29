@@ -175,7 +175,7 @@ while true; do
 		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
 		echo "开始监控。。。"
-		for (( t_wait = 0; t_wait <= 100; ))
+		for (( t_wait = 0; t_wait <= 20; ))
 		do
 			cd ${TEST_TOOL_PATH}
 			result_file=${TEST_TOOL_PATH}/details/target/site/surefire-report.html 

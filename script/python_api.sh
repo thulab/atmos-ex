@@ -158,7 +158,7 @@ while true; do
                 start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
                 start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > ${INIT_PATH}/log_python_api)
                 echo "开始监控。。。"
-                for (( t_wait = 0; t_wait <= 100; ))
+                for (( t_wait = 0; t_wait <= 20; ))
                 do
                         #监控执行情况  
 						ts_status=$(cat ${INIT_PATH}/log_python_api | grep 'All executions done!!'| wc -l)

@@ -162,7 +162,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	maxNumofOpenFiles=0
 	maxNumofThread=0
-	for (( t_wait = 0; t_wait <= 100; ))
+	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		#监控打开文件数量
 		pid=$(jps | grep DataNode | awk '{print $1}')
