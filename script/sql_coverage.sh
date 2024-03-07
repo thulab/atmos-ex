@@ -180,7 +180,7 @@ else
 	start_iotdb
 	sleep 60
 	####判断IoTDB是否正常启动
-	for (( t_wait = 0; t_wait <= 100; t_wait++ ))
+	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
@@ -216,7 +216,7 @@ else
 	compile=$(./compile.sh)
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(./test.sh >/dev/null 2>&1 &)
-	for (( t_wait = 0; t_wait <= 100; ))
+	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		cd ${TEST_TOOL_PATH}
 		result_file=${TEST_TOOL_PATH}/result.xml

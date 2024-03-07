@@ -314,13 +314,16 @@ test_operation() {
 			#start_monitor
 			sleep 10
 			####判断IoTDB是否正常启动
-			for ((im=0;im<100;im++))
+			for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 			do
-				iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-				if [ "${iotdb_state}" = "Total line number = 2" ]; then
-					break
-				fi
-				sleep 10
+			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
+				break
+				
+			  else
+				sleep 30
+				continue
+			  fi
 			done			
 			if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				echo "IoTDB正常启动，准备开始测试"
