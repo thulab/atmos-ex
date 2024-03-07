@@ -20,7 +20,7 @@ protocol_list=(111 223 222 211)
 #ts_list=(common aligned template tempaligned)
 ts_list=(common aligned)
 ############mysql信息##########################
-MYSQLHOSTNAME="111.202.73.147" #数据库信息
+MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
 PASSWORD="iotdb2019"
