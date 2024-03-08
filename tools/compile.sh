@@ -72,9 +72,9 @@ do
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
 				#向新的网盘环境复制一份备份
-				rm -rf ${REPO_PATH_BK}/${commit_id}
-				mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
-				cp -rf ${IOTDB_PATH}/distribution/target/iotdb-enterprise-*-bin/iotdb-enterprise-*-bin/* ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
+				#rm -rf ${REPO_PATH_BK}/${commit_id}
+				#mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
+				#cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
 				#获取本次更新的变更文件列表
 				git log -1 --name-only > $FILENAME
 				#按照文件夹名称排除不必要测试文件夹
