@@ -199,7 +199,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			maxNumofThread=${temp_thread_num}
 		fi
 		#监控执行情况  
-		ts_status=$(cat ${TEST_IOTDB_PATH}/logs/log_datanode_all.log | grep 'Congratulation, IoTDB DataNode is set up successfully. Now, enjoy yourself!'| wc -l)
+		ts_status=$(cat ${TEST_IOTDB_PATH}/logs/log_datanode_all.log | grep 'IoTDB DataNode is set up successfully. Now, enjoy yourself!'| wc -l)
 		if [ ${ts_status} -le 0 ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
@@ -215,7 +215,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			cd ${TEST_IOTDB_PATH}/logs/
 			#start_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB-DataNode environment variables" | awk '{print $1 FS $2}')
 			start_time=$(find ./* -name log_datanode_all.log | xargs sed -n '1p' | awk '{print $1 FS $2}')
-			end_time=$(find ./* -name log_datanode_all.log | xargs grep "Congratulation, IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
+			end_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			break
 		fi
