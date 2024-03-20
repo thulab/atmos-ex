@@ -192,6 +192,15 @@ else
 	done
 	if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		echo "IoTDB正常启动，准备开始测试"
+		F_start_time=$(date +%s%3N)
+		F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
+		F_now_time=$(date +%s%3N)
+		F_t_time=$[${F_now_time}-${F_start_time}]
+		cost_time=${F_t_time}
+		pass_num=0
+		fail_num=0
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${F_start_time}','${F_now_time}',${cost_time},'FirstInsertSQL')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
