@@ -214,7 +214,7 @@ else
 	fi
 	# 拷贝测试依赖到各自文件夹
 	cp -rf ${TC_PATH}/lib/trigger_jar/ext ${TEST_IOTDB_PATH}/ext/trigger/
-	cp -rf ${TC_PATH}/lib/trigger_jar/envelope ${TEST_IOTDB_PATH}/ext/udf/
+	cp -rf ${TC_PATH}/lib/udf_jar/envelope ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TC_PATH}/lib/udf_jar/ext ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
