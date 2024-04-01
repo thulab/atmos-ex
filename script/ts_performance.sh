@@ -451,9 +451,9 @@ test_operation() {
 	start_time=`date`
 	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
 	if [ ! -f "${TEST_IOTDB_PATH}/tools/export-data.sh" ]; then
-		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
-	else
 		ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
+	else
+		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -td ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
 	fi
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
