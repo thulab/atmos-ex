@@ -37,6 +37,8 @@ PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_cluster_insert_2" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 ############公用函数##########################
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 init_items() {
@@ -433,6 +435,41 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	let numOfSe0Level=${numOfSe0Level1}+${numOfSe0Level2}
 	let numOfUnse0Level=${numOfUnse0Level1}+${numOfUnse0Level2}
 }
+function get_single_index() {
+    # 获取 prometheus 单个指标的值
+    local end=$2
+    local url="http://${metric_server}/api/v1/query"
+    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
+    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
+	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
+		index_value=0
+	fi
+	echo ${index_value}
+}
+collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
+	#TEST_IP=$1
+	dataFileSize=0
+	walFileSize=0
+	numOfSe0Level=0
+	numOfUnse0Level=0
+	maxNumofOpenFiles=0
+	maxNumofThread_C=0
+	maxNumofThread_D=0
+	maxNumofThread=0
+	#调用监控获取数值
+	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${TEST_IP}:9091\"})" $m_end_time)
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
+	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"seq\"})" $m_end_time)
+	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"unseq\"})" $m_end_time)
+	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
+	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${TEST_IP}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1048576'}'`
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1024'}'`
+}
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_DATANODE_PATH}/data
@@ -469,10 +506,11 @@ test_operation() {
 	setup_nCmD -c3 -d5 -t1
 	echo "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-
+	m_start_time=$(date +%s)
 	#等待1分钟
 	sleep 60
 	monitor_test_status
+	m_end_time=$(date +%s)
 	#测试结果收集写入数据库
 	rm -rf ${BM_PATH}/TestResult/csvOutput/*
 	scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/data/csvOutput/*result.csv ${BM_PATH}/TestResult/csvOutput/

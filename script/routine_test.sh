@@ -1,5 +1,6 @@
 #!/bin/sh
 #登录用户名
+TEST_IP="11.101.17.126"
 ACCOUNT=atmos
 test_type=routine_test
 #初始环境存放路径
@@ -25,6 +26,8 @@ PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_routine_test" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 #insert_list=(seq_w unseq_w)
 insert_list=(seq_w unseq_w seq_rw unseq_rw)
 query_data_type=(seq unseq)
@@ -263,6 +266,41 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		errorLogSize=1
 	fi
 }
+function get_single_index() {
+    # 获取 prometheus 单个指标的值
+    local end=$2
+    local url="http://${metric_server}/api/v1/query"
+    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
+    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
+	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
+		index_value=0
+	fi
+	echo ${index_value}
+}
+collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
+	#TEST_IP=$1
+	dataFileSize=0
+	walFileSize=0
+	numOfSe0Level=0
+	numOfUnse0Level=0
+	maxNumofOpenFiles=0
+	maxNumofThread_C=0
+	maxNumofThread_D=0
+	maxNumofThread=0
+	#调用监控获取数值
+	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${TEST_IP}:9091\"})" $m_end_time)
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
+	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"seq\"})" $m_end_time)
+	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"unseq\"})" $m_end_time)
+	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
+	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${TEST_IP}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1048576'}'`
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1024'}'`
+}
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
@@ -338,18 +376,14 @@ test_operation() {
 
 		start_benchmark
 		start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-
+		m_start_time=$(date +%s)
 		#等待1分钟
 		sleep 10
 		
 		monitor_test_status
-		
+		m_end_time=$(date +%s)		
 		#停止IoTDB程序和监控程序
 		pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
-		stop_iotdb
-		sleep 30
-		#check_monitor_pid
-		check_iotdb_pid
 
 		#收集启动后基础监控数据
 		collect_monitor_data
@@ -362,6 +396,11 @@ test_operation() {
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
 		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+		#停止IoTDB程序和监控程序
+		stop_iotdb
+		sleep 30
+		#check_monitor_pid
+		check_iotdb_pid
 		#查询测试
 		for (( j = 0; j < ${#query_list[*]}; j++ ))
 			do
@@ -398,9 +437,11 @@ test_operation() {
 				#op_type=${m}_${query_list[${j}]}
 				start_benchmark
 				start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+				m_start_time=$(date +%s)
 				#等待1分钟
 				sleep 10
 				monitor_test_status
+				m_end_time=$(date +%s)
 				#收集启动后基础监控数据
 				collect_monitor_data
 				#测试结果收集写入数据库

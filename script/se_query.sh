@@ -1,5 +1,6 @@
 #!/bin/sh
 #登录用户名
+TEST_IP="11.101.17.141"
 ACCOUNT=atmos
 test_type=se_query
 #初始环境存放路径
@@ -26,6 +27,8 @@ PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_se_query" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 #query_data_type=(common)
 query_data_type=(common aligned template tempaligned)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4a-1 Q4a-2 Q4a-3 Q4b-1 Q4b-2 Q4b-3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q8 Q9-1 Q9-2 Q9-3 Q10)
@@ -264,6 +267,41 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		errorLogSize=1
 	fi
 }
+function get_single_index() {
+    # 获取 prometheus 单个指标的值
+    local end=$2
+    local url="http://${metric_server}/api/v1/query"
+    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
+    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
+	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
+		index_value=0
+	fi
+	echo ${index_value}
+}
+collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
+	#TEST_IP=$1
+	dataFileSize=0
+	walFileSize=0
+	numOfSe0Level=0
+	numOfUnse0Level=0
+	maxNumofOpenFiles=0
+	maxNumofThread_C=0
+	maxNumofThread_D=0
+	maxNumofThread=0
+	#调用监控获取数值
+	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${TEST_IP}:9091\"})" $m_end_time)
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
+	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
+	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"seq\"})" $m_end_time)
+	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"unseq\"})" $m_end_time)
+	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
+	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${TEST_IP}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1048576'}'`
+	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1024'}'`
+}
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}
 	sudo rm -rf ${TEST_IOTDB_PATH}/data
@@ -344,12 +382,12 @@ test_operation() {
 
 			start_benchmark
 			start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-
+			m_start_time=$(date +%s)
 			#等待1分钟
 			sleep 2
 			
 			monitor_test_status
-			
+			m_end_time=$(date +%s)			
 			#收集启动后基础监控数据
 			collect_monitor_data
 			#测试结果收集写入数据库
