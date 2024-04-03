@@ -59,6 +59,7 @@ dataFileSize=0
 maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
+walFileSize=0
 ############定义监控采集项初始值##########################
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
@@ -169,44 +170,7 @@ start_benchmark() { # 启动benchmark
 	cd ~/
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	maxNumofOpenFiles=0
-	maxNumofThread=0
 	while true; do
-		#监控打开文件数量
-		pid=$(jps | grep DataNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_d=0
-			temp_thread_num_d=0
-		else
-			temp_file_num_d=$(jps | grep DataNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_d=$(pstree -p $(ps aux | grep -v grep | grep DataNode | awk '{print $2}') | wc -l)
-		fi
-		pid=$(jps | grep ConfigNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_c=0
-			temp_thread_num_c=0
-		else
-			temp_file_num_c=$(jps | grep ConfigNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_c=$(pstree -p $(ps aux | grep -v grep | grep ConfigNode | awk '{print $2}') | wc -l)
-		fi
-		pid=$(jps | grep IoTDB | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_i=0
-			temp_thread_num_i=0
-		else
-			temp_file_num_i=$(jps | grep IoTDB | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_i=$(pstree -p $(ps aux | grep -v grep | grep IoTDB| awk '{print $2}') | wc -l)
-		fi
-		let temp_file_num=${temp_file_num_d}+${temp_file_num_c}+${temp_file_num_i}
-		if [ ${maxNumofOpenFiles} -lt ${temp_file_num} ]; then
-			maxNumofOpenFiles=${temp_file_num}
-		fi
-		#监控线程数
-		let temp_thread_num=${temp_thread_num_d}+${temp_thread_num_c}+${temp_thread_num_i}
-		if [ ${maxNumofThread} -lt ${temp_thread_num} ]; then
-			maxNumofThread=${temp_thread_num}
-		fi
-
 		csvOutput=${BM_PATH}/data/csvOutput
 		if [ ! -d "$csvOutput" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -232,32 +196,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
-	dataFileSize=$(du -h -d0 ${TEST_IOTDB_PATH}/data | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${TEST_IOTDB_PATH}/data | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
-	elif [ "$UNIT" = "T" ]; then
-        dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'*'1024'}'`
-	else
-		dataFileSize=${dataFileSize}
-	fi
-	numOfSe0Level=$(find ${TEST_IOTDB_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l)
-	if [ ! -d "${TEST_IOTDB_PATH}/data/datanode/data/unsequence" ]; then
-		numOfUnse0Level=0
-	else
-		numOfUnse0Level=$(find ${TEST_IOTDB_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l)
-	fi
-	D_errorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_errorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_errorLogSize}" = "0" ] && [ "${C_errorLogSize}" = "0" ]; then
-		errorLogSize=0
-	else
-		errorLogSize=1
-	fi
-}
 function get_single_index() {
     # 获取 prometheus 单个指标的值
     local end=$2
@@ -269,8 +207,8 @@ function get_single_index() {
 	fi
 	echo ${index_value}
 }
-collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
-	#TEST_IP=$1
+collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
+	TEST_IP=$1
 	dataFileSize=0
 	walFileSize=0
 	numOfSe0Level=0
@@ -295,7 +233,7 @@ collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-    sudo rm -rf ${TEST_IOTDB_PATH}/data
+	sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
@@ -323,8 +261,8 @@ test_operation() {
 		set_protocol_class 2 2 2
 	elif [ "${protocol_class}" = "223" ]; then
 		set_protocol_class 2 2 3
-    elif [ "${protocol_class}" = "211" ]; then
-        set_protocol_class 2 1 1
+        elif [ "${protocol_class}" = "211" ]; then
+                set_protocol_class 2 1 1
 	else
 		echo "协议设置错误！"
 		return
@@ -352,7 +290,7 @@ test_operation() {
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		throughput=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${protocol_class})"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
@@ -373,14 +311,14 @@ test_operation() {
 	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
 
 	#收集启动后基础监控数据
-	collect_monitor_data
+	collect_monitor_data ${TEST_IP}
 	#测试结果收集写入数据库
 	csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
 	read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
 	read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
 
 	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_class})"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${protocol_class})"
 
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	#停止IoTDB程序和监控程序

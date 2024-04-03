@@ -69,6 +69,7 @@ dataFileSize=0
 maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
+walFileSize=0
 ############定义监控采集项初始值##########################
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
@@ -182,44 +183,7 @@ start_benchmark() { # 启动benchmark
 	cd ~/
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	maxNumofOpenFiles=0
-	maxNumofThread=0
 	while true; do
-		#监控打开文件数量
-		pid=$(jps | grep DataNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_d=0
-			temp_thread_num_d=0
-		else
-			temp_file_num_d=$(jps | grep DataNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_d=$(pstree -p $(ps aux | grep -v grep | grep DataNode | awk '{print $2}') | wc -l)
-		fi
-		pid=$(jps | grep ConfigNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_c=0
-			temp_thread_num_c=0
-		else
-			temp_file_num_c=$(jps | grep ConfigNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_c=$(pstree -p $(ps aux | grep -v grep | grep ConfigNode | awk '{print $2}') | wc -l)
-		fi
-		pid=$(jps | grep IoTDB | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_i=0
-			temp_thread_num_i=0
-		else
-			temp_file_num_i=$(jps | grep IoTDB | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_i=$(pstree -p $(ps aux | grep -v grep | grep IoTDB| awk '{print $2}') | wc -l)
-		fi
-		let temp_file_num=${temp_file_num_d}+${temp_file_num_c}+${temp_file_num_i}
-		if [ ${maxNumofOpenFiles} -lt ${temp_file_num} ]; then
-			maxNumofOpenFiles=${temp_file_num}
-		fi
-		#监控线程数
-		let temp_thread_num=${temp_thread_num_d}+${temp_thread_num_c}+${temp_thread_num_i}
-		if [ ${maxNumofThread} -lt ${temp_thread_num} ]; then
-			maxNumofThread=${temp_thread_num}
-		fi
-
 		csvOutput=${BM_PATH}/data/csvOutput
 		if [ ! -d "$csvOutput" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -245,32 +209,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
-	dataFileSize=$(du -h -d0 ${TEST_IOTDB_PATH}/data | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${TEST_IOTDB_PATH}/data | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
-	elif [ "$UNIT" = "T" ]; then
-        dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'*'1024'}'`
-	else
-		dataFileSize=${dataFileSize}
-	fi
-	numOfSe0Level=$(find ${TEST_IOTDB_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l)
-	if [ ! -d "${TEST_IOTDB_PATH}/data/datanode/data/unsequence" ]; then
-		numOfUnse0Level=0
-	else
-		numOfUnse0Level=$(find ${TEST_IOTDB_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l)
-	fi
-	D_errorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_errorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_errorLogSize}" = "0" ] && [ "${C_errorLogSize}" = "0" ]; then
-		errorLogSize=0
-	else
-		errorLogSize=1
-	fi
-}
 function get_single_index() {
     # 获取 prometheus 单个指标的值
     local end=$2
@@ -282,7 +220,7 @@ function get_single_index() {
 	fi
 	echo ${index_value}
 }
-collect_monitor_data1() { # 收集iotdb数据大小，顺、乱序文件数量
+collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	#TEST_IP=$1
 	dataFileSize=0
 	walFileSize=0
@@ -386,14 +324,15 @@ test_operation() {
 					data_type=${query_data_type[${j}]}
 					query_num=${m}
 					query_type=${query_list[${i}]}
-					start_benchmark
-					start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 					m_start_time=$(date +%s)
+					start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+					start_benchmark
+
 					#等待1分钟
 					sleep 10
 					
 					monitor_test_status
-					m_end_time=$(date +%s)					
+					m_end_time=$(date +%s)
 					#收集启动后基础监控数据
 					collect_monitor_data
 					#测试结果收集写入数据库
