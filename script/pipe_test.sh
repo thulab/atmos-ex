@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-ACCOUNT=atmos
+ACCOUNT=root
 test_type=pipe_test
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
@@ -156,7 +156,7 @@ setup_env() {
 		TEST_IP=${IP_list[$j]}
 		ssh ${ACCOUNT}@${TEST_IP} "sudo reboot"
 	done
-	sleep 120
+	sleep 180
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		echo "开始部署${IP_list[$i]}！"
