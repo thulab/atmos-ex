@@ -105,6 +105,7 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_INIT_PATH}" ]; then
 		mkdir -p ${TEST_INIT_PATH}
+		mkdir -p ${TEST_IOTDB_PATH}
 	else
 		rm -rf ${TEST_INIT_PATH}
 		mkdir -p ${TEST_IOTDB_PATH}
