@@ -96,7 +96,7 @@ do
 				if [ "${file_num}" = "0" ]; then
 					#不需要测试
 					str_noneed='NoNeed'
-					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
+					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto,pipe_test) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
 					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				else
 					#正常下派所有任务
@@ -107,7 +107,7 @@ do
 			else
 				echo "${commit_id}编译失败！"
 				str_err='CError'
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
+				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto,pipe_test) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
                 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				msgbody='错误类型：'${test_type}'代码编译失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'\n提交人：'${author}''
 				sendEmail ${msgbody}
