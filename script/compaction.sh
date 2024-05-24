@@ -1,5 +1,6 @@
 #!/bin/sh
 #登录用户名
+TEST_IP="11.101.17.114"
 ACCOUNT=atmos
 test_type=compaction
 #初始环境存放路径
@@ -27,6 +28,8 @@ PASSWORD="iotdb2019"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_compaction" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 ############公用函数##########################
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 init_items() {
@@ -48,11 +51,29 @@ dataFileSize_after=0
 maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
+walFileSize=0
+maxCPULoad=0
+avgCPULoad=0
+maxDiskIOOpsRead=0
+maxDiskIOOpsWrite=0
+maxDiskIOSizeRead=0
+maxDiskIOSizeWrite=0
 ############定义监控采集项初始值##########################
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
 sendEmail() {
 sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
+}
+function get_single_index() {
+    # 获取 prometheus 单个指标的值
+    local end=$2
+    local url="http://${metric_server}/api/v1/query"
+    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
+    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
+	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
+		index_value=0
+	fi
+	echo ${index_value}
 }
 check_benchmark_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
@@ -324,11 +345,13 @@ insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	insert_sql="insert into ${TABLENAME}\
 	(commit_date_time,test_date_time,commit_id,author,ts_type,comp_type,cost_time,numOfSe0Level_before,numOfSe0Level_after,\
 	numOfUnse0Level_before,numOfUnse0Level_after,ts_dataSize,ts_numOfPoints,\
-	compaction_rate,comp_start_time,comp_end_time,dataFileSize_before,dataFileSize_after,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) \
+	compaction_rate,comp_start_time,comp_end_time,dataFileSize_before,dataFileSize_after,maxNumofOpenFiles,maxNumofThread,errorLogSize,\
+	avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) \
 	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${comp_type}',${cost_time},${numOfSe0Level_before},\
 	${numOfSe0Level_after},${numOfUnse0Level_before},${numOfUnse0Level_after},\
 	${ts_dataSize},${ts_numOfPoints},${compaction_rate},'${comp_start_time}',\
-	'${comp_end_time}','${dataFileSize_before}','${dataFileSize_after}',${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${remark_value}')"
+	'${comp_end_time}','${dataFileSize_before}','${dataFileSize_after}',${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},\
+	${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${remark_value}')"
 	echo ${ts_type}时间序列 ${comp_type} 合并耗时为：${cost_time} 秒
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo ${insert_sql}
@@ -364,6 +387,8 @@ test_operation() {
 	fi
 	#mkdir -p ${TEST_IOTDB_PATH}/data
 	cp -rf ${DATA_PATH}/${protocol_class}/${ts_type}/data ${TEST_IOTDB_PATH}/
+	mkdir -p ${TEST_IOTDB_PATH}/data/datanode/system/license
+	cp -rf ${ATMOS_PATH}/conf/license/active.license ${TEST_IOTDB_PATH}/data/datanode/system/license/active.license
 	###############################seq_space合并###############################
 	comp_type=seq_space
 	#修改IoTDB的配置
@@ -378,6 +403,7 @@ test_operation() {
 	collect_data_before
 	#启动iotdb和monitor监控
 	start_iotdb
+	m_start_time=$(date +%s)
 	sleep 10	
 	####判断IoTDB是否正常启动
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
@@ -391,6 +417,7 @@ test_operation() {
 		continue
 	  fi
 	done
+    #iotdb_state='Total line number = 2'
 	if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		echo "IoTDB正常启动，准备开始测试"
 	else
@@ -414,6 +441,13 @@ test_operation() {
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after
+	m_end_time=$(date +%s)
+	maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsRead=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsWrite=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeRead=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeWrite=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 	insert_database ${protocol_class}
 	if [ -d "${TEST_IOTDB_PATH}/logs" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}/${comp_type}
@@ -435,6 +469,7 @@ test_operation() {
 	collect_data_before
 	#启动iotdb和monitor监控
 	start_iotdb
+	m_start_time=$(date +%s)
 	sleep 10	
 	####判断IoTDB是否正常启动
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
@@ -448,6 +483,7 @@ test_operation() {
 		continue
 	  fi
 	done
+    #iotdb_state='Total line number = 2'
 	if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		echo "IoTDB正常启动，准备开始测试"
 	else
@@ -471,6 +507,13 @@ test_operation() {
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after
+	m_end_time=$(date +%s)
+	maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsRead=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsWrite=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeRead=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeWrite=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 	insert_database ${protocol_class}
 	if [ -d "${TEST_IOTDB_PATH}/logs" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}/${comp_type}
@@ -491,6 +534,7 @@ test_operation() {
 	collect_data_before
 	#启动iotdb和monitor监控
 	start_iotdb
+	m_start_time=$(date +%s)
 	sleep 10	
 	####判断IoTDB是否正常启动
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
@@ -498,7 +542,6 @@ test_operation() {
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
-		
 	  else
 		sleep 30
 		continue
@@ -527,6 +570,13 @@ test_operation() {
 	check_iotdb_pid
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after
+	m_end_time=$(date +%s)
+	maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${TEST_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsRead=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOOpsWrite=$(get_single_index "max_over_time(disk_io_ops{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeRead=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+	maxDiskIOSizeWrite=$(get_single_index "max_over_time(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"vdc\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 	insert_database ${protocol_class}
 	if [ -d "${TEST_IOTDB_PATH}/logs" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}/${comp_type}
