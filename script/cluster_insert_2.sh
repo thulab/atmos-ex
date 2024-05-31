@@ -144,40 +144,40 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"6G\"/g" ${TEST_CONFIGNODE_PATH}/conf/confignode-env.sh
 	#关闭影响写入性能的其他功能
-	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^# enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^cluster_name=.*$/cluster_name=Apache-IoTDB-2/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_metric_level=.*$/cn_metric_level=ALL/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
-	sed -i "s/^# cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties
+	sed -i "s/^# cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# cn_metric_level=.*$/cn_metric_level=ALL/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	sed -i "s/^# dn_enable_metric=.*$/dn_enable_metric=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s/^# dn_enable_performance_stat=.*$/dn_enable_performance_stat=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s/^dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	sed -i "s/^# dn_enable_metric=.*$/dn_enable_metric=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# dn_enable_performance_stat=.*$/dn_enable_performance_stat=true/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	#添加多路径
-	sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
-	sed -i "s%^# dn_wal_dirs=data/datanode/wal.*$%dn_wal_dirs=/ssd/datanode/wal%g" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties
+	sed -i "s%^# dn_data_dirs=data/datanode/data.*$%dn_data_dirs=/data/datanode/data,/data1/datanode/data%g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s%^# dn_wal_dirs=data/datanode/wal.*$%dn_wal_dirs=/ssd/datanode/wal%g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	sed -i "s/^# config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^# config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	#设置协议
-	sed -i "s/^# config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
-	sed -i "s/^# data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties
+	sed -i "s/^# config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	sed -i "s/^# data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
 }
 setup_nCmD() {
 while getopts 'c:d:t:' OPT; do
@@ -232,18 +232,18 @@ echo "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
 	#修改IoTDB ConfigNode的配置
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_internal_address.*$/cn_internal_address=${C_IP_list[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_seed_config_node.*$/cn_seed_config_node=${config_node_config_nodes[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-confignode.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^schema_replication_factor.*$/schema_replication_factor=${config_schema_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^data_replication_factor.*$/data_replication_factor=${config_data_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-common.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_internal_address.*$/cn_internal_address=${C_IP_list[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^cn_seed_config_node.*$/cn_seed_config_node=${config_node_config_nodes[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^schema_replication_factor.*$/schema_replication_factor=${config_schema_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "sed -i \"s/^data_replication_factor.*$/data_replication_factor=${config_data_replication_factor[${i}]}/g\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
 done
 echo "开始部署DataNode！"
 for (( i = 1; i <= $data_num; i++ ))
 do
 	#修改IoTDB DataNode的配置
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_rpc_address.*$/dn_rpc_address=${D_IP_list[${i}]}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_internal_address.*$/dn_internal_address=${D_IP_list[${i}]}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_seed_config_node.*$/dn_seed_config_node=${dcn_str}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-datanode.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_rpc_address.*$/dn_rpc_address=${D_IP_list[${i}]}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_internal_address.*$/dn_internal_address=${D_IP_list[${i}]}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "sed -i \"s/^dn_seed_config_node.*$/dn_seed_config_node=${dcn_str}/g\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
 done
 #启动config_num个IoTDB ConfigNode节点
 for (( j = 1; j <= $config_num; j++ ))
