@@ -347,7 +347,7 @@ test_operation() {
 	#等待30秒
 	sleep 30
 	start_time=`date`
-	ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -f ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root --sgLevel 2 --verify true --onSuccess none >${TEST_IOTDB_PATH}/tools/log.txt &)
+	ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -f ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/log.txt &)
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
