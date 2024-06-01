@@ -201,8 +201,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 		#监控执行情况  
 		cd ${TEST_IOTDB_PATH}/tools
-		ts_status1=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'successfully'| wc -l)
-		ts_status2=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'completely'| wc -l)
+		ts_status1=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'Work has been completed'| wc -l)
+		ts_status2=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'Export completely!'| wc -l)
 		let ts_status=${ts_status1}+${ts_status2}
 		if [ ${ts_status} -le 0 ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
