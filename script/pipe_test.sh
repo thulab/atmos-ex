@@ -123,6 +123,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${BM_PATH} ${TEST_INIT_PATH}/
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
