@@ -125,31 +125,31 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_unseq_space_compaction=false" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_cross_space_compaction=false" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	echo "cluster_name=${test_type}" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	echo "cn_enable_metric=true/" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_enable_metric=true/" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	echo "dn_enable_metric=true/" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_enable_metric=true/" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 start_iotdb() { # 启动iotdb
 	cd ${TEST_IOTDB_PATH}
