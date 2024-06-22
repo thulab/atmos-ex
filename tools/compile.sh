@@ -72,8 +72,8 @@ do
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
 				#配置文件整理
-				rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
-				mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
+				#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
+				#mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
 				#向新的网盘环境复制一份备份
 				#rm -rf ${REPO_PATH_BK}/${commit_id}
 				#mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
