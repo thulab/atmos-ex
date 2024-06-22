@@ -79,51 +79,60 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	config_value=$2
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+	#清空配置文件
+	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
-	sed -i "s/^enable_seq_space_compaction=true.*$/enable_seq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^enable_unseq_space_compaction=true.*$/enable_unseq_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^enable_cross_space_compaction=true.*$/enable_cross_space_compaction=false/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^cluster_name=.*$/cluster_name=${test_type}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	sed -i "s/^cn_enable_metric=.*$/cn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^cn_enable_performance_stat=.*$/cn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^cn_metric_reporter_list=.*$/cn_metric_reporter_list=PROMETHEUS/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^cn_metric_level=.*$/cn_metric_level=ALL/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^cn_metric_prometheus_reporter_port=.*$/cn_metric_prometheus_reporter_port=9081/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
-	sed -i "s/^dn_enable_metric=.*$/dn_enable_metric=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^dn_enable_performance_stat=.*$/dn_enable_performance_stat=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^dn_metric_reporter_list=.*$/dn_metric_reporter_list=PROMETHEUS/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^dn_metric_level=.*$/dn_metric_level=ALL/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^dn_metric_prometheus_reporter_port=.*$/dn_metric_prometheus_reporter_port=9091/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties	
+	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	
 	if [ "${config_name}" = "time_partition" ]; then
+		echo "time_partition_interval=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试time_partition 1D > 7D > OFF
 		#sed -i "s/^enable_partition=.*$/enable_partition=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^time_partition_interval=.*$/time_partition_interval=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "wal_mode" ]; then
+		echo "wal_mode=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试WAL模式 DISABLE > ASYNC > SYNC
 		sed -i "s/^wal_mode=.*$/wal_mode=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "array_size" ]; then
+		echo "primitive_array_size=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试 array_size 32 > 64 > 128 > 256
 		sed -i "s/^primitive_array_size=.*$/primitive_array_size=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "chunk_metadata_size" ]; then
+		echo "chunk_metadata_size_proportion_in_write=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试WAL模式 DISABLE > ASYNC > SYNC
 		sed -i "s/^chunk_metadata_size_proportion_in_write=.*$/chunk_metadata_size_proportion_in_write=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "compaction_priority" ]; then
+		echo "compaction_priority=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_cross_space_compaction=.*$/enable_cross_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试合并优先级 INNER_CROSS、CROSS_INNER、BALANCE
 		sed -i "s/^compaction_priority=.*$/compaction_priority=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "target_chunk_size" ]; then
+		echo "target_chunk_size=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_cross_space_compaction=.*$/enable_cross_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试target_chunk_size 1M、2M、4M
 		sed -i "s/^target_chunk_size=.*$/target_chunk_size=${config_value}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	elif [ "${config_name}" = "max_cross_compaction_candidate_file_size" ]; then
+		echo "max_cross_compaction_candidate_file_size=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_seq_space_compaction=.*$/enable_seq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_unseq_space_compaction=.*$/enable_unseq_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		sed -i "s/^enable_cross_space_compaction=.*$/enable_cross_space_compaction=true/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
@@ -184,9 +193,9 @@ set_protocol_class() {
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	sed -i "s/^config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	sed -i "s/^data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 start_iotdb() { # 启动iotdb
 	cd ${TEST_IOTDB_PATH}

@@ -34,14 +34,14 @@ start_time=0
 end_time=0
 flag=0
 }
-set_protocol_class() {
-        config_node=$1
-        schema_region=$2
-        data_region=$3
-        #设置协议
-        sed -i "s/^config_node_consensus_protocol_class=.*$/config_node_consensus_protocol_class=${protocol_class[${config_node}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-        sed -i "s/^schema_region_consensus_protocol_class=.*$/schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-        sed -i "s/^data_region_consensus_protocol_class=.*$/data_region_consensus_protocol_class=${protocol_class[${data_region}]}/g" ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+set_protocol_class() { 
+	config_node=$1
+	schema_region=$2
+	data_region=$3
+	#设置协议
+	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 set_env() {
         # 拷贝编译好的iotdb到测试路径
