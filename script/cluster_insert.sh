@@ -226,18 +226,18 @@ echo "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
 	#修改IoTDB ConfigNode的配置
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_internal_address=${C_IP_list[${i}]}\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_seed_config_node=${config_node_config_nodes[${i}]}\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"schema_replication_factor=${config_schema_replication_factor[${i}]}\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"data_replication_factor=${config_data_replication_factor[${i}]}\" ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"	
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_internal_address=${C_IP_list[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_seed_config_node=${config_node_config_nodes[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"schema_replication_factor=${config_schema_replication_factor[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"data_replication_factor=${config_data_replication_factor[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"	
 done
 echo "开始部署DataNode！"
 for (( i = 1; i <= $data_num; i++ ))
 do
 	#修改IoTDB DataNode的配置
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_rpc_address=${D_IP_list[${i}]}\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_internal_address=${D_IP_list[${i}]}\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_seed_config_node=${dcn_str}\" ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_rpc_address=${D_IP_list[${i}]}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_internal_address=${D_IP_list[${i}]}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_seed_config_node=${dcn_str}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
 done
 #启动config_num个IoTDB ConfigNode节点
 for (( j = 1; j <= $config_num; j++ ))
