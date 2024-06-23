@@ -163,6 +163,9 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_level=ALL" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	#添加多路径
+	echo "dn_data_dirs=/data/datanode/data,/data1/datanode/data" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "dn_wal_dirs=/ssd/datanode/wal" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
