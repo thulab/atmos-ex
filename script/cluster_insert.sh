@@ -150,8 +150,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "enable_unseq_space_compaction=false" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	echo "enable_cross_space_compaction=false" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
-	echo "cluster_name=${test_type}" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "cluster_name=Apache-IoTDB" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "cluster_name=Apache-IoTDB" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	#添加启动监控功能
 	echo "cn_enable_metric=true" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
 	echo "cn_enable_performance_stat=true" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
