@@ -126,6 +126,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#清空配置文件
 	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "series_slot_num=10000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "query_timeout_threshold=6000000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
