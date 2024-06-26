@@ -262,28 +262,42 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			flag=0
 			str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
 			if [ "$str0" = "1" ]; then
-				str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.*\" | grep -o '172800' | wc -l ")
-				str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.*\" | grep -o '172800' | wc -l ")
-				#str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${d}\" | grep -o '172800' | wc -l ")
-				if [ "$str1" = "25000" ] && [ "$str2" = "25000" ]; then
-					echo "root.test.g_0同步已结束"
-					flag=$[${flag}+1]
-				else
-					#echo "同步未结束:${Control}"  > /dev/null 2>&1 &
-					echo "同步未全部结束"
-				fi
-				now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-				t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-				if [ $t_time -ge 7200 ]; then
-					echo "测试失败"  #倒序输入形成负数结果
-					end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-					cost_time=-1
-					break
-				fi
-				echo $flag
-				if [ "$flag" = "1" ]; then
-					end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-					cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+			
+				for (( device = 0; device < 50; device++ ))
+				do
+				
+					#str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.*\" | grep -o '172800' | wc -l ")
+					#str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.*\" | grep -o '172800' | wc -l ")
+					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+					if [ "$str1" = "500" ] && [ "$str2" = "500" ]; then
+						echo "root.test.g_0.d_${device}同步已结束"
+						flag=$[${flag}+1]
+					else
+						#echo "同步未结束:${Control}"  > /dev/null 2>&1 &
+						
+						echo "同步未全部结束:${flag}"
+						flag=0
+						device=0
+					fi
+					
+					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
+					if [ $t_time -ge 7200 ]; then
+						echo "测试失败"  #倒序输入形成负数结果
+						end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+						cost_time=-1
+						break
+					fi
+					echo $flag
+					if [ "$flag" = "50" ]; then
+						end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+						cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+						break
+					fi
+
+				done
+				if [ "$flag" = "50" ]; then
 					break
 				fi
 			else
