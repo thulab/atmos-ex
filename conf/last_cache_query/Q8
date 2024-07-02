@@ -31,7 +31,7 @@ TOPIC_NAME=test-topic
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=200
+LOOP=120
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
 # generateDataMode      生成数据模式，生成Benchmark本身识别的数据
@@ -151,7 +151,7 @@ TDENGINE_REPLICA=3
 POINT_STEP=1000
 # 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
 # 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
-OP_MIN_INTERVAL=60000
+OP_MIN_INTERVAL=30000
 # 是否随机选取操作最小执行间隔：
 # 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
 # 如果为false，每次操作最小执行间隔的取值为 OP_MIN_INTERVAL
