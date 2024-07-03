@@ -202,8 +202,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 		#监控执行情况  
 		cd ${TEST_IOTDB_PATH}/tools
-		ts_status1=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'Work has been completed'| wc -l)
-		ts_status2=$(cat ${TEST_IOTDB_PATH}/tools/log.txt | grep 'Export completely!'| wc -l)
+		ts_status1=$(cat ${TEST_IOTDB_PATH}/tools/testlog/log.txt | grep 'Work has been completed'| wc -l)
+		ts_status2=$(cat ${TEST_IOTDB_PATH}/tools/testlog/log.txt | grep 'Export completely!'| wc -l)
 		let ts_status=${ts_status1}+${ts_status2}
 		if [ ${ts_status} -le 0 ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -284,6 +284,7 @@ insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_IOTDB_PATH}/tools/testlog ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo rm -rf ${TEST_IOTDB_PATH}/tools
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
@@ -348,7 +349,7 @@ test_operation() {
 	#等待30秒
 	sleep 30
 	start_time=`date`
-	ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/log.txt &)
+	ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
@@ -360,7 +361,8 @@ test_operation() {
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}
 	insert_database load-tsfile
-	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
+	#rm -rf ${TEST_IOTDB_PATH}/tools/testlog/log.txt
+	mv ${TEST_IOTDB_PATH}/tools/testlog/log.txt ${TEST_IOTDB_PATH}/tools/testlog/log.load-tsfile
 	#############################导出TS#############################
 	#收集启动前基础监控数据
 	collect_data_before ${TEST_IOTDB_PATH}
@@ -399,7 +401,7 @@ test_operation() {
 	sleep 30
 	start_time=`date`
 	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
-	ts_state=$(${TEST_IOTDB_PATH}/tools/export-tsfile.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
+	ts_state=$(${TEST_IOTDB_PATH}/tools/export-tsfile.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
@@ -411,7 +413,8 @@ test_operation() {
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}/tools/
 	insert_database export-tsfile
-	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
+	#rm -rf ${TEST_IOTDB_PATH}/tools/testlog/log.txt
+	mv ${TEST_IOTDB_PATH}/tools/testlog/log.txt ${TEST_IOTDB_PATH}/tools/testlog/log.export-tsfile
 	#############################导出CSV#############################
 	#收集启动前基础监控数据
 	collect_data_before ${TEST_IOTDB_PATH}
@@ -450,9 +453,9 @@ test_operation() {
 	start_time=`date`
 	mkdir -p ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence
 	if [ ! -f "${TEST_IOTDB_PATH}/tools/export-data.sh" ]; then
-		ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
+		ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	else
-		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -type csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/log.txt &)
+		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -type csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	fi
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
@@ -465,7 +468,8 @@ test_operation() {
 	#收集启动后基础监控数据，并写入数据库
 	collect_data_after ${TEST_IOTDB_PATH}/tools/
 	insert_database export-csv
-	rm -rf ${TEST_IOTDB_PATH}/tools/log.txt
+	#rm -rf ${TEST_IOTDB_PATH}/tools/testlog/log.txt
+	mv ${TEST_IOTDB_PATH}/tools/testlog/log.txt ${TEST_IOTDB_PATH}/tools/testlog/log.export-csv
 	#备份本次测试
 	backup_test_data ${ts_type}
 }
