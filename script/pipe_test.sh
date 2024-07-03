@@ -246,6 +246,12 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		flagB=0
 		for (( m = 1; m <= 2; m++ ))
 		do
+			if [ $t_time -ge 7200 ]; then
+				echo "测试失败"  #倒序输入形成负数结果
+				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+				cost_time=-1
+				break
+			fi
 			str1=$(ssh ${ACCOUNT}@${IP_list[${m}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
 				echo "BM写入未结束:${IP_list[${m}]}"  > /dev/null 2>&1 &
