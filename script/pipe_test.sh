@@ -319,7 +319,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 					break
 				fi
 			fi
-		elif [ $flagB -ge -1 ]; then
+		elif [ "$flagB" = "-1" ]; then
 			break
 		fi
 	done
