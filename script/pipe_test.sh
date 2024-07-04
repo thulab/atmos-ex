@@ -249,6 +249,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			if [ $t_time -ge 7200 ]; then
 				echo "测试失败"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+				flagB=-1
 				cost_time=-1
 				break
 			fi
@@ -318,6 +319,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 					break
 				fi
 			fi
+		elif [ $flagB -ge -1 ]; then
+			break
 		fi
 	done
 }
