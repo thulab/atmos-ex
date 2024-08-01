@@ -99,7 +99,6 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	
 	if [ "${config_name}" = "time_partition" ]; then
 		echo "time_partition_interval=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 		#测试time_partition 1D > 7D > OFF

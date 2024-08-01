@@ -274,8 +274,8 @@ test_operation() {
 		set_protocol_class 2 2 2
 	elif [ "${protocol_class}" = "223" ]; then
 		set_protocol_class 2 2 3
-        elif [ "${protocol_class}" = "211" ]; then
-                set_protocol_class 2 1 1
+    elif [ "${protocol_class}" = "211" ]; then
+        set_protocol_class 2 1 1
 	else
 		echo "协议设置错误！"
 		return
@@ -291,7 +291,6 @@ test_operation() {
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
-		
 	  else
 		sleep 30
 		continue

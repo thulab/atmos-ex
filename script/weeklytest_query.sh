@@ -297,7 +297,6 @@ test_operation() {
 				  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 				  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 					break
-					
 				  else
 					sleep 30
 					continue

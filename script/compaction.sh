@@ -337,8 +337,7 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 		#cost_time=$(find ./* -name log_datanode_compaction.log | xargs grep "CrossSpaceCompaction task finishes successfully" | awk '{print $16}')
 		var=$(find ./* -name log_datanode_compaction.log | xargs grep "CrossSpaceCompaction task finishes successfully")
 		substring="time cost is"
-        	cost_time=$(echo ${var#*${substring}*} | awk -F" " '{print $1}')
-
+        cost_time=$(echo ${var#*${substring}*} | awk -F" " '{print $1}')
 	fi
 	D_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
 	C_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
@@ -416,7 +415,6 @@ test_operation() {
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
-		
 	  else
 		sleep 30
 		continue
@@ -482,7 +480,6 @@ test_operation() {
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
-		
 	  else
 		sleep 30
 		continue
