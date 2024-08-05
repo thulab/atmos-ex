@@ -6,13 +6,13 @@ test_type=native_api_test
 INIT_PATH=/home/cluster/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 IOTDB_PATH=${INIT_PATH}/iotdb
-TOOL_PATH=${INIT_PATH}/java-native-api-test
+TOOL_PATH=${INIT_PATH}/java-native-api-testcase
 BK_PATH=${INIT_PATH}/native_api_test_report
 #测试数据运行路径
 TEST_INIT_PATH=/data/qa
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_DATANODE_PATH=${TEST_INIT_PATH}/apache-iotdb
-TEST_TOOL_PATH=${TEST_INIT_PATH}/java-native-api-test
+TEST_TOOL_PATH=${TEST_INIT_PATH}/java-native-api-testcase
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
