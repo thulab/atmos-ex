@@ -399,6 +399,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	done
 }
 backup_test_data() { # 备份测试数据
+	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do

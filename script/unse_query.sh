@@ -241,6 +241,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1024'}'`
 }
 backup_test_data() { # 备份测试数据
+	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}
 	sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}

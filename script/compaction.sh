@@ -365,6 +365,7 @@ insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	echo ${insert_sql}
 }
 backup_test_data() { # 备份测试数据
+	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
