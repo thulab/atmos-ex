@@ -172,6 +172,21 @@ while true; do
 		# 拷贝测试依赖到各自文件夹
 		cd ${TEST_TOOL_PATH}
 		compile=$(timeout 300s mvn clean package -DskipTests)
+		if [ $? -eq 0 ]
+		then
+			echo "编译完成，准备开始测试！"
+		else
+			echo "编译失败，写入负值测试结果！"
+			tests_num=-2
+			errors_num=-2
+			failures_num=-2
+			skipped_num=-2
+			successRate=-2
+			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'master')"
+			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			sleep 600
+			continue
+		fi
 		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
 		echo "开始监控。。。"
