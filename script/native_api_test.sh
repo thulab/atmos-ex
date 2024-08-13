@@ -146,9 +146,9 @@ while true; do
 		#comp_mvn=$(timeout 300s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
 		then
-			echo "编译完成，准备开始测试！"
+			echo "编译IoTDB完成，准备开始测试！"
 		else
-			echo "编译失败，写入负值测试结果！"
+			echo "编译IoTDB失败，写入负值测试结果！"
 			tests_num=-1
 			errors_num=-1
 			failures_num=-1
@@ -174,9 +174,9 @@ while true; do
 		compile=$(timeout 300s mvn clean package -DskipTests)
 		if [ $? -eq 0 ]
 		then
-			echo "编译完成，准备开始测试！"
+			echo "编译工具完成，准备开始测试！"
 		else
-			echo "编译失败，写入负值测试结果！"
+			echo "编译工具失败，写入负值测试结果！"
 			tests_num=-2
 			errors_num=-2
 			failures_num=-2
