@@ -241,7 +241,9 @@ while true; do
 		#backup_test_data
 		rm -rf ${BK_PATH}/site
 		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
-		cp -rf  ${IOTDB_PATH}/logs ${BK_PATH}/
+		if [ $errors_num -ge 0 ]; then
+			cp -rf  ${IOTDB_PATH}/logs ${BK_PATH}/
+		fi
 		cd ${BK_PATH}/
 		git add .
 		git commit -m ${last_cid}_${failures_num}
