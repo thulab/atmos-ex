@@ -241,8 +241,9 @@ while true; do
 		#backup_test_data
 		rm -rf ${BK_PATH}/site
 		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
-		#if [ $errors_num -gt 0 ]; then
-			cp -rf  ${TEST_IOTDB_PATH}/logs ${BK_PATH}/
+		#if [ $failures_num -gt 0 ]; then
+			mkdir -p /data/qa/backup/${last_cid}_${failures_num}
+			cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid}_${failures_num}
 		#fi
 		cd ${BK_PATH}/
 		git add .
