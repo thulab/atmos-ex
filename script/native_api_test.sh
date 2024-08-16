@@ -242,7 +242,7 @@ while true; do
 		rm -rf ${BK_PATH}/site
 		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
 		if [ $errors_num -gt 0 ]; then
-			cp -rf  ${IOTDB_PATH}/logs ${BK_PATH}/
+			cp -rf  ${TEST_IOTDB_PATH}/logs ${BK_PATH}/
 		fi
 		cd ${BK_PATH}/
 		git add .
