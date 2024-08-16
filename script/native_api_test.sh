@@ -244,6 +244,7 @@ while true; do
 		#if [ $failures_num -gt 0 ]; then
 			mkdir -p /data/qa/backup/${last_cid}_${failures_num}
 			cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid}_${failures_num}
+			find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 		#fi
 		cd ${BK_PATH}/
 		git add .
