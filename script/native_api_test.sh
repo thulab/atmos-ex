@@ -241,7 +241,7 @@ while true; do
 		#backup_test_data
 		rm -rf ${BK_PATH}/site
 		cp -rf ${TEST_TOOL_PATH}/details/target/site ${BK_PATH}/
-		if [ $errors_num -ge 0 ]; then
+		if [ $errors_num -gt 0 ]; then
 			cp -rf  ${IOTDB_PATH}/logs ${BK_PATH}/
 		fi
 		cd ${BK_PATH}/
