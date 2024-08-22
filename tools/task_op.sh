@@ -5,7 +5,7 @@ app_name_list=("all" "api_insert" "cluster_insert" "compaction" "config_insert" 
 MYSQLHOSTNAME="111.202.73.147" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD="iotdb2019"
+PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 

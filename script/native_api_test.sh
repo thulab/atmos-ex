@@ -23,7 +23,7 @@ ts_list=(common aligned template tempaligned)
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD="iotdb2019"
+PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"                   #数据库名称
 TABLENAME="java_native_api_test" #数据库中表的名称
 ############公用函数##########################

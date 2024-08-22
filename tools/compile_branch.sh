@@ -11,7 +11,7 @@ REPO_PATH_BK=/newnasdata/repository/master
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD="iotdb2019"
+PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_commit_history" #数据库中表的名称
 ############公用函数##########################
