@@ -30,6 +30,9 @@ TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 metric_server="111.200.37.158:19090"
 ############公用函数##########################
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
+if [ "${PASSWORD}" = "" ]; then
+echo "需要关注密码设置！"
+fi
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0

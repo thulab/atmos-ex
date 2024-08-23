@@ -27,6 +27,9 @@ PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"                   #数据库名称
 TABLENAME="java_native_api_test" #数据库中表的名称
 ############公用函数##########################
+if [ "${PASSWORD}" = "" ]; then
+echo "需要关注密码设置！"
+fi
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0

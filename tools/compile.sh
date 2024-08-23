@@ -17,6 +17,9 @@ PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_commit_history" #数据库中表的名称
 ############公用函数##########################
+if [ "${PASSWORD}" = "" ]; then
+echo "需要关注密码设置！"
+fi
 init_items() {
 commit_date_time=0
 commit_id=0

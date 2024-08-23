@@ -8,7 +8,9 @@ USERNAME="iotdbatm"
 PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-
+if [ "${PASSWORD}" = "" ]; then
+echo "需要关注密码设置！"
+fi
 #获取用户输入信息
 operation=$1
 app_name=$2
