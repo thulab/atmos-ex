@@ -258,7 +258,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 					if [ $t_time -ge 7200 ]; then
 						echo "测试失败"  #倒序输入形成负数结果
-						 str1="2022-11-27 16:36:57,753 [pool-21-IoTDB-Compaction-1] INFO  o.a.i.d.e.c.c.CrossSpaceCompactionTask:207 - root.test.g_0-1 [Compaction] CrossSpaceCompaction task finishes successfully, time cost is -1 s, compaction speed is 1.9099134471928962 MB/s"
+						str1="2022-11-27 16:36:57,753 [pool-21-IoTDB-Compaction-1] INFO  o.a.i.d.e.c.c.CrossSpaceCompactionTask:207 - root.test.g_0-1 [Compaction] CrossSpaceCompaction task finishes successfully, time cost is -1 s, compaction speed is 1.9099134471928962 MB/s"
 						str2="2022-11-27 15:54:50,568 [pool-21-IoTDB-Compaction-1] INFO  o.a.i.d.e.c.i.InnerSpaceCompactionTask:239 - root.test.g_0-1 [Compaction] InnerSpaceCompaction task finishes successfully, target file is 1668674556813-1-1-0.tsfile,time cost is -1 s, compaction speed is 16.47907336936178 MB/s"
 						echo ${str1} >>$log_compaction
 						echo ${str2} >>$log_compaction						

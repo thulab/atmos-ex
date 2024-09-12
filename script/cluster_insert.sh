@@ -445,6 +445,9 @@ test_operation() {
 	monitor_test_status
 	m_end_time=$(date +%s)
 	#测试结果收集写入数据库
+	if [ ! -d "${BM_PATH}/TestResult/csvOutput/" ]; then
+		mkdir -p ${BM_PATH}/TestResult/csvOutput/
+	fi
 	rm -rf ${BM_PATH}/TestResult/csvOutput/*
 	scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/data/csvOutput/*result.csv ${BM_PATH}/TestResult/csvOutput/
 	for ((j = 1; j <= 3; j++)); do
@@ -463,7 +466,7 @@ test_operation() {
 		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN"
 		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN"
 	done
-	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_${protocol_class}/
+	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
 }
 
 ##准备开始测试
@@ -484,40 +487,40 @@ else
 	###############################普通时间序列###############################
 	echo "开始测试普通时间序列顺序写入！"
 	test_operation common seq_w 223
-	echo "开始测试普通时间序列乱续写入！"
+	echo "开始测试普通时间序列乱序写入！"
 	test_operation common unseq_w 223
 	echo "开始测试普通时间序列顺序读写混合！"
 	test_operation common seq_rw 223
-	echo "开始测试普通时间序列乱续读写混合！"
+	echo "开始测试普通时间序列乱序读写混合！"
 	test_operation common unseq_rw 223
 	###############################对齐时间序列###############################
 	echo "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
 	test_operation aligned seq_w 222
-	echo "开始测试对齐时间序列乱续写入！"
+	echo "开始测试对齐时间序列乱序写入！"
 	test_operation aligned unseq_w 223
 	test_operation aligned unseq_w 222
 	echo "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
-	echo "开始测试对齐时间序列乱续读写混合！"
+	echo "开始测试对齐时间序列乱序读写混合！"
 	test_operation aligned unseq_rw 223
 	###############################模板时间序列###############################
 	#echo "开始测试模板时间序列顺序写入！"
 	#test_operation template seq_w 223
-	#echo "开始测试模板时间序列乱续写入！"
+	#echo "开始测试模板时间序列乱序写入！"
 	#test_operation template unseq_w 223
 	#echo "开始测试模板时间序列顺序读写混合！"
 	#test_operation template seq_rw 223
-	#echo "开始测试模板时间序列乱续读写混合！"
+	#echo "开始测试模板时间序列乱序读写混合！"
 	#test_operation template unseq_rw 223
 	###############################对齐模板时间序列###############################
 	#echo "开始测试对齐模板时间序列顺序写入！"
 	#test_operation tempaligned seq_w 223
-	#echo "开始测试对齐模板时间序列乱续写入！"
+	#echo "开始测试对齐模板时间序列乱序写入！"
 	#test_operation tempaligned unseq_w 223
 	#echo "开始测试对齐模板时间序列顺序读写混合！"
 	#test_operation tempaligned seq_rw 223
-	#echo "开始测试对齐模板时间序列乱续读写混合！"
+	#echo "开始测试对齐模板时间序列乱序读写混合！"
 	#test_operation tempaligned unseq_rw 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."

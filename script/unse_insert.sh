@@ -26,12 +26,12 @@ PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_unse_insert" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-############prometheus##########################
-metric_server="111.200.37.158:19090"
 ############公用函数##########################
 if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
 fi
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 init_items() {
 ############定义监控采集项初始值##########################

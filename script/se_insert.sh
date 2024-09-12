@@ -26,12 +26,12 @@ PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_se_insert" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-############prometheus##########################
-metric_server="111.200.37.158:19090"
 ############公用函数##########################
 if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
 fi
+############prometheus##########################
+metric_server="111.200.37.158:19090"
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 init_items() {
 ############定义监控采集项初始值##########################
@@ -123,7 +123,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#清空配置文件
-	#echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
@@ -295,7 +295,6 @@ test_operation() {
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
-		
 	  else
 		sleep 30
 		continue

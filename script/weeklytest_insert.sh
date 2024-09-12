@@ -127,7 +127,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#清空配置文件
-	#echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
@@ -269,7 +269,7 @@ test_operation() {
 	protocol_class=$1
 	#写入测试
 	for (( i = 0; i < ${#insert_list[*]}; i++ ))
-		do
+	do
 		echo "开始${insert_list[${i}]}写入！"
 		ts_type=${insert_list[${i}]}
 		#清理环境，确保无就程序影响

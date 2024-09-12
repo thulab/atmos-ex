@@ -453,6 +453,9 @@ test_operation() {
 	monitor_test_status
 	m_end_time=$(date +%s)
 	#测试结果收集写入数据库
+	if [ ! -d "${BM_PATH}/TestResult/csvOutput/" ]; then
+		mkdir -p ${BM_PATH}/TestResult/csvOutput/
+	fi
 	rm -rf ${BM_PATH}/TestResult/csvOutput/*
 	scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/data/csvOutput/*result.csv ${BM_PATH}/TestResult/csvOutput/
 	for ((j = 1; j <= 5; j++)); do

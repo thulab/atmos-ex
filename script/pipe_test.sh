@@ -174,7 +174,7 @@ setup_env() {
 		TEST_IP=${IP_list[$j]}
 		ssh ${ACCOUNT}@${TEST_IP} "sudo reboot"
 	done
-	sleep 180
+	sleep 120
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		echo "开始部署${IP_list[$i]}！"
@@ -303,7 +303,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 					break
 				fi
 			else
-				#echo "同步未结束:${Control}"  > /dev/null 2>&1 &
 				echo "同步未结束:${Control}"
 				now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))

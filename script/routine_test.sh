@@ -273,7 +273,7 @@ test_operation() {
 	#写入测试
 	ts_type='common'
 	for (( i = 0; i < ${#insert_list[*]}; i++ ))
-		do
+	do
 		echo "开始${insert_list[${i}]}写入！"
 		data_type=${insert_list[${i}]}
 		#清理环境，确保无就程序影响
@@ -359,7 +359,7 @@ test_operation() {
 		check_iotdb_pid
 		#查询测试
 		for (( j = 0; j < ${#query_list[*]}; j++ ))
-			do
+		do
 			echo "开始${query_list[${j}]}查询！"
 			op_type=${query_list[${j}]}
 			check_iotdb_pid
