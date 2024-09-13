@@ -104,6 +104,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#清空配置文件
 	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "dn_metric_internal_reporter_type=MEMORY" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#关闭影响写入性能的其他功能
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
