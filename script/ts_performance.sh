@@ -357,7 +357,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	
+	if [ "${ts_numOfPoints}" = "" ]; then
+		ts_numOfPoints=-1
+	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
 	sleep 30
@@ -408,7 +410,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	
+	if [ "${ts_numOfPoints}" = "" ]; then
+		ts_numOfPoints=-1
+	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
 	sleep 30
@@ -462,7 +466,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	
+	if [ "${ts_numOfPoints}" = "" ]; then
+		ts_numOfPoints=-1
+	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
 	sleep 30
