@@ -18,7 +18,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(111 223 222 211)
-ts_list=(common aligned template tempaligned)
+ts_list=(tablemode common aligned tempaligned)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
@@ -30,7 +30,7 @@ TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
 #query_data_type=(common)
-query_data_type=(common aligned template tempaligned)
+query_data_type=(tablemode common aligned tempaligned)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4a-1 Q4a-2 Q4a-3 Q4b-1 Q4b-2 Q4b-3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q8 Q9-1 Q9-2 Q9-3 Q10)
 query_type_csv=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, RANGE_QUERY_DESC, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC)
 ############公用函数##########################
@@ -319,6 +319,19 @@ test_operation() {
 			
 			#启动写入程序
 			mv_config_file ${ts_type} ${query_list[${i}]}
+			# IoTDB-2.0 表模型支持 需要修改测试数据模型
+			if [ "${ts_type}" = "tablemode" ]; then 
+				echo "IoTDB_DIALECT_MODE=table" >> ${BM_PATH}/conf/config.properties
+				# IoTDB-2.0 表模型支持 Q1 Q2 Q3 Q9 Q10
+				#query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4a-1 Q4a-2 Q4a-3 Q4b-1 Q4b-2 Q4b-3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q8 Q9-1 Q9-2 Q9-3 Q10)
+				table_query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q9-1 Q9-2 Q9-3 Q10)
+				if [[ " ${table_query_list[@]} " =~ " ${query_list[${i}]} " ]]; then
+					echo "目前支持 ${query_list[${i}]} 查询"
+				else
+					echo "目前不支持 ${query_list[${i}]} 查询，将要跳过。"
+					continue
+				fi
+			fi
 			sleep 3
 
 			start_benchmark
