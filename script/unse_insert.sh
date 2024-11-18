@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-TEST_IP="11.101.17.122"
+TEST_IP="11.101.17.136"
 ACCOUNT=atmos
 test_type=unse_insert
 #初始环境存放路径
