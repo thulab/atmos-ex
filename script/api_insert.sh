@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-TEST_IP="11.101.17.125"
+TEST_IP="11.101.17.225"
 ACCOUNT=atmos
 test_type=api_insert
 #初始环境存放路径
