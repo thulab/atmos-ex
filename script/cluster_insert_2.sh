@@ -499,9 +499,14 @@ else
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	###############################普通时间序列###############################
+	########优先测试
 	echo "开始测试普通时间序列顺序写入！"
 	test_operation common seq_w 223
+	echo "开始测试对齐时间序列顺序写入！"
+	test_operation aligned seq_w 223
+	###############################普通时间序列###############################
+	#echo "开始测试普通时间序列顺序写入！"
+	#test_operation common seq_w 223
 	echo "开始测试普通时间序列乱续写入！"
 	test_operation common unseq_w 223
 	echo "开始测试普通时间序列顺序读写混合！"
@@ -509,8 +514,8 @@ else
 	echo "开始测试普通时间序列乱续读写混合！"
 	test_operation common unseq_rw 223
 	###############################对齐时间序列###############################
-	echo "开始测试对齐时间序列顺序写入！"
-	test_operation aligned seq_w 223
+	#echo "开始测试对齐时间序列顺序写入！"
+	#test_operation aligned seq_w 223
 	#test_operation aligned seq_w 222
 	echo "开始测试对齐时间序列乱续写入！"
 	test_operation aligned unseq_w 223
