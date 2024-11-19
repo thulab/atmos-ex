@@ -47,3 +47,7 @@ cd zk_test/
 touch test_type_file
 echo "weeklytest_insert" > test_type_file
 git clone https://github.com/thulab/atmos-ex
+
+
+vim /etc/profile
+export ATMOS_DB_PASSWORD=XXXXXX
