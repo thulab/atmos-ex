@@ -182,7 +182,7 @@ GROUP_NUMBER=1
 TEMPLATE=true
 
 # template的名称
-# TEMPLATE_NAME=BenchmarkTemplate
+TEMPLATE_NAME=TempAligned
 
 # 是否使用vector
 VECTOR=true
