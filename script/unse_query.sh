@@ -155,6 +155,8 @@ set_protocol_class() {
 	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 start_iotdb() { # 启动iotdb
+	#启动IoTDB之前清理系统缓存
+	echo 3 > /proc/sys/vm/drop_caches
 	cd ${TEST_IOTDB_PATH}
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
