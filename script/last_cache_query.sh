@@ -340,7 +340,7 @@ test_operation() {
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/Q8 ${BM_PATH}/conf/config.properties
 	if [ "${ts_type}" = "tablemode" ]; then 
 		#echo "IoTDB_DIALECT_MODE=table" >> ${BM_PATH}/conf/config.properties
-		sed -i "s/^#IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
+		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
 	fi
 	start_benchmark
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
