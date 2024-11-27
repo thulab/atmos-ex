@@ -18,7 +18,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(223)
-ts_list=(common aligned)
+ts_list=(common aligned tablemode)
 ts_list_bk=(common aligned template tempaligned)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
@@ -337,6 +337,10 @@ test_operation() {
 	#启动查询程序
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/Q8 ${BM_PATH}/conf/config.properties
+	if [ "${ts_type}" = "tablemode" ]; then 
+		#echo "IoTDB_DIALECT_MODE=table" >> ${BM_PATH}/conf/config.properties
+		sed -i "s/^#IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
+	fi
 	start_benchmark
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
