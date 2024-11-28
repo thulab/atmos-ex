@@ -335,7 +335,7 @@ test_operation() {
 		pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
 
 		#收集启动后基础监控数据
-		collect_monitor_data
+		collect_monitor_data ${TEST_IP}
 		#测试结果收集写入数据库
 		csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
 		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
