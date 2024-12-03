@@ -512,6 +512,8 @@ else
 	test_operation common seq_w 223
 	echo "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
+	echo "开始测试表模型时间序列顺序写入！"
+	test_operation tablemode seq_w 223
 	###############################普通时间序列###############################
 	#echo "开始测试普通时间序列顺序写入！"
 	#test_operation common seq_w 223
@@ -551,8 +553,8 @@ else
 	#echo "开始测试对齐模板时间序列乱续读写混合！"
 	#test_operation tempaligned unseq_rw 223	
 	###############################表模型时间序列###############################
-	echo "开始测试表模型时间序列顺序写入！"
-	test_operation tablemode seq_w 223
+	#echo "开始测试表模型时间序列顺序写入！"
+	#test_operation tablemode seq_w 223
 	echo "开始测试表模型时间序列乱续写入！"
 	test_operation tablemode unseq_w 223
 	echo "开始测试表模型时间序列顺序读写混合！"
