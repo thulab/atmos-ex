@@ -351,12 +351,12 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			echo "测试失败"
 			end_time=-1
 			cost_time=-1
-			ssh ${ACCOUNT}@${B_IP_list[1} "mkdir -p ${BM_PATH}/data/csvOutput"
-			ssh ${ACCOUNT}@${B_IP_list[1} "touch -p ${BM_PATH}/data/Stuck_result.csv"
+			ssh ${ACCOUNT}@${B_IP_list[1]} "mkdir -p ${BM_PATH}/data/csvOutput"
+			ssh ${ACCOUNT}@${B_IP_list[1]} "touch -p ${BM_PATH}/data/Stuck_result.csv"
 			array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
 			for ((i=0;i<100;i++))
 			do
-				ssh ${ACCOUNT}@${B_IP_list[1} "echo $array1 >> Stuck_result.csv"
+				ssh ${ACCOUNT}@${B_IP_list[1]} "echo $array1 >> Stuck_result.csv"
 			done
 			break
 		fi
