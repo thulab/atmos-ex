@@ -113,7 +113,7 @@ start_iotdb() { # 启动iotdb
 	cd ${TEST_DATANODE_PATH}
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
-	data_start=$(./sbin/start-datanode.sh >/dev/null 2>&1 &)
+	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
 while true; do

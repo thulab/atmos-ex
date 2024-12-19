@@ -250,7 +250,7 @@ done
 for (( j = 1; j <= $data_num; j++ ))
 do
 	echo "starting IoTDB DataNode on ${D_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-datanode.sh   > /dev/null 2>&1 &")
+	pid3=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-datanode.sh -H ${TEST_DATANODE_PATH}/dn_dump.hprof    > /dev/null 2>&1 &")
 done
 #等待60s，让服务器完成前期准备
 sleep 60

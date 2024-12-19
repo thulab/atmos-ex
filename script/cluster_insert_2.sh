@@ -249,7 +249,7 @@ done
 for (( j = 1; j <= $config_num; j++ ))
 do
 	echo "starting IoTDB ConfigNode on ${C_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh  > /dev/null 2>&1 &")
+	pid3=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &")
 	#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 	sleep 10
 done
@@ -257,7 +257,7 @@ done
 for (( j = 1; j <= $data_num; j++ ))
 do
 	echo "starting IoTDB DataNode on ${D_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-datanode.sh   > /dev/null 2>&1 &")
+	pid3=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-datanode.sh -H ${TEST_DATANODE_PATH}/dn_dump.hprof  > /dev/null 2>&1 &")
 done
 #等待60s，让服务器完成前期准备
 sleep 60
