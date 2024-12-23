@@ -445,9 +445,9 @@ else
 	t_index=$(($RANDOM % ${#ts_list[*]}))	
 	#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
-	test_operation 111 
-	#test_operation 222 
 	test_operation 223 
+	#test_operation 222 
+	test_operation 111 
 	#test_operation 211 
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
