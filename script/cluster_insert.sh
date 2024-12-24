@@ -162,6 +162,20 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_level=ALL" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	
+	echo "config_node_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "schema_region_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "data_region_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "config_node_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "schema_region_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	echo "data_region_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties
+	
+	echo "config_node_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "schema_region_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "data_region_ratis_rpc_leader_election_timeout_min_ms=8000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "config_node_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "schema_region_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
+	echo "data_region_ratis_rpc_leader_election_timeout_max_ms=16000" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
