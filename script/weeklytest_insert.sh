@@ -15,8 +15,9 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223)
+# 4. org.apache.iotdb.consensus.iot.IoTConsensusV2
+protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus org.apache.iotdb.consensus.iot.IoTConsensusV2)
+protocol_list=(111 223 222 224)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
@@ -288,6 +289,8 @@ test_operation() {
 			set_protocol_class 2 2 3
 		elif [ "${protocol_class}" = "211" ]; then
 			set_protocol_class 2 1 1
+		elif [ "${protocol_class}" = "224" ]; then
+			set_protocol_class 2 2 4
 		else
 			echo "协议设置错误！"
 			return
