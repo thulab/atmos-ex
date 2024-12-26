@@ -15,8 +15,9 @@ TEST_BM_PATH=${TEST_INIT_PATH}/iot-benchmark
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(223)
+# 4. org.apache.iotdb.consensus.iot.IoTConsensusV2
+protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus org.apache.iotdb.consensus.iot.IoTConsensusV2)
+protocol_list=(223 224)
 ts_list=(common aligned)
 IP_list=(0 11.101.17.144 11.101.17.146)
 PIPE_list=(0 11.101.17.146 11.101.17.144)
@@ -435,6 +436,8 @@ test_operation() {
 		set_protocol_class 2 2 3
     elif [ "${protocol_class}" = "211" ]; then
         set_protocol_class 2 1 1
+    elif [ "${protocol_class}" = "224" ]; then
+        set_protocol_class 2 2 4
 	else
 		echo "协议设置错误！"
 		return
@@ -520,6 +523,8 @@ else
 	test_operation 223 common
 	echo "开始测试223协议下的aligned时间序列！"
 	test_operation 223 aligned
+	echo "开始测试224协议下的aligned时间序列！"
+	test_operation 224 aligned
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
