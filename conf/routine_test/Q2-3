@@ -220,7 +220,7 @@ BATCH_SIZE_PER_WRITE=100
 # 是否在写入数据前，创建SCHEMA
 CREATE_SCHEMA=true
 # 开始写入数据的时间戳
-START_TIME=2022-01-01T00:00:00+08:00
+START_TIME=2024-01-01T00:00:00+08:00
 
 ######### 复制的生成模式，是否添加异常，异常率和异常倍率 ############
 # verificationWriteMode模式下使用复制文件模式，此时必须将
