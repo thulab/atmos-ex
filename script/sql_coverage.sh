@@ -32,6 +32,14 @@ if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
 fi
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
+echo "检查iot-benchmark版本"
+BM_REPOS_PATH=/nasdata/repository/iot-benchmark
+BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
+BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
+if [ "${BM_OLD}" ！= "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
+	rm -rf ${BM_PATH}
+	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
+fi
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
