@@ -456,11 +456,11 @@ test_operation() {
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo "${insert_sql}"
 	#备份本次测试
-	tail -n 1 showCost_all.log >> showResult.log
-	tail -n 1 showCost_common.log >> showResult.log
-	tail -n 1 showCost_aligned.log >> showResult.log
-	tail -n 1 showCost_template.log >> showResult.log
-	tail -n 1 showCost_tempaligned.log >> showResult.log
+	tail -n 1 ${TEST_IOTDB_PATH}/showCost_all.log >> ${TEST_IOTDB_PATH}/showResult.log
+	tail -n 1 ${TEST_IOTDB_PATH}/showCost_common.log >> ${TEST_IOTDB_PATH}/showResult.log
+	tail -n 1 ${TEST_IOTDB_PATH}/showCost_aligned.log >> ${TEST_IOTDB_PATH}/showResult.log
+	tail -n 1 ${TEST_IOTDB_PATH}/showCost_template.log >> ${TEST_IOTDB_PATH}/showResult.log
+	tail -n 1 ${TEST_IOTDB_PATH}/showCost_tempaligned.log >> ${TEST_IOTDB_PATH}/showResult.log
 	rm -rf ${TEST_IOTDB_PATH}/showCost_*.log
 	backup_test_data ${protocol_class}
 }

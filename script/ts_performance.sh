@@ -271,8 +271,8 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 	else
 		numOfUnse0Level_after=$(find ${COLLECT_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l)
 	fi
-	D_ErrorLogSize=$(du -sh ${COLLECT_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_ErrorLogSize=$(du -sh ${COLLECT_PATH}/logs/log_confignode_error.log | awk {'print $1'})
+	D_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
+	C_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
 	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
 		ErrorLogSize=0
 	else
