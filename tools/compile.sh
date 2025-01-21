@@ -134,7 +134,7 @@ do
 				if [ "${file_num}" = "0" ]; then
 					#不需要测试
 					str_noneed='NoNeed'
-					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}',,'${str_noneed}''${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
+					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
 					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				else
 					#正常下派所有任务
@@ -145,7 +145,7 @@ do
 			else
 				echo "${commit_id}编译失败！"
 				str_err='CError'
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}',,'${str_err}''${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
+				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
                 mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				sendEmail 2
 			fi
