@@ -28,21 +28,53 @@ se_insert=0
 unse_insert=0
 se_query=0
 unse_query=0
-commpaction=0
+compaction=0
 sql_coverage=0
-api_test=0
 weeklytest_insert=0
 weeklytest_query=0
+api_insert=0
+ts_performance=0
+cluster_insert=0
+cluster_insert_2=0
+insert_records=0
+restart_db=0
 routine_test=0
 config_insert=0
-ts_performance=0
+count_ts=0
+pipe_test=0
+last_cache_query=0
+windows_test=0
+benchants=0
+helishi_test=0
 remark=0
 }
 sendEmail() {
-sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
+	error_type=$1
+	date_time=`date +%Y%m%d%H%M%S`
+	mailto='qingxin.feng@hotmail.com'
+	test_type=${HOSTNAME}
+	case $error_type in
+		1)
+		#1.代码更新失败
+			headline=''${test_type}'代码更新失败'
+			mailbody='错误类型：'${test_type}'代码更新失败<BR>报错时间：'${date_time}''
+			msgbody='错误类型：'${test_type}'代码更新失败\n报错时间：'${date_time}''
+			;;
+		2)
+		#2.编译失败
+			headline=''${test_type}'代码编译失败'
+			mailbody='错误类型：'${test_type}'代码编译失败<BR>报错时间：'${date_time}'<BR>报错Commit：'${commit_id}'<BR>提交人：'${author}''
+			msgbody='错误类型：'${test_type}'代码编译失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'\n<BR>提交人：'${author}''
+			;;
+		#*)
+		#exit -1
+		#;;
+	esac
+	curl 'https://oapi.dingtalk.com/robot/send?access_token=f2d691d45da9a0307af8bbd853e90d0785dbaa3a3b0219dd2816882e19859e62' -H 'Content-Type: application/json' -d '{"msgtype": "text","text": {"content": "[Atmos]'${msgbody}'"}}' > /dev/null 2>&1 &
 }
 for (( comp_test = 1; comp_test <= 3;))
 do
+	# 获取git commit对比判定是否启动测试
 	cd ${IOTDB_PATH}
 	git_pull=$(timeout 100s git fetch --all)
 	git_pull=$(timeout 100s git reset --hard origin/master)
@@ -77,7 +109,7 @@ do
 				#配置文件整理
 				#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
 				#mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
-				#向新的网盘环境复制一份备份
+				#向异构机器网盘环境复制一份备份
 				#rm -rf ${REPO_PATH_BK}/${commit_id}
 				#mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
 				#cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
@@ -102,7 +134,7 @@ do
 				if [ "${file_num}" = "0" ]; then
 					#不需要测试
 					str_noneed='NoNeed'
-					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto,pipe_test,last_cache_query) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
+					insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}',,'${str_noneed}''${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}')"
 					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				else
 					#正常下派所有任务
@@ -113,16 +145,15 @@ do
 			else
 				echo "${commit_id}编译失败！"
 				str_err='CError'
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,insert_records,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,routine_test,config_insert,ts_performance,cluster_insert,cluster_insert_2,restart_db,count_ts,cluster_rto,pipe_test,last_cache_query) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
+				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}',,'${str_err}''${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}')"
                 mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-				msgbody='错误类型：'${test_type}'代码编译失败\n报错时间：'${date_time}'\n报错Commit：'${commit_id}'\n提交人：'${author}''
-				sendEmail ${msgbody}
+				sendEmail 2
 			fi
 		else
 			echo "当前${commit_id_list[$i]}已经存在！"
 		fi
 	done
-	echo "当前查询到的10个commitid确认完毕！"
+	echo "当前查询到的10个commitid都已经存在！"
 	echo "别闲着，做一轮服务器空间清理任务吧。删除15天之前的测试记录"
 	find /data/repository/*/*/ -mtime +15 -type d -name "*" -exec rm -rf {} \;
 	sleep 300s
