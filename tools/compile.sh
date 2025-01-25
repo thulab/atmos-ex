@@ -154,6 +154,9 @@ do
 		fi
 	done
 	echo "当前查询到的10个commitid都已经存在！"
+	BM_REPOS_PATH=/data/repository/iot-benchmark
+	rm -rf ${BM_REPOS_PATH}
+	cp -rf ${INIT_PATH}/iot-benchmark ${BM_REPOS_PATH}
 	echo "别闲着，做一轮服务器空间清理任务吧。删除15天之前的测试记录"
 	find /data/repository/*/*/ -mtime +15 -type d -name "*" -exec rm -rf {} \;
 	sleep 300s
