@@ -377,7 +377,7 @@ test_operation() {
 		mv ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${protocol_class}/${ts_type}/ 
 		#rm -rf ${TEST_IOTDB_PATH}/data
 		#备份本次测试
-		#backup_test_data ${ts_type}
+		backup_test_data ${ts_type}
 	done
 }
 
