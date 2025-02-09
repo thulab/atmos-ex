@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-TEST_IP="11.101.17.224"
+TEST_IP="11.101.17.141"
 ACCOUNT=atmos
 test_type=se_query
 #初始环境存放路径
