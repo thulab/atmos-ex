@@ -469,7 +469,7 @@ test_operation() {
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		TEST_IP=${IP_list[$i]}
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\"")
+		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
 		if [ "$str1" = "Total line number = 1" ]; then
 			echo "PIPE is ready"
 			pipflag=$[${pipflag}+1]
