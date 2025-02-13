@@ -464,7 +464,23 @@ test_operation() {
 	m_start_time=$(date +%s)
 	#等待1分钟
 	sleep 60
-	monitor_test_status
+	#判断PIPE设置情况
+	pipflag=0
+	for (( i = 1; i < ${#IP_list[*]}; i++ ))
+	do
+		TEST_IP=${IP_list[$i]}
+		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\"")
+		if [ "$str1" = "Total line number = 1" ]; then
+			echo "PIPE is ready"
+			pipflag=$[${pipflag}+1]
+		fi
+	done
+	if [ $pipflag -ge 2 ]; then
+		monitor_test_status
+	else
+		#PIPE启动失败
+		cost_time=-5
+	fi
 	#收集启动后基础监控数据
 	m_end_time=$(date +%s)
 	collect_monitor_data
