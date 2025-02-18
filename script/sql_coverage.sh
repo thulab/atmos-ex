@@ -151,6 +151,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#UDF路径限制扩展
 	echo "trusted_uri_pattern=.*" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#修改AINode名称
+	echo "# 修改AINode名称" >> ${TEST_AINode_PATH}/conf/iotdb-ainode.properties
 	echo "cluster_name=${test_type}" >> ${TEST_AINode_PATH}/conf/iotdb-ainode.properties
 }
 set_protocol_class() { 
