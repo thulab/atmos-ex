@@ -99,13 +99,15 @@ do
 			echo "当前版本${commit_id}未记录,即将编译。"
 			#代码编译
 			date_time=`date +%Y%m%d%H%M%S`
-			comp_mvn=$(mvn clean package -pl distribution -am -DskipTests)
+			comp_mvn=$(mvn clean package -DskipTests -am -pl distribution -P with-ainode)
 			if [ $? -eq 0 ]
 			then
 				echo "${commit_id}编译完成！"
 				rm -rf ${REPO_PATH}/${commit_id}
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
+				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
 				#配置文件整理
 				#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
 				#mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
