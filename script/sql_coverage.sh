@@ -66,6 +66,13 @@ check_benchmark_pid() { # 检查benchmark的pid，有就停止
 	fi
 }
 check_iotdb_pid() { # 检查iotdb的pid，有就停止
+	iotdb_pid=$(ps -ef | grep "ainode start" | grep -v grep | awk '{print $2}')
+	if [ "${iotdb_pid}" = "" ]; then
+		echo "未检测到AINode程序！"
+	else
+		kill -9 ${iotdb_pid}
+		echo "AINode程序已停止！"
+	fi
 	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到DataNode程序！"
@@ -160,9 +167,14 @@ start_iotdb() { # 启动iotdb
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
+	sleep 10
+	cd ${TEST_AINode_PATH}
+	ai_start=$(./sbin/start-ainode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
 stop_iotdb() { # 停止iotdb
+	cd ${TEST_AINode_PATH}
+	ai_stop=$(./sbin/stop-ainode.sh >/dev/null 2>&1 &)
 	cd ${TEST_IOTDB_PATH}
 	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
 	sleep 10
@@ -220,7 +232,7 @@ else
 	####判断IoTDB是否正常启动
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
-	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 3')
 	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		break
 	  else
