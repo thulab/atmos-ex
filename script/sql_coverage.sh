@@ -234,14 +234,14 @@ else
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 3')
-	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
+	  if [ "${iotdb_state}" = "Total line number = 3" ]; then
 		break
 	  else
 		sleep 30
 		continue
 	  fi
 	done
-	if [ "${iotdb_state}" = "Total line number = 2" ]; then
+	if [ "${iotdb_state}" = "Total line number = 3" ]; then
 		echo "IoTDB正常启动，准备开始测试"
 		F_start_time=$(date +%s%3N)
 		F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
