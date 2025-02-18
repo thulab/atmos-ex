@@ -107,7 +107,7 @@ do
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
 				mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
-				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+				cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-ainode-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
 				#配置文件整理
 				#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
 				#mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties

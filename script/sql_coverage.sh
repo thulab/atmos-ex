@@ -13,6 +13,7 @@ REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
 TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
+TEST_AINode_PATH=${TEST_INIT_PATH}/apache-iotdb-ainode
 TEST_TOOL_PATH=${TEST_INIT_PATH}/iotdb-sql
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
@@ -99,6 +100,14 @@ set_env() {
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
+	if [ ! -d "${TEST_AINode_PATH}" ]; then
+		mkdir -p ${TEST_AINode_PATH}
+	else
+		rm -rf ${TEST_AINode_PATH}
+		mkdir -p ${TEST_AINode_PATH}
+	fi
+	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb-ainode/* ${TEST_AINode_PATH}/
+	cp -rf /data/atmos/zk_test/AINode/venv ${TEST_AINode_PATH}/
 	# 拷贝工具到测试路径
 	if [ ! -d "${TEST_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_TOOL_PATH}
@@ -134,6 +143,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#UDF路径限制扩展
 	echo "trusted_uri_pattern=.*" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	#修改AINode名称
+	echo "cluster_name=${test_type}" >> ${TEST_AINode_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
