@@ -156,9 +156,18 @@ do
 		fi
 	done
 	echo "当前查询到的10个commitid都已经存在！"
-	BM_REPOS_PATH=/data/repository/iot-benchmark
-	rm -rf ${BM_REPOS_PATH}
-	cp -rf ${INIT_PATH}/iot-benchmark ${BM_REPOS_PATH}
+	# 获取当前的星期（1表示星期一，7表示星期天）和小时
+	day_of_week=$(date +%u)  # 星期几（1-7，1表示星期一）
+	hour=$(date +%H)         # 当前小时（00-23）
+	echo $day_of_week
+	echo $hour
+	# 判断是否是每周一凌晨1点
+	if [ "$day_of_week" -eq 1 ] && [ "$hour" -eq 01 ]; then
+		echo "It's Monday at 1:00 AM. Running the task..."
+		BM_REPOS_PATH=/data/repository/iot-benchmark
+		rm -rf ${BM_REPOS_PATH}
+		cp -rf ${INIT_PATH}/iot-benchmark ${BM_REPOS_PATH}
+	fi
 	echo "别闲着，做一轮服务器空间清理任务吧。删除15天之前的测试记录"
 	find /data/repository/*/*/ -mtime +15 -type d -name "*" -exec rm -rf {} \;
 	sleep 300s
