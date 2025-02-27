@@ -168,7 +168,9 @@ start_iotdb() { # 启动iotdb
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
-	sleep 10
+	cd ~/
+}
+start_iotdb_ainode() { # 启动iotdb
 	cd ${TEST_AINode_PATH}
 	ai_start=$(./sbin/start-ainode.sh >/dev/null 2>&1 &)
 	cd ~/
@@ -187,6 +189,7 @@ backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_AINode_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mv ${TEST_TOOL_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 ##准备开始测试
@@ -229,8 +232,33 @@ else
 	set_protocol_class 2 2 3
 	#启动iotdb和monitor监控
 	start_iotdb
-	sleep 60
+	sleep 30
 	####判断IoTDB是否正常启动
+	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
+	do
+	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
+		break
+	  else
+		sleep 30
+		continue
+	  fi
+	done
+	if [ "${iotdb_state}" = "Total line number = 2" ]; then
+		echo "IoTDB正常启动"
+	else
+		echo "IoTDB未能正常启动，写入负值测试结果！"
+		cost_time=-3
+		fail_num=-3
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+		continue
+	fi
+	####判断IoTDB-AINode是否正常启动
+	start_iotdb_ainode
+	sleep 60
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
 	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 3')
@@ -242,7 +270,7 @@ else
 	  fi
 	done
 	if [ "${iotdb_state}" = "Total line number = 3" ]; then
-		echo "IoTDB正常启动，准备开始测试"
+		echo "IoTDB-AINode正常启动，准备开始测试"
 		F_start_time=$(date +%s%3N)
 		F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
 		F_now_time=$(date +%s%3N)
@@ -255,8 +283,8 @@ else
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
-		cost_time=-3
-		fail_num=-3
+		cost_time=-5
+		fail_num=-5
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
