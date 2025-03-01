@@ -7,7 +7,6 @@ INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 TOOL_PATH=${INIT_PATH}/iotdb-sql
 BM_PATH=${INIT_PATH}/iot-benchmark
-TC_PATH=${INIT_PATH}/iotdb-sql-testcase
 BUCKUP_PATH=/nasdata/repository/sql_coverage/master
 REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
@@ -210,7 +209,120 @@ fi
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
+	#测试表模型
 	init_items
+	TC_PATH=${INIT_PATH}/iotdb-sql-testcase-tablemode
+	# 获取git commit对比判定是否启动测试
+	cd ${TC_PATH}
+	#last_cid1=$(git log --pretty=format:"%h" -1)
+	#更新TC
+	git_pull=$(timeout 100s git pull)
+	# 获取更新后git commit对比判定是否启动测试
+	#commit_id1=$(git log --pretty=format:"%h" -1)
+	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	test_date_time=$(date +%Y%m%d%H%M%S)
+	#开始测试
+	#清理环境，确保无旧程序影响
+	check_iotdb_pid
+	#复制当前程序到执行位置
+	set_env
+	#IoTDB 调整内存，关闭合并
+	modify_iotdb_config
+	set_protocol_class 2 2 3
+	#启动iotdb和monitor监控
+	start_iotdb
+	sleep 30
+	####判断IoTDB是否正常启动
+	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
+	do
+	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
+		break
+	  else
+		sleep 30
+		continue
+	  fi
+	done
+	if [ "${iotdb_state}" = "Total line number = 2" ]; then
+		echo "IoTDB正常启动"
+	else
+		echo "IoTDB未能正常启动，写入负值测试结果！"
+		cost_time=-3
+		fail_num=-3
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+		continue
+	fi
+	# 拷贝测试依赖到各自文件夹
+	#cp -rf ${TC_PATH}/lib/trigger_jar/ext ${TEST_IOTDB_PATH}/ext/trigger/
+	#cp -rf ${TC_PATH}/lib/udf_jar/envelop ${TEST_IOTDB_PATH}/ext/udf/
+	#cp -rf ${TC_PATH}/lib/udf_jar/ext ${TEST_IOTDB_PATH}/ext/udf/
+	#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
+	#cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
+	#cp -rf ${TC_PATH}/lib/udf_jar/local/* /data/nginx/
+	cp -rf ${TC_PATH}/scripts ${TEST_TOOL_PATH}/user/
+	cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
+	cd ${TEST_TOOL_PATH}
+	sed -i "s/sql_dialect=tree$/sql_dialect=table/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
+	#start_test=$(./test.sh)
+	#javac -encoding gbk -cp '${TEST_TOOL_PATH}/user/driver/iotdb/*:${TEST_TOOL_PATH}/lib/*:${TEST_TOOL_PATH}/user/driver/POI/*:.' ${TEST_TOOL_PATH}/src/*.java -d ${TEST_TOOL_PATH}/bin
+	compile=$(./compile.sh)
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	start_test=$(./test.sh >/dev/null 2>&1 &)
+	for (( t_wait = 0; t_wait <= 20; ))
+	do
+		cd ${TEST_TOOL_PATH}
+		result_file=${TEST_TOOL_PATH}/result.xml
+		if [ ! -f "$result_file" ]; then
+			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
+			if [ $t_time -ge 7200 ]; then
+				echo "测试失败"
+				flag=1
+				break
+			fi
+			continue
+		else
+			echo "测试完成"
+			break
+		fi
+	done
+	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	#停止IoTDB程序
+	stop_iotdb
+	sleep 30
+	check_iotdb_pid
+	if [ "${flag}" = "0" ]; then
+		#收集测试结果
+		cd ${TEST_TOOL_PATH}
+		pass_num=$(grep -n 'run" result="PASS"' ${TEST_TOOL_PATH}/result.xml | wc -l)
+		fail_num=$(grep -n 'run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
+		#结果写入mysql
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
+		#echo "${insert_sql}"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+	else
+		#收集测试结果
+		cd ${TEST_TOOL_PATH}
+		pass_num=0
+		fail_num=-1
+		#结果写入mysql
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
+		#echo "${insert_sql}"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+	fi
+	#备份本次测试
+	backup_test_data tablemode
+
+	#测试AINode
+	init_items
+	TC_PATH=${INIT_PATH}/iotdb-sql-testcase
 	# 获取git commit对比判定是否启动测试
 	cd ${TC_PATH}
 	#last_cid1=$(git log --pretty=format:"%h" -1)
@@ -250,7 +362,7 @@ else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		fail_num=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
@@ -285,7 +397,7 @@ else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-5
 		fail_num=-5
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
@@ -336,7 +448,7 @@ else
 		fail_num=$(grep -n 'run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode')"
 		#echo "${insert_sql}"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	else
@@ -346,12 +458,13 @@ else
 		fail_num=-1
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'master')"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode')"
 		#echo "${insert_sql}"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	fi
 	#备份本次测试
-	backup_test_data 223
+	backup_test_data ainode
+
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
