@@ -313,6 +313,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			else
 				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
 			fi
+			echo "str0=${str0}"
 			if [ "$str0" = "1" ]; then
 				for (( device = 0; device < 50; device++ ))
 				do
@@ -324,6 +325,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 							str1=500
 							str2=500
 						break
+						echo "str1=${str1}"
+						echo "str2=${str2}"
 					fi
 					else
 						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
@@ -337,6 +340,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						flag=0
 						device=0
 					fi
+					echo "flag=${flag}"
 					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 					if [ $t_time -ge 7200 ]; then
