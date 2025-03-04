@@ -309,24 +309,24 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			#确认是否测试已结束
 			flag=0
 			if [ "${ts_type}" = "tablemode" ]; then
-				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_0\'\" | grep -o '172800' | wc -l ")
+				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_0'\" | grep -o '172800' | wc -l ")
 			else
 				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
 			fi
-			echo "str0=${str0}"
+			#echo "str0=${str0}"
 			if [ "$str0" = "1" ]; then
 				for (( device = 0; device < 50; device++ ))
 				do
 					if [ "${ts_type}" = "tablemode" ]; then
-						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_${device}\'\" | grep -o '172800' | wc -l ")
-						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_${device}\'\" | grep -o '172800' | wc -l ")
+						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
+						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
 						if [ "$str1" = "1" ] && [ "$str2" = "1" ]; then
 							#表模型计算方式不用
 							str1=500
 							str2=500
 						break
-						echo "str1=${str1}"
-						echo "str2=${str2}"
+						#echo "str1=${str1}"
+						#echo "str2=${str2}"
 					fi
 					else
 						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
