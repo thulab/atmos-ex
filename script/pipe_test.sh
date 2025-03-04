@@ -298,17 +298,32 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			fi
 		done
 		if [ $flagB -ge 2 ]; then
-			fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"flush\"")
-			fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"flush\"")
+			if [ "${ts_type}" = "tablemode" ]; then
+				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"flush\"")
+				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"flush\"")
+			else
+				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"flush\"")
+				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"flush\"")
+			fi
 			#BM写入结束前不进行判定
 			#确认是否测试已结束
 			flag=0
-			str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
+			if [ "${ts_type}" = "tablemode" ]; then
+				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_0\'\" | grep -o '172800' | wc -l ")
+			else
+				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
+			fi
+			
 			if [ "$str0" = "1" ]; then
 				for (( device = 0; device < 50; device++ ))
 				do
-					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
-					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+					if [ "${ts_type}" = "tablemode" ]; then
+						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_${device}\'\" | grep -o '172800' | wc -l ")
+						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = \'d_${device}\'\" | grep -o '172800' | wc -l ")
+					else
+						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+					fi
 					if [ "$str1" = "500" ] && [ "$str2" = "500" ]; then
 						echo "root.test.g_0.d_${device}同步已结束"
 						flag=$[${flag}+1]
