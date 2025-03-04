@@ -88,6 +88,7 @@ maxDiskIOOpsWriteB=0
 maxDiskIOSizeReadB=0
 maxDiskIOSizeWriteB=0
 ############定义监控采集项初始值##########################
+pipflag=0
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
 sendEmail() {
@@ -241,14 +242,37 @@ setup_env() {
 		fi
 	done
 	sleep 3
-	for (( i = 1; i < ${#IP_list[*]}; i++ ))
-	do
-		TEST_IP=${IP_list[$i]}
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"create pipe test with source ('source.pattern'='root', 'source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
-		echo $str1
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"start pipe test;\"")
-		echo $str1
-	done		
+	if [ "${ts_type}" = "tablemode" ]; then
+		for (( i = 1; i < ${#IP_list[*]}; i++ ))
+		do
+			TEST_IP=${IP_list[$i]}
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
+			#echo $str1
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"start pipe test;\"")
+			#echo $str1
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
+			echo $str1
+			if [ "$str1" = "Total line number = 1" ]; then
+				echo "PIPE is ready"
+				pipflag=$[${pipflag}+1]
+			fi
+		done
+	else
+		for (( i = 1; i < ${#IP_list[*]}; i++ ))
+		do
+			TEST_IP=${IP_list[$i]}
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"create pipe test with source ('source.pattern'='root', 'source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
+			#echo $str1
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"start pipe test;\"")
+			#echo $str1
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
+			echo $str1
+			if [ "$str1" = "Total line number = 1" ]; then
+				echo "PIPE is ready"
+				pipflag=$[${pipflag}+1]
+			fi
+		done
+	fi
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	TEST_IP=$1
@@ -431,6 +455,7 @@ clear_expired_file() { # 清理超过七天的文件
 test_operation() {
 	protocol_class=$1
 	ts_type=$2
+	pipflag=0
 	echo "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
@@ -465,16 +490,6 @@ test_operation() {
 	#等待1分钟
 	sleep 60
 	#判断PIPE设置情况
-	pipflag=0
-	for (( i = 1; i < ${#IP_list[*]}; i++ ))
-	do
-		TEST_IP=${IP_list[$i]}
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
-		if [ "$str1" = "Total line number = 1" ]; then
-			echo "PIPE is ready"
-			pipflag=$[${pipflag}+1]
-		fi
-	done
 	if [ $pipflag -ge 2 ]; then
 		monitor_test_status
 	else
@@ -543,6 +558,8 @@ else
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`	
+	echo "开始测试223协议下的tablemode时间序列！"
+	test_operation 223 tablemode
 	echo "开始测试223协议下的common时间序列！"
 	test_operation 223 common
 	echo "开始测试223协议下的aligned时间序列！"
