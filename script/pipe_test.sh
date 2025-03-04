@@ -324,10 +324,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 							#表模型计算方式不用
 							str1=500
 							str2=500
-						break
+						fi
 						#echo "str1=${str1}"
 						#echo "str2=${str2}"
-					fi
 					else
 						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
 						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
