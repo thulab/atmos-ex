@@ -251,7 +251,7 @@ done
 for (( j = 1; j <= $config_num; j++ ))
 do
 	echo "starting IoTDB ConfigNode on ${C_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh  > /dev/null 2>&1 &")
+	pid3=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh -H ${TEST_CONFIGNODE_PATH}/cn_dump.hprof> /dev/null 2>&1 &")
 	#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 	sleep 10
 done
@@ -487,6 +487,9 @@ test_operation() {
 		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN"
 		if [ -f "${TEST_DATANODE_PATH}/dn_dump.hprof" ]; then
 			ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo mv ${TEST_DATANODE_PATH}/dn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_dn_dump.hprof"
+		fi
+		if [ -f "${TEST_CONFIGNODE_PATH}/cn_dump.hprof" ]; then
+			ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo mv ${TEST_CONFIGNODE_PATH}/cn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_cn_dump.hprof"
 		fi
 	done
 	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
