@@ -522,10 +522,10 @@ else
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
 	########优先测试
-	#echo "开始测试普通时间序列顺序写入！"
-	#test_operation common seq_w 223
+	echo "开始测试普通时间序列顺序写入！"
+	test_operation common seq_w 223
 	echo "开始测试对齐时间序列顺序写入！"
-	#test_operation aligned seq_w 223
+	test_operation aligned seq_w 223
 	#test_operation aligned seq_w 222
 	test_operation aligned seq_w 224
 	echo "开始测试表模型时间序列顺序写入！"
