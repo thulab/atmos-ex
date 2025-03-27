@@ -265,7 +265,7 @@ else
 	#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 	#cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
 	#cp -rf ${TC_PATH}/lib/udf_jar/local/* /data/nginx/
-	cp -rf ${TC_PATH}/lib/udf_jar/*.jar ${TEST_IOTDB_PATH}/ext/udf/
+	cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TC_PATH}/scripts ${TEST_TOOL_PATH}/user/
 	cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
 	cd ${TEST_TOOL_PATH}
@@ -413,7 +413,7 @@ else
 	#cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
 	#cp -rf ${TC_PATH}/lib/udf_jar/local/* /data/nginx/
 	cp -rf ${TC_PATH}/scripts ${TEST_TOOL_PATH}/user/
-	cp -rf ${TC_PATH}/lib/udf_jar/*.jar ${TEST_IOTDB_PATH}/ext/udf/
+	cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
 	cd ${TEST_TOOL_PATH}
 	#start_test=$(./test.sh)
