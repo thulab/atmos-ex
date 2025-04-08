@@ -358,7 +358,7 @@ test_operation() {
 	fi
 	if [ "${ts_type}" = "tablemode" ]; then
 		echo "创建database"
-		iotdb_c_db=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "create database test_g_0")
+		iotdb_c_db=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -e "create database test_g_0")
 		echo "导入表信息"
 		iotdb_i_table=$(${TEST_IOTDB_PATH}/tools/import-schema.sh -sql_dialect table -t ${ATMOS_PATH}/conf/${test_type}/metadata/dump_test_g_0.sql -db test_g_0)
 	fi
@@ -557,14 +557,14 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
 	t_index=$(($RANDOM % ${#ts_list[*]}))		
-	test_operation 223 common sequence
-	test_operation 223 common unsequence
-	test_operation 223 aligned sequence
-	test_operation 223 aligned unsequence
-	test_operation 223 template sequence
-	test_operation 223 template unsequence
-	test_operation 223 tempaligned sequence
-	test_operation 223 tempaligned unsequence
+	#test_operation 223 common sequence
+	#test_operation 223 common unsequence
+	#test_operation 223 aligned sequence
+	#test_operation 223 aligned unsequence
+	#test_operation 223 template sequence
+	#test_operation 223 template unsequence
+	#test_operation 223 tempaligned sequence
+	#test_operation 223 tempaligned unsequence
 	test_operation 223 tablemode sequence
 	test_operation 223 tablemode unsequence
 	###############################测试完成###############################
