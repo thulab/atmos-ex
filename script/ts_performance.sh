@@ -399,8 +399,8 @@ test_operation() {
 	#############################导出TS#############################
 	#收集启动前基础监控数据
 	collect_data_before ${TEST_IOTDB_PATH}
-	echo "max_deduplicated_path_num=600000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "query_timeout_threshold=600000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "max_deduplicated_path_num=60000000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	echo "query_timeout_threshold=60000000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#启动iotdb
 	start_iotdb
 	sleep 10	
