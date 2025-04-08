@@ -356,6 +356,12 @@ test_operation() {
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 		return
 	fi
+	if [ "${ts_type}" = "tablemode" ]; then
+		echo "创建database"
+		iotdb_c_db=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "create database test_g_0")
+		echo "导入表信息"
+		iotdb_i_table=$(${TEST_IOTDB_PATH}/tools/import-schema.sh -sql_dialect table -t ${ATMOS_PATH}/conf/${test_type}/metadata/dump_test_g_0.sql -db test_g_0)
+	fi
 	
 	#start_monitor
 	data1=$(date +%Y_%m_%d_%H%M%S | cut -c 1-10)
@@ -365,11 +371,20 @@ test_operation() {
 	if [ ! -f "${TEST_IOTDB_PATH}/tools/import-data.sh" ]; then
 		ts_state=$(${TEST_IOTDB_PATH}/tools/load-tsfile.sh -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	else
-		ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		if [ "${ts_type}" = "tablemode" ]; then
+			ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -sql_dialect table -db test_g_0 -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		else
+			ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		fi
 	fi
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	if [ "${ts_type}" = "tablemode" ]; then
+		ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -sql_dialect table -db test_g_0 -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	else
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	fi
 	if [ "${ts_numOfPoints}" = "" ]; then
 		ts_numOfPoints=-1
 	fi
@@ -422,13 +437,19 @@ test_operation() {
 	if [ ! -f "${TEST_IOTDB_PATH}/tools/export-data.sh" ]; then
 		ts_state=$(${TEST_IOTDB_PATH}/tools/export-tsfile.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	else
-		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -ft tsfile -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		if [ "${ts_type}" = "tablemode" ]; then
+			ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -ft tsfile -sql_dialect table -db test_g_0 -table table_0 -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -q "select * from table_0 where device_id = 'd_0'" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		else
+			ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -ft tsfile -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		fi
 	fi
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	if [ "${ts_numOfPoints}" = "" ]; then
-		ts_numOfPoints=-1
+	if [ "${ts_type}" = "tablemode" ]; then
+		ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -sql_dialect table -db test_g_0 -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	else
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
@@ -478,13 +499,19 @@ test_operation() {
 	if [ ! -f "${TEST_IOTDB_PATH}/tools/export-data.sh" ]; then
 		ts_state=$(${TEST_IOTDB_PATH}/tools/export-csv.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -f export_csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
 	else
-		ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -ft csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		if [ "${ts_type}" = "tablemode" ]; then
+			ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -ft csv -sql_dialect table -db test_g_0 -table table_0 -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -q "select * from table_0 where device_id = 'd_0'" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		else
+			ts_state=$(${TEST_IOTDB_PATH}/tools/export-data.sh -h 127.0.0.1 -p 6667 -u root -pw root -t ${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence -ft csv -q "select * from root.test.g_0.d_0" >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		fi
 	fi
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
-	if [ "${ts_numOfPoints}" = "" ]; then
-		ts_numOfPoints=-1
+	if [ "${ts_type}" = "tablemode" ]; then
+		ts_state=$(${TEST_IOTDB_PATH}/tools/import-data.sh -ft tsfile -sql_dialect table -db test_g_0 -s ${DATA_PATH}/${data_type}/${ts_type} -h 127.0.0.1 -p 6667 -u root -pw root -os none -of none >${TEST_IOTDB_PATH}/tools/testlog/log.txt &)
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	else
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
@@ -532,6 +559,8 @@ else
 	test_operation 223 template unsequence
 	test_operation 223 tempaligned sequence
 	test_operation 223 tempaligned unsequence
+	test_operation 223 tablemode sequence
+	test_operation 223 tablemode unsequence
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
