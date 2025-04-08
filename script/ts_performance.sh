@@ -451,6 +451,9 @@ test_operation() {
 	else
 		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
+	if [ "${ts_numOfPoints}" = "" ]; then
+		ts_numOfPoints=-1
+	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
 	sleep 30
@@ -512,6 +515,9 @@ test_operation() {
 		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	else
 		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -u root -pw root -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
+	fi
+	if [ "${ts_numOfPoints}" = "" ]; then
+		ts_numOfPoints=-1
 	fi
 	#停止IoTDB程序和监控程序
 	stop_iotdb
