@@ -554,14 +554,14 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
 	t_index=$(($RANDOM % ${#ts_list[*]}))		
-	#test_operation 223 common sequence
-	#test_operation 223 common unsequence
-	#test_operation 223 aligned sequence
-	#test_operation 223 aligned unsequence
-	#test_operation 223 template sequence
-	#test_operation 223 template unsequence
-	#test_operation 223 tempaligned sequence
-	#test_operation 223 tempaligned unsequence
+	test_operation 223 common sequence
+	test_operation 223 common unsequence
+	test_operation 223 aligned sequence
+	test_operation 223 aligned unsequence
+	test_operation 223 template sequence
+	test_operation 223 template unsequence
+	test_operation 223 tempaligned sequence
+	test_operation 223 tempaligned unsequence
 	test_operation 223 tablemode sequence
 	test_operation 223 tablemode unsequence
 	###############################测试完成###############################
