@@ -390,18 +390,24 @@ else
 	#test_operation 223 SESSION_BY_RECORDS 100
 	#echo "批写入设备数量300！"
 	#test_operation 223 SESSION_BY_RECORDS 300
-	echo "批写入设备数量500！"
-	test_operation 223 SESSION_BY_RECORDS 500
-	echo "批写入设备数量1000！"
-	test_operation 223 SESSION_BY_RECORDS 1000
-	echo "批写入设备数量1500！"
-	test_operation 223 SESSION_BY_RECORDS 1500
+	#echo "批写入设备数量500！"
+	#test_operation 223 SESSION_BY_RECORDS 500
+	#echo "批写入设备数量1000！"
+	#test_operation 223 SESSION_BY_RECORDS 1000
+	#echo "批写入设备数量1500！"
+	#test_operation 223 SESSION_BY_RECORDS 1500
 	echo "批写入设备数量2000！"
 	test_operation 223 SESSION_BY_RECORDS 2000
+	echo "批写入设备数量3000！"
+	test_operation 223 SESSION_BY_RECORDS 3000
 	echo "批写入设备数量5000！"
 	test_operation 223 SESSION_BY_RECORDS 5000
 	echo "批写入设备数量10000！"
 	test_operation 223 SESSION_BY_RECORDS 10000
+	echo "批写入设备数量20000！"
+	test_operation 223 SESSION_BY_RECORDS 20000
+	echo "批写入设备数量30000！"
+	test_operation 223 SESSION_BY_RECORDS 30000
 	###############################SESSION_BY_RECORD###############################
 	#echo "开始测试SESSION_BY_RECORD！"
 	#test_operation 223 SESSION_BY_RECORD
