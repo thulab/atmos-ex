@@ -261,11 +261,11 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/$2/
+	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/$2/
     sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/$2/
+	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/$2/
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
@@ -355,7 +355,7 @@ test_operation() {
 	check_benchmark_pid
 	check_iotdb_pid
 	#备份本次测试
-	backup_test_data ${ts_type}
+	backup_test_data ${ts_type} ${device_num_per}
 }
 ##准备开始测试
 echo "ontesting" > ${INIT_PATH}/test_type_file
@@ -386,10 +386,10 @@ else
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	###############################SESSION_BY_RECORDS###############################
 	echo "开始测试SESSION_BY_RECORDS！"
-	echo "批写入设备数量100！"
-	test_operation 223 SESSION_BY_RECORDS 100
-	echo "批写入设备数量300！"
-	test_operation 223 SESSION_BY_RECORDS 300
+	#echo "批写入设备数量100！"
+	#test_operation 223 SESSION_BY_RECORDS 100
+	#echo "批写入设备数量300！"
+	#test_operation 223 SESSION_BY_RECORDS 300
 	echo "批写入设备数量500！"
 	test_operation 223 SESSION_BY_RECORDS 500
 	echo "批写入设备数量1000！"
@@ -398,6 +398,10 @@ else
 	test_operation 223 SESSION_BY_RECORDS 1500
 	echo "批写入设备数量2000！"
 	test_operation 223 SESSION_BY_RECORDS 2000
+	echo "批写入设备数量5000！"
+	test_operation 223 SESSION_BY_RECORDS 5000
+	echo "批写入设备数量10000！"
+	test_operation 223 SESSION_BY_RECORDS 10000
 	###############################SESSION_BY_RECORD###############################
 	#echo "开始测试SESSION_BY_RECORD！"
 	#test_operation 223 SESSION_BY_RECORD
