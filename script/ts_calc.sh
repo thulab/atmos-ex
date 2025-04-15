@@ -387,7 +387,7 @@ else
 	###############################SESSION_BY_RECORDS###############################
 	echo "开始测试SESSION_BY_RECORDS！" 
 	echo "批写入设备数量200000！"
-	test_operation 223 SESSION_BY_RECORDS 200000
+	test_operation 223 SESSION_BY_RECORDS 180000
 	echo "批写入设备数量60000！"
 	test_operation 223 SESSION_BY_RECORDS 150000
 	echo "批写入设备数量50000！"
