@@ -385,27 +385,11 @@ else
 	#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	###############################SESSION_BY_RECORDS###############################
-	echo "开始测试SESSION_BY_RECORDS！"
-	#echo "批写入设备数量100！"
-	#test_operation 223 SESSION_BY_RECORDS 100
-	#echo "批写入设备数量300！"
-	#test_operation 223 SESSION_BY_RECORDS 300
-	#echo "批写入设备数量500！"
-	#test_operation 223 SESSION_BY_RECORDS 500
-	#echo "批写入设备数量1000！"
-	#test_operation 223 SESSION_BY_RECORDS 1000
-	#echo "批写入设备数量1500！"
-	#test_operation 223 SESSION_BY_RECORDS 1500
-	#echo "批写入设备数量2000！"
-	#test_operation 223 SESSION_BY_RECORDS 2000
-	#echo "批写入设备数量3000！"
-	#test_operation 223 SESSION_BY_RECORDS 3000
-	#echo "批写入设备数量5000！"
-	#test_operation 223 SESSION_BY_RECORDS 5000
-	echo "批写入设备数量100000！"
-	test_operation 223 SESSION_BY_RECORDS 100000
-	echo "批写入设备数量90000！"
-	test_operation 223 SESSION_BY_RECORDS 90000
+	echo "开始测试SESSION_BY_RECORDS！" 
+	echo "批写入设备数量80000！"
+	test_operation 223 SESSION_BY_RECORDS 80000
+	echo "批写入设备数量60000！"
+	test_operation 223 SESSION_BY_RECORDS 60000
 	echo "批写入设备数量50000！"
 	test_operation 223 SESSION_BY_RECORDS 50000
 	echo "批写入设备数量30000！"

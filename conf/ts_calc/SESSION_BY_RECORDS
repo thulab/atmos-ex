@@ -179,7 +179,7 @@ GROUP_NUMBER=1
 # IOTDB_SESSION_POOL_SIZE=50
 
 # 是否使用template
-TEMPLATE=true
+TEMPLATE=false
 
 # template的名称
 # TEMPLATE_NAME=BenchmarkTemplate
