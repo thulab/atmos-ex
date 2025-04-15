@@ -401,7 +401,7 @@ else
 	echo "批写入设备数量70000！"
 	test_operation 223 SESSION_BY_RECORDS 70000
 	echo "批写入设备数量80000！"
-	test_operation 223 SESSION_BY_RECORDS 80000
+	test_operation 223 SESSION_BY_RECORDS 80000  #单步操作超过1秒，出现4次写入失败，CPU最大93.1474，CPU平均71.4148
 	#echo "批写入设备数量100000！"
 	#test_operation 223 SESSION_BY_RECORDS 100000
 	#echo "批写入设备数量130000！"
