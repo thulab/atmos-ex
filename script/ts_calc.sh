@@ -138,6 +138,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	#关闭影响写入性能的其他功能 - last_cache
+	echo "enable_last_cache=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#设置DataRegion数量
 	echo "data_region_group_extension_policy=CUSTOM" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "default_data_region_group_num_per_database=10" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
@@ -387,9 +389,9 @@ else
 	###############################SESSION_BY_RECORDS###############################
 	echo "开始测试SESSION_BY_RECORDS！" 
 	#echo "批写入设备数量200000！"
-	#test_operation 223 SESSION_BY_RECORDS 180000   无法执行完毕
+	#test_operation 223 SESSION_BY_RECORDS 180000   #无法执行完毕
 	#echo "批写入设备数量150000！"
-	#test_operation 223 SESSION_BY_RECORDS 150000 无法执行完毕
+	#test_operation 223 SESSION_BY_RECORDS 150000   #无法执行完毕
 	echo "批写入设备数量30000！"
 	test_operation 223 SESSION_BY_RECORDS 30000
 	echo "批写入设备数量40000！"
@@ -401,9 +403,9 @@ else
 	echo "批写入设备数量70000！"
 	test_operation 223 SESSION_BY_RECORDS 70000
 	echo "批写入设备数量80000！"
-	test_operation 223 SESSION_BY_RECORDS 80000  #单步操作超过1秒，出现4次写入失败，CPU最大93.1474，CPU平均71.4148
+	test_operation 223 SESSION_BY_RECORDS 80000  #单步操作超过1秒（1.2s），出现4次写入失败，CPU最大93.1474，CPU平均71.4148
 	#echo "批写入设备数量100000！"
-	#test_operation 223 SESSION_BY_RECORDS 100000
+	#test_operation 223 SESSION_BY_RECORDS 100000 #单步操作超过1秒（1.8s），出现11次写入失败，CPU最大95.1929，CPU平均79.1196
 	#echo "批写入设备数量130000！"
 	#test_operation 223 SESSION_BY_RECORDS 130000
 	###############################SESSION_BY_RECORD###############################
