@@ -115,13 +115,13 @@ LOOP=500
 
 ############## 数据：设备、传感器、客户端 ##################
 # 设备总数
-DEVICE_NUMBER=50
+DEVICE_NUMBER=10000
 
 # 实际写入设备比例，(0, 1]
 # REAL_INSERT_RATE=1.0
 
 # 每个设备的传感器总数
-SENSOR_NUMBER=500
+SENSOR_NUMBER=10
 
 # 各个传感器时间戳是否对齐
 # IS_SENSOR_TS_ALIGNMENT=true
@@ -170,22 +170,22 @@ CLIENT_NUMBER=10
 # SG_STRATEGY=mod
 
 # 存储组的数量，对IoTDB而言为database的数量
-GROUP_NUMBER=10
+GROUP_NUMBER=1
 
 # IoTDB 表模型下(IoTDB_DIALECT_MODE=table)，表的数量
-# IoTDB_TABLE_NUMBER=1
+IoTDB_TABLE_NUMBER=1
 
 # IoTDB核心线程池数量
 # IOTDB_SESSION_POOL_SIZE=50
 
 # 是否使用template
-TEMPLATE=false
+TEMPLATE=true
 
 # template的名称
 # TEMPLATE_NAME=BenchmarkTemplate
 
 # 是否使用vector
-VECTOR=false
+VECTOR=true
 
 # 是否使用Debug模式，仅支持iotdb
 # IOTDB_USE_DEBUG=false
