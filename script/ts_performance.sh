@@ -360,7 +360,7 @@ test_operation() {
 		echo "创建database"
 		iotdb_c_db=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -e "create database test_g_0")
 		echo "导入表信息"
-		iotdb_i_table=$(${TEST_IOTDB_PATH}/tools/import-schema.sh -sql_dialect table -t ${ATMOS_PATH}/conf/${test_type}/metadata/dump_test_g_0.sql -db test_g_0)
+		iotdb_i_table=$(${TEST_IOTDB_PATH}/tools/import-schema.sh -sql_dialect table -s ${ATMOS_PATH}/conf/${test_type}/metadata/dump_test_g_0.sql -db test_g_0)
 	fi
 	
 	#start_monitor
