@@ -324,12 +324,12 @@ else
 
 	#测试AINode
 	init_items
-	TC_PATH=${INIT_PATH}/iotdb-sql-testcase
+	TC_PATH=${INIT_PATH}/iotdb-sql-testcase-ainode
 	# 获取git commit对比判定是否启动测试
 	cd ${TC_PATH}
 	#last_cid1=$(git log --pretty=format:"%h" -1)
 	#更新TC
-	#git_pull=$(timeout 100s git pull)
+	git_pull=$(timeout 100s git pull)
 	# 获取更新后git commit对比判定是否启动测试
 	#commit_id1=$(git log --pretty=format:"%h" -1)
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
