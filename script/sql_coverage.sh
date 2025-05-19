@@ -114,6 +114,8 @@ set_env() {
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb-ainode/* ${TEST_AINode_PATH}/
 	cp -rf /data/atmos/zk_test/AINode/venv ${TEST_AINode_PATH}/
+	mkdir -p ${TEST_AINode_PATH}/data/ainode/models/weights/timerxl
+	cp -rf /data/atmos/zk_test/AINode/timerxl/model.safetensors ${TEST_AINode_PATH}/data/ainode/models/weights/timerxl/
 	# 拷贝工具到测试路径
 	if [ ! -d "${TEST_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_TOOL_PATH}
