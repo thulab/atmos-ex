@@ -113,7 +113,8 @@ set_env() {
 		mkdir -p ${TEST_AINode_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb-ainode/* ${TEST_AINode_PATH}/
-	cp -rf /data/atmos/zk_test/AINode/venv ${TEST_AINode_PATH}/
+	#cp -rf /data/atmos/zk_test/AINode/venv ${TEST_AINode_PATH}/
+	mv /data/atmos/zk_test/AINode/venv ${TEST_AINode_PATH}/
 	mkdir -p ${TEST_AINode_PATH}/data/ainode/models/weights/timerxl
 	cp -rf /data/atmos/zk_test/AINode/timerxl/model.safetensors ${TEST_AINode_PATH}/data/ainode/models/weights/timerxl/
 	# 拷贝工具到测试路径
@@ -173,7 +174,17 @@ start_iotdb() { # 启动iotdb
 }
 start_iotdb_ainode() { # 启动iotdb
 	cd ${TEST_AINode_PATH}
-	ai_start=$(./sbin/start-ainode.sh >/dev/null 2>&1 &)
+	ai_start=$(./sbin/start-ainode.sh -r >/dev/null 2>&1 &)
+	while true; do
+		ai_status=$(lsof -i:10810)
+		if [ "${ai_status}" = "" ]; then
+			echo "更新依赖中。。。"
+			sleep 60s
+		else
+			echo "AINode已启动。。。"
+			break
+		fi
+	done
 	cd ~/
 }
 stop_iotdb() { # 停止iotdb
@@ -189,7 +200,8 @@ backup_test_data() { # 备份测试数据
 	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo rm -rf ${TEST_AINode_PATH}/venv
+	#sudo rm -rf ${TEST_AINode_PATH}/venv
+	sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mv ${TEST_AINode_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mv ${TEST_TOOL_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
