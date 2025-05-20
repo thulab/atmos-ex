@@ -527,6 +527,11 @@ else
 	echo "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
 	test_operation aligned seq_w 222
+	###############################非ROOT账户###############################
+	echo "开始测试非ROOT账户表模型顺序写入！"
+	test_operation tablemode seq_w_non 223
+	echo "开始测试非ROOT账户普通时间序列顺序写入！"
+	test_operation common seq_w_non 223
 	###############################普通时间序列###############################
 	#echo "开始测试普通时间序列顺序写入！"
 	#test_operation common seq_w 223
@@ -574,11 +579,6 @@ else
 	test_operation tablemode seq_rw 223
 	echo "开始测试表模型乱序读写混合！"
 	test_operation tablemode unseq_rw 223
-	###############################非ROOT账户###############################
-	echo "开始测试非ROOT账户表模型顺序写入！"
-	test_operation tablemode seq_w_non 223
-	echo "开始测试非ROOT账户普通时间序列顺序写入！"
-	test_operation common seq_w_non 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
