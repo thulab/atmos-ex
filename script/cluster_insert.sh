@@ -456,7 +456,10 @@ test_operation() {
 	mv_config_file ${ts_type} ${data_type}
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
 	setup_nCmD -c3 -d3 -t1
-		
+	##添加用户和权限
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"CREATE USER qa_user \'123456\';\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")	
 	echo "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
@@ -571,6 +574,11 @@ else
 	test_operation tablemode seq_rw 223
 	echo "开始测试表模型乱序读写混合！"
 	test_operation tablemode unseq_rw 223
+	###############################非ROOT账户###############################
+	echo "开始测试非ROOT账户表模型顺序写入！"
+	test_operation tablemode seq_w_non 223
+	echo "开始测试非ROOT账户普通时间序列顺序写入！"
+	test_operation common seq_w_non 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
