@@ -324,6 +324,10 @@ done
 
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
+	##添加用户和权限
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"CREATE USER qa_user '123456';\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
 	#启动benchmark
 	sleep 60
 	if [ "$bm_num" != '' ];
@@ -455,11 +459,7 @@ test_operation() {
 	
 	mv_config_file ${ts_type} ${data_type}
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
-	setup_nCmD -c3 -d3 -t1
-	##添加用户和权限
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"CREATE USER qa_user '123456';\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")	
+	setup_nCmD -c3 -d3 -t1	
 	echo "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
