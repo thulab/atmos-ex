@@ -522,11 +522,63 @@ else
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
 	########优先测试
+	echo "开始测试普通时间序列顺序写入！"
+	test_operation common seq_w 223
+	echo "开始测试对齐时间序列顺序写入！"
+	test_operation aligned seq_w 223
+	test_operation aligned seq_w 222
 	###############################非ROOT账户###############################
 	echo "开始测试非ROOT账户表模型顺序写入！"
 	test_operation tablemode seq_w_non 223
 	echo "开始测试非ROOT账户普通时间序列顺序写入！"
 	test_operation common seq_w_non 223
+	###############################普通时间序列###############################
+	#echo "开始测试普通时间序列顺序写入！"
+	#test_operation common seq_w 223
+	echo "开始测试普通时间序列乱序写入！"
+	test_operation common unseq_w 223
+	echo "开始测试普通时间序列顺序读写混合！"
+	test_operation common seq_rw 223
+	echo "开始测试普通时间序列乱序读写混合！"
+	test_operation common unseq_rw 223
+	###############################对齐时间序列###############################
+	#echo "开始测试对齐时间序列顺序写入！"
+	#test_operation aligned seq_w 223
+	#test_operation aligned seq_w 222
+	echo "开始测试对齐时间序列乱序写入！"
+	test_operation aligned unseq_w 223
+	test_operation aligned unseq_w 222
+	echo "开始测试对齐时间序列顺序读写混合！"
+	test_operation aligned seq_rw 223
+	echo "开始测试对齐时间序列乱序读写混合！"
+	test_operation aligned unseq_rw 223
+	###############################模板时间序列###############################
+	#echo "开始测试模板时间序列顺序写入！"
+	#test_operation template seq_w 223
+	#echo "开始测试模板时间序列乱序写入！"
+	#test_operation template unseq_w 223
+	#echo "开始测试模板时间序列顺序读写混合！"
+	#test_operation template seq_rw 223
+	#echo "开始测试模板时间序列乱序读写混合！"
+	#test_operation template unseq_rw 223
+	###############################对齐模板时间序列###############################
+	#echo "开始测试对齐模板时间序列顺序写入！"
+	#test_operation tempaligned seq_w 223
+	#echo "开始测试对齐模板时间序列乱序写入！"
+	#test_operation tempaligned unseq_w 223
+	#echo "开始测试对齐模板时间序列顺序读写混合！"
+	#test_operation tempaligned seq_rw 223
+	#echo "开始测试对齐模板时间序列乱序读写混合！"
+	#test_operation tempaligned unseq_rw 223
+	###############################表模型###############################
+	echo "开始测试表模型顺序写入！"
+	test_operation tablemode seq_w 223
+	echo "开始测试表模型乱序写入！"
+	test_operation tablemode unseq_w 223
+	echo "开始测试表模型顺序读写混合！"
+	test_operation tablemode seq_rw 223
+	echo "开始测试表模型乱序读写混合！"
+	test_operation tablemode unseq_rw 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
