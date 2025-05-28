@@ -9,11 +9,26 @@
 # -------------------- 基础环境变量 --------------------
 TEST_IP="11.101.17.136"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
+test_type=unse_insert
 
 # -------------------- 路径相关变量 --------------------
 INIT_PATH=/data/atmos/zk_test     # 初始环境存放路径
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
+BUCKUP_PATH=/nasdata/repository/unse_insert
+REPOS_PATH=/nasdata/repository/master
+
+# -------------------- 测试数据路径 --------------------
+TEST_INIT_PATH=/data/atmos
+TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
+
+# -------------------- 协议相关变量 --------------------
+# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
+# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
+# 3. org.apache.iotdb.consensus.iot.IoTConsensus
+protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
+protocol_list=(223)
+ts_list=(common aligned template tempaligned tablemode)
 
 # -------------------- MySQL 配置信息 --------------------
 MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
@@ -23,64 +38,67 @@ PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
 DBNAME="QA_ATM"                  # 数据库名称
 TABLENAME="ex_unse_insert"       # 结果表名
 
+# -------------------- Prometheus 配置信息 --------------------
+metric_server="111.200.37.158:19090"
+
 # -------------------- 公用函数 --------------------
 if [ "${PASSWORD}" = "" ]; then
     echo "需要关注密码设置！"
 fi
 
-############prometheus##########################
-metric_server="111.200.37.158:19090"
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
 BM_REPOS_PATH=/nasdata/repository/iot-benchmark
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
+    rm -rf ${BM_PATH}
+    cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
+
 init_items() {
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=0
-end_time=0
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-maxCPULoad=0
-avgCPULoad=0
-maxDiskIOOpsRead=0
-maxDiskIOOpsWrite=0
-maxDiskIOSizeRead=0
-maxDiskIOSizeWrite=0
-############定义监控采集项初始值##########################
+    # 定义监控采集项初始值
+    test_date_time=0
+    ts_type=0
+    okPoint=0
+    okOperation=0
+    failPoint=0
+    failOperation=0
+    throughput=0
+    Latency=0
+    MIN=0
+    P10=0
+    P25=0
+    MEDIAN=0
+    P75=0
+    P90=0
+    P95=0
+    P99=0
+    P999=0
+    MAX=0
+    numOfSe0Level=0
+    start_time=0
+    end_time=0
+    cost_time=0
+    numOfUnse0Level=0
+    dataFileSize=0
+    maxNumofOpenFiles=0
+    maxNumofThread=0
+    errorLogSize=0
+    walFileSize=0
+    maxCPULoad=0
+    avgCPULoad=0
+    maxDiskIOOpsRead=0
+    maxDiskIOOpsWrite=0
+    maxDiskIOSizeRead=0
+    maxDiskIOSizeWrite=0
 }
-local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+
+local_ip=$(ifconfig -a | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
+
 sendEmail() {
-sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
+    sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
+
 check_benchmark_pid() { # 检查benchmark的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then

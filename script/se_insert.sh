@@ -39,65 +39,67 @@ DBNAME="QA_ATM"                  # 数据库名称
 TABLENAME="ex_se_insert"         # 结果表名
 TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
+# -------------------- Prometheus 配置信息 --------------------
+metric_server="111.200.37.158:19090"
+
 # -------------------- 公用函数 --------------------
 if [ "${PASSWORD}" = "" ]; then
     echo "需要关注密码设置！"
 fi
 
-############prometheus##########################
-metric_server="111.200.37.158:19090"
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
 BM_REPOS_PATH=/nasdata/repository/iot-benchmark
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
+    rm -rf ${BM_PATH}
+    cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 
 init_items() {
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=0
-end_time=0
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-maxCPULoad=0
-avgCPULoad=0
-maxDiskIOOpsRead=0
-maxDiskIOOpsWrite=0
-maxDiskIOSizeRead=0
-maxDiskIOSizeWrite=0
-############定义监控采集项初始值##########################
+    # 定义监控采集项初始值
+    test_date_time=0
+    ts_type=0
+    okPoint=0
+    okOperation=0
+    failPoint=0
+    failOperation=0
+    throughput=0
+    Latency=0
+    MIN=0
+    P10=0
+    P25=0
+    MEDIAN=0
+    P75=0
+    P90=0
+    P95=0
+    P99=0
+    P999=0
+    MAX=0
+    numOfSe0Level=0
+    start_time=0
+    end_time=0
+    cost_time=0
+    numOfUnse0Level=0
+    dataFileSize=0
+    maxNumofOpenFiles=0
+    maxNumofThread=0
+    errorLogSize=0
+    walFileSize=0
+    maxCPULoad=0
+    avgCPULoad=0
+    maxDiskIOOpsRead=0
+    maxDiskIOOpsWrite=0
+    maxDiskIOSizeRead=0
+    maxDiskIOSizeWrite=0
 }
-local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+
+local_ip=$(ifconfig -a | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
+
 sendEmail() {
-sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
+    sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
+
 check_benchmark_pid() { # 检查benchmark的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
@@ -107,6 +109,7 @@ check_benchmark_pid() { # 检查benchmark的pid，有就停止
 		echo "BM程序已停止！"
 	fi
 }
+
 check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
@@ -131,6 +134,7 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	fi
 	echo "程序检测和清理操作已完成！"
 }
+
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}
@@ -142,6 +146,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 }
+
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
@@ -166,6 +171,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
+
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
@@ -175,6 +181,7 @@ set_protocol_class() {
 	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
+
 start_iotdb() { # 启动iotdb
 	cd ${TEST_IOTDB_PATH}
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
@@ -182,6 +189,7 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
+
 stop_iotdb() { # 停止iotdb
 	cd ${TEST_IOTDB_PATH}
 	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
@@ -189,6 +197,7 @@ stop_iotdb() { # 停止iotdb
 	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
+
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
 	if [ -d "${BM_PATH}/logs" ]; then
@@ -202,6 +211,7 @@ start_benchmark() { # 启动benchmark
 	fi
 	cd ~/
 }
+
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	while true; do
 		csvOutput=${BM_PATH}/data/csvOutput
@@ -229,6 +239,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
+
 function get_single_index() {
     # 获取 prometheus 单个指标的值
     local end=$2
@@ -240,6 +251,7 @@ function get_single_index() {
 	fi
 	echo ${index_value}
 }
+
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	TEST_IP=$1
 	dataFileSize=0
@@ -270,6 +282,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 }
+
 backup_test_data() { # 备份测试数据
 	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
@@ -277,13 +290,16 @@ backup_test_data() { # 备份测试数据
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
+
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1 ${BM_PATH}/conf/config.properties
 }
+
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+
 test_operation() {
 	protocol_class=$1
 	ts_type=$2
