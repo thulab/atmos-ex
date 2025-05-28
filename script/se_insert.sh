@@ -227,14 +227,14 @@ function mv_config_file() {
 }
 
 function test_operation() {
-    local protocol_class=$1
+    local protocol_class_input=$1
     local ts_type=$2
     echo "开始测试${ts_type}时间序列！"
     check_benchmark_pid
     check_iotdb_pid
     set_env
     modify_iotdb_config
-    case $protocol_class in
+    case $protocol_class_input in
         111) set_protocol_class 1 1 1 ;;
         222) set_protocol_class 2 2 2 ;;
         223) set_protocol_class 2 2 3 ;;
