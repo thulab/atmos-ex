@@ -1,35 +1,33 @@
 #!/bin/sh
-#登录用户名
-TEST_IP="11.101.17.136"
-ACCOUNT=atmos
-test_type=unse_insert
-#初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
+# ------------------------------------------------------------------------------
+# IoTDB Unse Insert Script
+# ------------------------------------------------------------------------------
+# Author: (Please fill in if needed)
+# Description: 自动化执行IoTDB未对齐序列写入测试。
+# ------------------------------------------------------------------------------
+
+# -------------------- 基础环境变量 --------------------
+TEST_IP="11.101.17.136"           # 测试服务器IP
+ACCOUNT=atmos                     # 登录用户名
+
+# -------------------- 路径相关变量 --------------------
+INIT_PATH=/data/atmos/zk_test     # 初始环境存放路径
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/unse_insert
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=/data/atmos
-TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
-# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
-# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
-# 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(223)
-ts_list=(common aligned template tempaligned tablemode)
-############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_unse_insert" #数据库中表的名称
-TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-############公用函数##########################
+
+# -------------------- MySQL 配置信息 --------------------
+MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
+PORT="13306"                     # 端口
+USERNAME="iotdbatm"              # 用户名
+PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
+DBNAME="QA_ATM"                  # 数据库名称
+TABLENAME="ex_unse_insert"       # 结果表名
+
+# -------------------- 公用函数 --------------------
 if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+    echo "需要关注密码设置！"
 fi
+
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
