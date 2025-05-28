@@ -135,17 +135,17 @@ function set_protocol_class() {
 
 function start_iotdb() {
     cd ${TEST_IOTDB_PATH}
-    ./sbin/start-confignode.sh >/dev/null 2>&1 &
+    conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
     sleep 10
-    ./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &
+    data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
     cd ~/
 }
 
 function stop_iotdb() {
     cd ${TEST_IOTDB_PATH}
-    ./sbin/stop-datanode.sh >/dev/null 2>&1 &
+    data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
     sleep 10
-    ./sbin/stop-confignode.sh >/dev/null 2>&1 &
+    conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
     cd ~/
 }
 
