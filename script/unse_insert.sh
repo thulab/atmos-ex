@@ -127,10 +127,9 @@ function modify_iotdb_config() {
 function set_protocol_class() {
     local config_node=$1; local schema_region=$2; local data_region=$3
     for file in ${TEST_IOTDB_PATH}/conf/iotdb-system.properties; do
-        echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> $file
-        echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> $file
-        echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> $file
-    done
+    echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 
 function start_iotdb() {
