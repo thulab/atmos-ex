@@ -186,7 +186,9 @@ function get_single_index() {
     local url="http://${metric_server}/api/v1/query"
     local data_param="--data-urlencode query=$query --data-urlencode 'time=${end}'"
     local index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]' | tr -d '"')
-    [ -z "$index_value" ] && index_value=0
+    if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
+        index_value=0
+    fi
     echo $index_value
 }
 
