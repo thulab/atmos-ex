@@ -61,7 +61,7 @@ function check_benchmark_version() {
 
 function init_items() {
     # 定义监控采集项初始值
-    test_date_time=0; ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
+    ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
     throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
     numOfSe0Level=0; start_time=0; end_time=0; cost_time=0; numOfUnse0Level=0; dataFileSize=0
     maxNumofOpenFiles=0; maxNumofThread=0; errorLogSize=0; walFileSize=0; maxCPULoad=0; avgCPULoad=0
