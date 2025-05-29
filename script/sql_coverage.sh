@@ -175,7 +175,8 @@ start_iotdb() { # 启动iotdb
 start_iotdb_ainode() { # 启动iotdb
 	cd ${TEST_AINode_PATH}
 	ai_start=$(./sbin/start-ainode.sh -r >/dev/null 2>&1 &)
-	while true; do
+	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
+	do
 		ai_status=$(lsof -i:10810)
 		if [ "${ai_status}" = "" ]; then
 			echo "更新依赖中。。。"
@@ -184,6 +185,7 @@ start_iotdb_ainode() { # 启动iotdb
 			echo "AINode已启动。。。"
 			break
 		fi
+		echo "AINode启动失败。。。"
 	done
 	cd ~/
 }
