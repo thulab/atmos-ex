@@ -97,6 +97,7 @@ function set_env() {
     mkdir -p ${TEST_IOTDB_PATH}/activation
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
     cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
+    cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
 }
 
 function modify_iotdb_config() {
