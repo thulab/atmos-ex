@@ -28,7 +28,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(223)
-ts_list=(SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
+ts_list=(SESSION_BY_TABLET_TABLE SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 
 # -------------------- MySQL 配置信息 --------------------
 MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
