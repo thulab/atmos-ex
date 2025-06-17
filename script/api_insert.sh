@@ -305,13 +305,32 @@ else
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
     echo "当前版本${commit_id}未执行过测试，即将编译后启动"
     test_date_time=$(date +%Y%m%d%H%M%S)
-    for protocol in ${protocol_list[@]}; do
-        for ts in ${ts_list[@]}; do
-            init_items
-            echo "开始测试${protocol}协议下的${ts}时间序列！"
-            test_operation $protocol $ts
-        done
-    done
+	###############################SESSION_BY_TABLET###############################
+	echo "开始测试SESSION_BY_TABLET！"
+	#test_operation 111 SESSION_BY_TABLET
+	#test_operation 222 SESSION_BY_TABLET
+	test_operation 223 SESSION_BY_TABLET
+	test_operation 223 SESSION_BY_TABLET_TABLE
+	#test_operation 211 SESSION_BY_TABLET
+	###############################SESSION_BY_RECORDS###############################
+	echo "开始测试SESSION_BY_RECORDS！"
+	#test_operation 111 SESSION_BY_RECORDS
+	#test_operation 222 SESSION_BY_RECORDS
+	test_operation 223 SESSION_BY_RECORDS
+	#test_operation 211 SESSION_BY_RECORDS
+	###############################SESSION_BY_RECORD###############################
+	echo "开始测试SESSION_BY_RECORD！"
+	#test_operation 111 SESSION_BY_RECORD
+	#test_operation 222 SESSION_BY_RECORD
+	test_operation 223 SESSION_BY_RECORD
+	#test_operation 211 SESSION_BY_RECORD
+	###############################JDBC###############################
+	echo "开始测试JDBC！"
+	#test_operation 111 JDBC
+	#test_operation 222 JDBC
+	test_operation 223 JDBC
+	#test_operation 211 JDBC
+	###############################测试完成###############################
     echo "本轮测试${test_date_time}已结束."
     update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
