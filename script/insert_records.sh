@@ -134,7 +134,6 @@ function set_protocol_class() {
 }
 
 function start_iotdb() {
-    echo 3 > /proc/sys/vm/drop_caches
     cd ${TEST_IOTDB_PATH}
     conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
     sleep 10
@@ -234,7 +233,7 @@ function mv_config_file() {
 function test_operation() {
     local protocol_class_input=$1
     local ts_type=$2
-	local insert_type=$3
+    local insert_type=$3
     echo "开始测试${ts_type}时间序列！"
     check_benchmark_pid
     check_iotdb_pid
@@ -263,7 +262,7 @@ function test_operation() {
         return
     fi
     mv_config_file ${ts_type}/${insert_type}
-	ts_type=${ts_type}_${insert_type}
+    ts_type=${ts_type}_${insert_type}
     start_benchmark
     start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
     m_start_time=$(date +%s)
@@ -277,7 +276,6 @@ function test_operation() {
     read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
     cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-    echo ${commit_id}版本${ts_type}写入${okPoint}数据点平均耗时${Latency}秒。吞吐率为：${throughput} 点/秒
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
     stop_iotdb
     sleep 30
@@ -313,10 +311,10 @@ else
     for protocol in ${protocol_list[@]}; do
         for ts in ${ts_list[@]}; do
             for istl in ${insert_list[@]}; do
-				init_items
-				echo "开始测试${protocol}协议下的${ts}时间序列${istl}写入！"
-				test_operation $protocol $ts $istl
-			done
+               init_items
+               echo "开始测试${protocol}协议下的${ts}时间序列${istl}写入！"
+               test_operation $protocol $ts $istl
+            done
         done
     done
     echo "本轮测试${test_date_time}已结束."
