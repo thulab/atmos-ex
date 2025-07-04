@@ -248,9 +248,9 @@ function test_operation() {
     esac
     start_iotdb
     sleep 10
-    for (( t_wait = 0; t_wait <= 20; t_wait++ )); do
+    for (( t_wait = 0; t_wait <= 10; t_wait++ )); do
         iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-        [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 30
+        [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 5
     done
     if [ "${iotdb_state}" != "Total line number = 2" ]; then
         echo "IoTDB未能正常启动，写入负值测试结果！"

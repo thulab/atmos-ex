@@ -310,13 +310,13 @@ test_operation() {
 		sleep 10
 			
 		####判断IoTDB是否正常启动
-		for (( t_wait = 0; t_wait <= 20; t_wait++ ))
+		for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 		do
 		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 		  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			break
 		  else
-			sleep 30
+			sleep 5
 			continue
 		  fi
 		done
