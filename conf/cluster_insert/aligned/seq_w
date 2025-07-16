@@ -47,7 +47,7 @@ HOST=11.101.17.131
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=20000
+LOOP=10000
 
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
@@ -115,7 +115,7 @@ LOOP=20000
 
 ############## 数据：设备、传感器、客户端 ##################
 # 设备总数
-DEVICE_NUMBER=50
+DEVICE_NUMBER=500
 
 # 实际写入设备比例，(0, 1]
 # REAL_INSERT_RATE=1.0
