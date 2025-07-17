@@ -9,6 +9,7 @@ TOOL_PATH=${INIT_PATH}/iotdb-sql
 BM_PATH=${INIT_PATH}/iot-benchmark
 BUCKUP_PATH=/nasdata/repository/sql_coverage/master
 REPOS_PATH=/nasdata/repository/master
+TC_PATH=${INIT_PATH}/iotdb-sql-testcase
 #测试数据运行路径
 TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -228,7 +229,6 @@ if [ "${commit_id}" = "" ]; then
 else
 	#测试表模型
 	init_items
-	TC_PATH=${INIT_PATH}/iotdb-sql-testcase-tablemode
 	# 获取git commit对比判定是否启动测试
 	cd ${TC_PATH}
 	#last_cid1=$(git log --pretty=format:"%h" -1)
@@ -282,7 +282,7 @@ else
 	#cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
 	cp -rf ${TC_PATH}/lib/udf_jar/local/* /data/nginx/
 	cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
-	cp -rf ${TC_PATH}/scripts ${TEST_TOOL_PATH}/user/
+	cp -rf ${TC_PATH}/table/scripts ${TEST_TOOL_PATH}/user/
 	cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
 	cd ${TEST_TOOL_PATH}
 	sed -i "s/sql_dialect=tree$/sql_dialect=table/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
@@ -341,7 +341,6 @@ else
 
 	#测试AINode
 	init_items
-	TC_PATH=${INIT_PATH}/iotdb-sql-testcase-ainode
 	# 获取git commit对比判定是否启动测试
 	cd ${TC_PATH}
 	#last_cid1=$(git log --pretty=format:"%h" -1)
@@ -419,7 +418,7 @@ else
 		#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 		#cp -rf ${TC_PATH}/lib/trigger_jar/local/* /data/nginx/
 		cp -rf ${TC_PATH}/lib/udf_jar/local/* /data/nginx/
-		cp -rf ${TC_PATH}/scripts ${TEST_TOOL_PATH}/user/
+		cp -rf ${TC_PATH}/ainode_tree/scripts ${TEST_TOOL_PATH}/user/
 		#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 		cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
 		cd ${TEST_TOOL_PATH}
