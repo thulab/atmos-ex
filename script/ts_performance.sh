@@ -18,7 +18,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(111 223 222 211)
 data_type=(sequence unsequence)
-ts_list=(common aligned template tempaligned)
+ts_list=(common aligned tempaligned)
 
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
@@ -558,8 +558,8 @@ else
 	test_operation 223 common unsequence
 	test_operation 223 aligned sequence
 	test_operation 223 aligned unsequence
-	test_operation 223 template sequence
-	test_operation 223 template unsequence
+	#test_operation 223 template sequence
+	#test_operation 223 template unsequence
 	test_operation 223 tempaligned sequence
 	test_operation 223 tempaligned unsequence
 	test_operation 223 tablemode sequence

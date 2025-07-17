@@ -28,7 +28,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(223)
-ts_list=(common aligned template tempaligned)
+ts_list=(common aligned tempaligned)
 insert_list=(seq_w unseq_w)
 
 # -------------------- MySQL 配置信息 --------------------

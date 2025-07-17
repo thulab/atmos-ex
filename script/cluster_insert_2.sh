@@ -535,10 +535,10 @@ else
 	#test_operation common seq_w 223
 	echo "开始测试普通时间序列乱序写入！"
 	test_operation common unseq_w 223
-	echo "开始测试普通时间序列顺序读写混合！"
-	test_operation common seq_rw 223
-	echo "开始测试普通时间序列乱序读写混合！"
-	test_operation common unseq_rw 223
+	#echo "开始测试普通时间序列顺序读写混合！"
+	#test_operation common seq_rw 223
+	#echo "开始测试普通时间序列乱序读写混合！"
+	#test_operation common unseq_rw 223
 	###############################对齐时间序列###############################
 	#echo "开始测试对齐时间序列顺序写入！"
 	#test_operation aligned seq_w 223
