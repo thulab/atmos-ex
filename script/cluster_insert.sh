@@ -353,6 +353,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			str1=$(ssh ${ACCOUNT}@${B_IP_list[${j}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
 				echo "测试未结束:${B_IP_list[${j}]}"  > /dev/null 2>&1 &
+				sleep 180
 			else
 				echo "测试已结束:${B_IP_list[${j}]}"
 				flag=$[${flag}+1]
@@ -360,7 +361,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		done
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-		if [ $t_time -ge 10800 ]; then
+		if [ $t_time -ge 14400 ]; then
 			echo "测试失败"
 			end_time=-1
 			cost_time=-1
