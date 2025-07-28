@@ -54,7 +54,7 @@ start_time=0
 end_time=0
 flag=0
 }
-set_protocol_class() { 
+set_protocol_class() {
 	config_node=$1
 	schema_region=$2
 	data_region=$3
@@ -63,7 +63,7 @@ set_protocol_class() {
 	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
-set_iotdb_env() { 
+set_iotdb_env() {
 	# 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}
@@ -184,6 +184,8 @@ test_java_native_api_test() { # 测试Java原生接口
   if [ $flag -eq 0 ]; then
   	#收集测试结果
   	cd ${TEST_JAVA_TOOL_PATH}
+  	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
+  	sleep 10
   	tests_num=$(sed -n '75,75p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
   	errors_num=$(sed -n '76,76p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
   	failures_num=$(sed -n '77,77p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
@@ -193,6 +195,21 @@ test_java_native_api_test() { # 测试Java原生接口
   	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
   	insert_sql_java="insert into ${TABLENAME_JAVA} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'master')"
   	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+  	if [ $? -ne 0 ]; then
+  	  echo "执行mysql命令失败"
+      #收集测试结果
+  	  tests_num=-4
+  	  errors_num=-4
+  	  failures_num=-4
+  	  skipped_num=-4
+  	  successRate=-4
+  	  #结果写入mysql
+  	  cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+  	  insert_sql_java="insert into ${TABLENAME_JAVA} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'master')"
+  	  #echo "${insert_sql_java}"
+  	  mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+      return 1
+    fi
   else
   	#收集测试结果
   	cd ${TEST_JAVA_TOOL_PATH}
@@ -277,6 +294,8 @@ test_cpp_native_api_test() {
     if [ $flag -eq 0 ]; then
     	#收集测试结果
     	cd ${TEST_CPP_TOOL_PATH}
+    	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
+      sleep 10
     	tests_num=$(jq -r '.tests' "${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json")
     	errors_num=$(jq -r '.errors' "${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json")
     	failures_num=$(jq -r '.failures' "${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json")
@@ -286,6 +305,21 @@ test_cpp_native_api_test() {
     	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
     	insert_sql_cpp="insert into ${TABLENAME_CPP} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'master')"
     	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+    	if [ $? -ne 0 ]; then
+          echo "执行mysql命令失败"
+          #收集测试结果
+          tests_num=-5
+          errors_num=-5
+          failures_num=-5
+          skipped_num=-5
+          successRate=-5
+          #结果写入mysql
+          cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+          insert_sql_cpp="insert into ${TABLENAME_CPP} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'master')"
+          #echo "${insert_sql_cpp}"
+          mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+          return 1
+      fi
     else
     	#收集测试结果
     	cd ${TEST_CPP_TOOL_PATH}
