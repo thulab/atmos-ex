@@ -229,7 +229,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			start_time=$(find ./* -name log_datanode_all.log | xargs sed -n '1p' | awk '{print $1 FS $2}')
 			end_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
 			#新增判断是否可以cli登录查询
-			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e -u root -pw root  "show cluster" | grep 'Total line number = 2')
 			if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			else
