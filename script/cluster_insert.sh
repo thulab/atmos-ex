@@ -305,7 +305,7 @@ for (( j = 1; j <= $data_num; j++ ))
 do
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
-	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
+	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 6" ]; then
 		echo "All Nodes is ready"
 		flag=1
@@ -325,9 +325,9 @@ done
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	##添加用户和权限
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"CREATE USER qa_user '123456';\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -u root -pw root -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user '123456';\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
 	#启动benchmark
 	sleep 60
 	if [ "$bm_num" != '' ];

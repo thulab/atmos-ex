@@ -266,7 +266,7 @@ function test_operation() {
     sleep 60
     monitor_test_status
     m_end_time=$(date +%s)
-    ${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush"
+    ${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -e "flush"
     collect_monitor_data ${TEST_IP}
     csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
     read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
