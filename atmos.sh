@@ -34,6 +34,8 @@ do
 		nohup sh ${ATMOS_PATH}/script/unse_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "unse_query" ]; then
 		nohup sh ${ATMOS_PATH}/script/unse_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+	elif [ "$test_type" = "compile" ]; then
+		nohup sh ${ATMOS_PATH}/tools/compile.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	else
 		nohup sh ${ATMOS_PATH}/script/${test_type}.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	fi
