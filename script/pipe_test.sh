@@ -225,7 +225,7 @@ setup_env() {
 		sleep 10
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
-		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show cluster\" | grep 'Total line number = 2'")
+		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"show cluster\" | grep 'Total line number = 2'")
 		  if [ "$str1" = "Total line number = 2" ]; then
 			echo "All Nodes is ready"
 			flag=1
@@ -246,11 +246,11 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e \"create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"start pipe test;\"")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
 			echo $str1
 			if [ "$str1" = "Total line number = 1" ]; then
 				echo "PIPE is ready"
@@ -261,11 +261,11 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"create pipe test with source ('source.pattern'='root', 'source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"create pipe test with source ('source.pattern'='root', 'source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"start pipe test;\"")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw root -e \"show pipes;\" | grep 'Total line number = 1'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
 			echo $str1
 			if [ "$str1" = "Total line number = 1" ]; then
 				echo "PIPE is ready"
@@ -299,27 +299,27 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		done
 		if [ $flagB -ge 2 ]; then
 			if [ "${ts_type}" = "tablemode" ]; then
-				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"flush\"")
-				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"flush\"")
+				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"flush\"")
+				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"flush\"")
 			else
-				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"flush\"")
-				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"flush\"")
+				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -e \"flush\"")
+				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -e \"flush\"")
 			fi
 			#BM写入结束前不进行判定
 			#确认是否测试已结束
 			flag=0
 			if [ "${ts_type}" = "tablemode" ]; then
-				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_0'\" | grep -o '172800' | wc -l ")
+				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_0'\" | grep -o '172800' | wc -l ")
 			else
-				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
+				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
 			fi
 			#echo "str0=${str0}"
 			if [ "$str0" = "1" ]; then
 				for (( device = 0; device < 50; device++ ))
 				do
 					if [ "${ts_type}" = "tablemode" ]; then
-						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
-						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
+						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
+						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
 						if [ "$str1" = "1" ] && [ "$str2" = "1" ]; then
 							#表模型计算方式不用
 							str1=500
@@ -328,8 +328,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						#echo "str1=${str1}"
 						#echo "str2=${str2}"
 					else
-						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
-						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -u root -pw root -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[1]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${IP_list[2]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
 					fi
 					if [ "$str1" = "500" ] && [ "$str2" = "500" ]; then
 						echo "root.test.g_0.d_${device}同步已结束"

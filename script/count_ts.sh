@@ -377,38 +377,38 @@ test_operation() {
 	createCost_template=${schemaCost[2]}
 	createCost_tempaligned=${schemaCost[3]}
 	#刷一下准备开始采集
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -e "flush")
 	#统计总体时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/countCost_all.log
 	echo "开始测试统计全部时间序列耗时！"
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.**" >> ${TEST_IOTDB_PATH}/countCost_all.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 6000 -e "count timeseries root.**" >> ${TEST_IOTDB_PATH}/countCost_all.log)
 	read countCost_all <<<$(cat ${TEST_IOTDB_PATH}/countCost_all.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计common时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/countCost_common.log
 	echo "开始测试统计普通时间序列耗时！"
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.test.common_0.**" >> ${TEST_IOTDB_PATH}/countCost_common.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 6000 -e "count timeseries root.test.common_0.**" >> ${TEST_IOTDB_PATH}/countCost_common.log)
 	read countCost_common <<<$(cat ${TEST_IOTDB_PATH}/countCost_common.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计aligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/countCost_aligned.log
 	echo "开始测试统计对齐时间序列耗时！"
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.test.aligned_0.**" >> ${TEST_IOTDB_PATH}/countCost_aligned.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 6000 -e "count timeseries root.test.aligned_0.**" >> ${TEST_IOTDB_PATH}/countCost_aligned.log)
 	read countCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/countCost_aligned.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计template时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/countCost_template.log
 	echo "开始测试统计模板时间序列耗时！"
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.test.temp_0.**" >> ${TEST_IOTDB_PATH}/countCost_template.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 6000 -e "count timeseries root.test.temp_0.**" >> ${TEST_IOTDB_PATH}/countCost_template.log)
 	read countCost_template <<<$(cat ${TEST_IOTDB_PATH}/countCost_template.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	#统计tempaligned时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/countCost_tempaligned.log
 	echo "开始测试统计对齐模板时间序列耗时！"
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 6000 -e "count timeseries root.test.tempaligned_0.**" >> ${TEST_IOTDB_PATH}/countCost_tempaligned.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 6000 -e "count timeseries root.test.tempaligned_0.**" >> ${TEST_IOTDB_PATH}/countCost_tempaligned.log)
 	read countCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/countCost_tempaligned.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	
 	#统计查询总体时间序列耗时
 	rm -rf ${TEST_IOTDB_PATH}/showCost_all.log
 	echo "开始测试查询全部时间序列耗时！"
 	start_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 20000 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/showCost_all.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 20000 -e "show timeseries root.**" >> ${TEST_IOTDB_PATH}/showCost_all.log)
 	#read showCost_all <<<$(cat ${TEST_IOTDB_PATH}/showCost_all.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_all=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))
@@ -416,7 +416,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/showCost_common.log
 	echo "开始测试查询普通时间序列耗时！"
 	start_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 20000 -e "show timeseries root.test.common_0.**" >> ${TEST_IOTDB_PATH}/showCost_common.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 20000 -e "show timeseries root.test.common_0.**" >> ${TEST_IOTDB_PATH}/showCost_common.log)
 	#read showCost_common <<<$(cat ${TEST_IOTDB_PATH}/showCost_common.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_common=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))
@@ -424,7 +424,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/showCost_aligned.log
 	echo "开始测试查询对齐时间序列耗时！"
 	start_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 20000 -e "show timeseries root.test.aligned_0.**" >> ${TEST_IOTDB_PATH}/showCost_aligned.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 20000 -e "show timeseries root.test.aligned_0.**" >> ${TEST_IOTDB_PATH}/showCost_aligned.log)
 	#read showCost_aligned <<<$(cat ${TEST_IOTDB_PATH}/showCost_aligned.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_aligned=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))
@@ -432,7 +432,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/showCost_template.log
 	echo "开始测试查询模板时间序列耗时！"
 	start_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 20000 -e "show timeseries root.test.temp_0.**" >> ${TEST_IOTDB_PATH}/showCost_template.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 20000 -e "show timeseries root.test.temp_0.**" >> ${TEST_IOTDB_PATH}/showCost_template.log)
 	#read showCost_template <<<$(cat ${TEST_IOTDB_PATH}/showCost_template.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_template=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))
@@ -440,7 +440,7 @@ test_operation() {
 	rm -rf ${TEST_IOTDB_PATH}/showCost_tempaligned.log
 	echo "开始测试查询对齐模板时间序列耗时！"
 	start_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -timeout 20000 -e "show timeseries root.test.tempaligned_0.**" >> ${TEST_IOTDB_PATH}/showCost_tempaligned.log)
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -timeout 20000 -e "show timeseries root.test.tempaligned_0.**" >> ${TEST_IOTDB_PATH}/showCost_tempaligned.log)
 	#read showCost_tempaligned <<<$(cat ${TEST_IOTDB_PATH}/showCost_tempaligned.log | grep ^It | sed -n '1,1p' | awk 'gsub("s","")' | awk '{print $3}')
 	end_time_temp=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	showCost_tempaligned=$(($(date +%s -d "${end_time_temp}") - $(date +%s -d "${start_time_temp}")))

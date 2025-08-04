@@ -341,7 +341,7 @@ test_operation() {
 	monitor_test_status
 	m_end_time=$(date +%s)
 	#停止IoTDB程序和监控程序
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -u root -pw root -e "flush")
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -e "flush")
 	#收集启动后基础监控数据
 	collect_monitor_data
 	#测试结果收集写入数据库
