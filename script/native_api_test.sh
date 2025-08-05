@@ -234,7 +234,6 @@ test_java_native_api_test() { # 测试Java原生接口
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
-	#fi
 	cd ${BK_PATH}/java
 	git add .
 	git commit -m ${last_cid_iotdb}_${failures_num}
@@ -356,11 +355,9 @@ test_cpp_native_api_test() {
 	#backup_test_data
 	rm -rf ${BK_PATH}/cpp/*
 	cp -f ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json ${BK_PATH}/cpp/
-	#if [ $failures_num -gt 0 ]; then
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
-	#fi
 	cd ${BK_PATH}/cpp
 	git add .
 	git commit -m ${last_cid_iotdb}_${failures_num}
