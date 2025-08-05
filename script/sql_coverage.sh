@@ -265,6 +265,7 @@ else
 	done
 	if [ "${iotdb_state}" = "Total line number = 2" ]; then
 		echo "IoTDB正常启动"
+		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD 'TimechoDB@2021'")
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
@@ -378,6 +379,7 @@ else
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			echo "IoTDB正常启动"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD 'TimechoDB@2021'")
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
@@ -403,14 +405,15 @@ else
 		done
 		if [ "${iotdb_state}" = "Total line number = 3" ]; then
 			echo "IoTDB-AINode正常启动，准备开始测试"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD 'TimechoDB@2021'")
 			F_start_time=$(date +%s%3N)
-			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
+			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw TimechoDB@2021 -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
 			F_now_time=$(date +%s%3N)
 			F_t_time=$[${F_now_time}-${F_start_time}]
 			cost_time=${F_t_time}
 			pass_num=0
 			fail_num=0
-			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "drop database root.**")
+			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw TimechoDB@2021 -e "drop database root.**")
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${F_start_time}','${F_now_time}',${cost_time},'FirstInsertSQL')"
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			# 拷贝测试依赖到各自文件夹
@@ -524,6 +527,7 @@ else
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			echo "IoTDB正常启动"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD 'TimechoDB@2021'")
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
@@ -549,6 +553,7 @@ else
 		done
 		if [ "${iotdb_state}" = "Total line number = 3" ]; then
 			echo "IoTDB-AINode正常启动，准备开始测试"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD 'TimechoDB@2021'")
 			# 拷贝测试依赖到各自文件夹
 			#cp -rf ${TC_PATH}/lib/trigger_jar/ext ${TEST_IOTDB_PATH}/ext/trigger/
 			#cp -rf ${TC_PATH}/lib/udf_jar/envelop ${TEST_IOTDB_PATH}/ext/udf/
