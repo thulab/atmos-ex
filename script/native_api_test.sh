@@ -1,9 +1,9 @@
 #!/bin/bash
 #登录用户名
-ACCOUNT=cluster
+ACCOUNT=root
 test_type=native_api_test
 #初始环境存放路径
-INIT_PATH=/home/cluster/zk_test
+INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 IOTDB_PATH=${INIT_PATH}/iotdb
 JAVA_TOOL_PATH=${INIT_PATH}/java-native-api-testcase
