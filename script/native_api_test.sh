@@ -541,149 +541,43 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_python}"
-	fi
-	# 编译成功，开始测试
-	#清理环境，确保无旧程序影响
-	check_iotdb_pid
-	#复制iotdb到执行位置
-	set_iotdb_env
-	#IoTDB 调整内存，关闭合并
-	modify_iotdb_config
-	#启动iotdb和monitor监控
-	start_iotdb
-	sleep 60
-	# 测试Java原生接口
-	echo "测试Java原生接口"
-	test_java_native_api_test
-	if [ $? -eq 1 ]; then
+	else
+		# 编译成功，开始测试
+		#清理环境，确保无旧程序影响
+		check_iotdb_pid
+		#复制iotdb到执行位置
+		set_iotdb_env
+		#IoTDB 调整内存，关闭合并
+		modify_iotdb_config
+		#启动iotdb和monitor监控
+		start_iotdb
 		sleep 60
-		echo "Java测试失败"
+		# 测试Java原生接口
+		echo "测试Java原生接口"
+		test_java_native_api_test
+		if [ $? -eq 1 ]; then
+			sleep 60
+			echo "Java测试失败"
+		fi
+		# 测试Cpp原生接口
+		echo "测试Cpp原生接口"
+		test_cpp_native_api_test
+		if [ $? -eq 1 ]; then
+			sleep 60
+			echo "Cpp测试失败"
+		fi
+		# 测试Python原生接口
+		echo "测试Python原生接口"
+		test_python_native_api_test
+		if [ $? -eq 1 ]; then
+			sleep 60
+			echo "Python测试失败"
+		fi
+		#停止IoTDB程序
+		check_iotdb_pid
+		###############################测试完成###############################
+		echo "本轮测试${test_date_time}已结束."
 	fi
-	# 测试Cpp原生接口
-	echo "测试Cpp原生接口"
-	test_cpp_native_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "Cpp测试失败"
-	fi
-	# 测试Python原生接口
-	echo "测试Python原生接口"
-	test_python_native_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "Python测试失败"
-	fi
-	#停止IoTDB程序
-	check_iotdb_pid
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-elif [ "${last_cid_java}" != "${commit_id_java}" ]; then # 判断Java原生接口测试工具代码是否更新
-	echo "Java测试工具有更新，当前版本${last_cid_java}未执行过测试"
-	# 编译IoTDB并判断是否成功
-	test_date_time=$(date +%Y%m%d%H%M%S)
-	compile_iotdb
-	if [ $? -eq 1 ]; then
-		# 编译失败，休眠并退出当前测试
-		tests_num=-1
-		errors_num=-1
-		failures_num=-1
-		skipped_num=-1
-		successRate=-1
-		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
-	fi
-	# 编译成功，开始测试
-	#清理环境，确保无旧程序影响
-	check_iotdb_pid
-	#复制iotdb到执行位置
-	set_iotdb_env
-	#IoTDB 调整内存，关闭合并
-	modify_iotdb_config
-	#启动iotdb和monitor监控
-	start_iotdb
-	sleep 60
-	# 测试Java原生接口
-	test_java_native_api_test
-	if [ $? -eq 1 ]; then
-		# 测试失败，休眠并退出当前测试
-		sleep 60
-		echo "Java测试失败"
-	fi
-	#停止IoTDB程序
-	check_iotdb_pid
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-elif [ "${last_cid_cpp}" != "${commit_id_cpp}" ]; then # 判断Cpp原生接口测试工具代码是否更新
-	echo "Cpp测试工具有更新，当前版本${last_cid_cpp}未执行过测试"
-	# 编译IoTDB并判断是否成功
-	test_date_time=$(date +%Y%m%d%H%M%S)
-	compile_iotdb
-	if [ $? -eq 1 ]; then
-		# 编译失败，休眠并退出当前测试
-		tests_num=-1
-		errors_num=-1
-		failures_num=-1
-		skipped_num=-1
-		successRate=-1
-		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
-	fi
-	# 编译成功，开始测试
-	#清理环境，确保无旧程序影响
-	check_iotdb_pid
-	#复制iotdb到执行位置
-	set_iotdb_env
-	#IoTDB 调整内存，关闭合并
-	modify_iotdb_config
-	#启动iotdb和monitor监控
-	start_iotdb
-	sleep 60
-	# 测试Cpp原生接口
-	test_cpp_native_api_test
-	if [ $? -eq 1 ]; then
-		# 测试失败，休眠并退出当前测试
-		sleep 60
-		echo "Cpp测试失败"
-	fi
-	#停止IoTDB程序
-	check_iotdb_pid
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-elif [ "${last_cid_python}" != "${commit_id_python}" ]; then # 判断Python原生接口测试工具代码是否更新
-	echo "Python测试工具有更新，当前版本${last_cid_python}未执行过测试"
-	# 编译IoTDB并判断是否成功
-	test_date_time=$(date +%Y%m%d%H%M%S)
-	compile_iotdb
-	if [ $? -eq 1 ]; then
-		# 编译失败，休眠并退出当前测试
-		tests_num=-1
-		errors_num=-1
-		failures_num=-1
-		skipped_num=-1
-		successRate=-1
-		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
-	fi
-	# 编译成功，开始测试
-	#清理环境，确保无旧程序影响
-	check_iotdb_pid
-	#复制iotdb到执行位置
-	set_iotdb_env
-	#IoTDB 调整内存，关闭合并
-	modify_iotdb_config
-	#启动iotdb和monitor监控
-	start_iotdb
-	sleep 60
-	# 测试Pyhon原生接口
-	test_python_native_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "测试python原生接口失败"
-	fi
-	#停止IoTDB程序
-	check_iotdb_pid
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
 else # 没有更新则等待下一轮测试
 	echo "没有更新，都执行过测试"
 	sleep 300s
