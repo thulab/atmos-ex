@@ -92,7 +92,7 @@ LOOP=3240
 # ANOTHER_USERNAME=root
 
 # 另一个写入的数据库的密码，如果为多个数据库，则要求保持一致
-# ANOTHER_PASSWORD=root
+# ANOTHER_PASSWORD=TimechoDB@2021
 
 # 另一个写入的数据库的名称
 # ANOTHER_DB_NAME=test

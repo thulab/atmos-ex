@@ -12,7 +12,7 @@ PORT=6667
 # 所有被测数据库的用户名，如果为多个数据库，则要求保持一致
 USERNAME=root
 # 所有被测数据库的密码，如果为多个数据库，则要求保持一致
-PASSWORD=root
+PASSWORD=TimechoDB@2021
 # 即将被测试写入的数据库的名称
 DB_NAME=test
 # 数据库连接认证Token，InfluxDB 2.0使用
@@ -66,7 +66,7 @@ ANOTHER_PORT=6667
 # 另一个写入的数据库的用户名
 ANOTHER_USERNAME=root
 # 另一个写入的数据库的密码，如果为多个数据库，则要求保持一致
-ANOTHER_PASSWORD=root
+ANOTHER_PASSWORD=TimechoDB@2021
 # 另一个写入的数据库的名称
 ANOTHER_DB_NAME=test
 # 另一个数据库认证使用的Token，目前仅限于InfluxDB 2.0使用
