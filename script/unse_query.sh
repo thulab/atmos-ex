@@ -2,6 +2,7 @@
 #登录用户名
 TEST_IP="11.101.17.143"
 ACCOUNT=atmos
+IoTDB_PW=TimechoDB@2021
 test_type=unse_query
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test

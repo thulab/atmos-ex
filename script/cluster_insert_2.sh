@@ -1,6 +1,7 @@
 #!/bin/sh
 #登录用户名
 ACCOUNT=root
+IoTDB_PW=TimechoDB@2021
 test_type=cluster_insert_2
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
@@ -315,6 +316,7 @@ do
 	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 8" ]; then
 		echo "All Nodes is ready"
+		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
 		flag=1
 		break
 	  else

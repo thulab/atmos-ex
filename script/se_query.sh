@@ -2,6 +2,7 @@
 #登录用户名
 TEST_IP="11.101.17.141"
 ACCOUNT=atmos
+IoTDB_PW=TimechoDB@2021
 test_type=se_query
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
@@ -306,7 +307,7 @@ test_operation() {
 			####判断IoTDB是否正常启动
 			for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 			do
-			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -e "show cluster" | grep 'Total line number = 2')
+			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
 			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				break
 			  else

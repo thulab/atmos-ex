@@ -1,6 +1,7 @@
 #!/bin/sh
 #登录用户名
 ACCOUNT=root
+IoTDB_PW=TimechoDB@2021
 test_type=cluster_insert
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
@@ -308,6 +309,7 @@ do
 	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 6" ]; then
 		echo "All Nodes is ready"
+		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
 		flag=1
 		break
 	  else
@@ -325,9 +327,9 @@ done
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	##添加用户和权限
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user 'test123456789';\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user 'test123456789';\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
+	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${D_IP_list[1]} -p 6667 -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
 	#启动benchmark
 	sleep 60
 	if [ "$bm_num" != '' ];

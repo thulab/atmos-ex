@@ -2,6 +2,7 @@
 #登录用户名
 TEST_IP="11.101.17.226"
 ACCOUNT=atmos
+IoTDB_PW=TimechoDB@2021
 test_type=routine_test
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
@@ -322,6 +323,7 @@ test_operation() {
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			echo "IoTDB正常启动，准备开始测试"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
@@ -347,7 +349,7 @@ test_operation() {
 		m_end_time=$(date +%s)
 		
 		#停止IoTDB程序和监控程序
-		pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -e "flush")
+		pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h 127.0.0.1 -p 6667 -e "flush")
 
 		#收集启动后基础监控数据
 		collect_monitor_data
@@ -377,7 +379,7 @@ test_operation() {
 			####判断IoTDB是否正常启动
 			for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 			do
-			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 2')
 			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				break
 			  else

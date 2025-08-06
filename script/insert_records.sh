@@ -9,6 +9,7 @@
 # -------------------- 基础环境变量 --------------------
 TEST_IP="11.101.17.142"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
+IoTDB_PW=TimechoDB@2021
 test_type=insert_records
 
 # -------------------- 路径相关变量 --------------------
@@ -261,6 +262,7 @@ function test_operation() {
         mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
         return
     fi
+	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
     mv_config_file ${ts_type}/${insert_type}
     ts_type=${ts_type}_${insert_type}
     start_benchmark
@@ -269,7 +271,7 @@ function test_operation() {
     sleep 60
     monitor_test_status
     m_end_time=$(date +%s)
-    ${TEST_IOTDB_PATH}/sbin/start-cli.sh -h 127.0.0.1 -p 6667 -e "flush"
+	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h 127.0.0.1 -p 6667 -e "flush")
     collect_monitor_data ${TEST_IP}
     csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
     read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
