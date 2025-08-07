@@ -322,7 +322,7 @@ do
 	  exit -1
 	fi
 done
-change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[${1}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${1}]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}'\"")
+change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}'\"")
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	##添加用户和权限
