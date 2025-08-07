@@ -309,7 +309,6 @@ do
 	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
 	  if [ "$str1" = "Total line number = 6" ]; then
 		echo "All Nodes is ready"
-		change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[${1}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${1}]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}'\"")
 		flag=1
 		break
 	  else
@@ -323,7 +322,7 @@ do
 	  exit -1
 	fi
 done
-
+change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[${1}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${1}]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}'\"")
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	##添加用户和权限
