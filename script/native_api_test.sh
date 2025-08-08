@@ -271,6 +271,7 @@ test_cpp_native_api_test() {
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/build/main/generated-sources-cpp/* ${TEST_CPP_TOOL_PATH}/client/include/
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/thrift/include/* ${TEST_CPP_TOOL_PATH}/client/include/
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/client-cpp-*-SNAPSHOT-cpp-linux-x86_64/lib/* ${TEST_CPP_TOOL_PATH}/client/lib/
+	sleep 60
 	# 编译工具
 	cd ${TEST_CPP_TOOL_PATH}
 	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
@@ -288,7 +289,7 @@ test_cpp_native_api_test() {
 		return 1
 	fi
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	start_test=$(nohup ./run.sh > /dev/null 2>&1 &)
+	./run.sh
 	echo "开始Cpp原生接口测试"
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
@@ -491,7 +492,7 @@ EOF
 	fi
 	#备份本次测试
 	echo "备份Python原生接口测试报告"
-	backup_test_data
+	#backup_test_data
 	rm -rf ${BK_PATH}/python/*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
