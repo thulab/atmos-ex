@@ -271,7 +271,6 @@ test_cpp_native_api_test() {
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/build/main/generated-sources-cpp/* ${TEST_CPP_TOOL_PATH}/client/include/
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/thrift/include/* ${TEST_CPP_TOOL_PATH}/client/include/
 	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/client-cpp-*-SNAPSHOT-cpp-linux-x86_64/lib/* ${TEST_CPP_TOOL_PATH}/client/lib/
-	sleep 60
 	# 编译工具
 	cd ${TEST_CPP_TOOL_PATH}
 	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
@@ -289,7 +288,7 @@ test_cpp_native_api_test() {
 		return 1
 	fi
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	./run.sh
+	start_test=$(timeout 300s bash -c "source /etc/profile && ./run.sh")
 	echo "开始Cpp原生接口测试"
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
