@@ -206,9 +206,9 @@ test_java_native_api_test() { # 测试Java原生接口
 			successRate=-4
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			sql=$(cat <<'EOF'
-			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA',${insert_sql_java})
-			EOF
+			sql=$(cat <<EOF
+			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA',"${insert_sql_java}")
+EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			return 1
@@ -288,7 +288,7 @@ test_cpp_native_api_test() {
 		return 1
 	fi
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	start_test=$(nohup ./run.sh > /dev/null 2>&1 &)
+	start_test=$(timeout 300s bash -c "source /etc/profile && ./run.sh")
 	echo "开始Cpp原生接口测试"
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
@@ -334,9 +334,9 @@ test_cpp_native_api_test() {
 			successRate=-5
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			sql=$(cat <<'EOF'
-			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP',${insert_sql_cpp})
-			EOF
+			sql=$(cat <<EOF
+			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP',"${insert_sql_cpp}")
+EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			return 1
@@ -444,7 +444,7 @@ test_python_native_api_test() { # 测试Python原生接口
 	done
 	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
-	sleep 60
+	sleep 300
 	deactivate
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
@@ -469,9 +469,9 @@ test_python_native_api_test() { # 测试Python原生接口
 			successRate=-5
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			sql=$(cat <<'EOF'
-			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON',${insert_sql_python})
-			EOF
+			sql=$(cat <<EOF
+			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON',"${insert_sql_python}")
+EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			return 1
@@ -491,7 +491,7 @@ test_python_native_api_test() { # 测试Python原生接口
 	fi
 	#备份本次测试
 	echo "备份Python原生接口测试报告"
-	backup_test_data
+	#backup_test_data
 	rm -rf ${BK_PATH}/python/*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
