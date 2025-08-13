@@ -94,6 +94,7 @@ do
 		git_reset=$(timeout 100s git reset --hard ${commit_id_list[$i]})
 		# 获取更新后git commit对比判定是否启动测试
 		commit_id=$(git log --pretty=format:"%h" -1 | cut -c1-7)
+		commit_headline=$(git log --pretty=format:"%s" -1)
 		author=$(git log --pretty=format:"%an" -1)
 		commit_date_time=$(git log --pretty=format:"%ci" -1 | cut -b 1-19 | sed s/-//g | sed s/://g | sed s/[[:space:]]//g)
 		#对比判定是否启动测试
@@ -142,7 +143,7 @@ do
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			else
 				#正常下派所有任务
-				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author) values(${commit_date_time},'${commit_id}','${author}')"
+				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,remark) values(${commit_date_time},'${commit_id}','${author}','${commit_headline}')"
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				echo "${commit_id}测试任务已发布！"
 			fi
