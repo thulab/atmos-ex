@@ -380,9 +380,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	if [ "${ts_type}" = "tablemode" ]; then
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	else
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
 	if [ "${ts_numOfPoints}" = "" ]; then
 		ts_numOfPoints=-1
@@ -445,9 +445,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	if [ "${ts_type}" = "tablemode" ]; then
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	else
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
 	if [ "${ts_numOfPoints}" = "" ]; then
 		ts_numOfPoints=-1
@@ -509,9 +509,9 @@ test_operation() {
 	monitor_test_status
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	if [ "${ts_type}" = "tablemode" ]; then
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h 127.0.0.1 -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_0'" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	else
-		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '5p' | sed s/\|//g | sed 's/[[:space:]]//g')
+		ts_numOfPoints=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh  -h 127.0.0.1 -p 6667 -e "select count(s_0) from root.test.g_0.d_0" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g')
 	fi
 	if [ "${ts_numOfPoints}" = "" ]; then
 		ts_numOfPoints=-1
