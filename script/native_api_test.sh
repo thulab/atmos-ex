@@ -160,9 +160,9 @@ test_java_native_api_test() { # 测试Java原生接口
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
 		return 1
 	fi
+	echo "开始测试Java原生接口"
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
-	echo "开始测试Java原生接口"
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		cd ${TEST_JAVA_TOOL_PATH}
@@ -211,6 +211,9 @@ test_java_native_api_test() { # 测试Java原生接口
 EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+      echo "备份Java原生接口测试报告"
+      mkdir -p /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
+      cp -rf  ${TEST_JAVA_TOOL_PATH}/details/target/site /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
 			return 1
 		fi
 	else
@@ -287,9 +290,9 @@ test_cpp_native_api_test() {
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 		return 1
 	fi
-	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	start_test=$(timeout 300s bash -c "source /etc/profile && ./run.sh")
 	echo "开始Cpp原生接口测试"
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	start_test=$(timeout 7200s bash -c "source /etc/profile && ./run.sh")
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		cd ${TEST_CPP_TOOL_PATH}
@@ -339,6 +342,9 @@ test_cpp_native_api_test() {
 EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			echo "备份Cpp原生接口测试报告"
+      mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
+      cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
 			return 1
 		fi
 	else
@@ -420,10 +426,10 @@ test_python_native_api_test() { # 测试Python原生接口
 		return 1
 	fi
 	# 开始测试
-	echo "开始测试"
+	echo "Python开始测试"
 	cd ${TEST_PYTHON_TOOL_PATH}/tests
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	start_test=$(nohup pytest --html=../reports/report.html > /dev/null 2>&1 &)
+	start_test=$(timeout 7200s bash -c "pytest --html=../reports/report.html")
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		cd ${TEST_PYTHON_TOOL_PATH}
@@ -444,7 +450,7 @@ test_python_native_api_test() { # 测试Python原生接口
 	done
 	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
-	sleep 300
+	sleep 60
 	deactivate
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
@@ -474,6 +480,9 @@ test_python_native_api_test() { # 测试Python原生接口
 EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			echo "备份Python原生接口测试报告"
+      mkdir -p /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
+      cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
 			return 1
 		fi
 	else
@@ -505,31 +514,23 @@ EOF
 echo "ontesting" > ${INIT_PATH}/test_type_file
 # 初始化参数
 init_items
-# 收集IoTDB当前和最新的commit
+# 收集IoTDB当前和最新的commit，拉取最新的代码
 cd ${IOTDB_PATH}
 last_cid_iotdb=$(git log --pretty=format:"%h" -1)
 git_pull=$(timeout 100s git fetch --all)
 git_pull=$(git reset --hard origin/master)
 git_pull=$(timeout 100s git pull)
 commit_id_iotdb=$(git log --pretty=format:"%h" -1)
-# 收集Java原生接口测试工具当前和最新的commit
+# 更新测试工具
 cd ${JAVA_TOOL_PATH}
-last_cid_java=$(git log --pretty=format:"%h" -1)
 git_pull=$(timeout 100s git pull)
-commit_id_java=$(git log --pretty=format:"%h" -1)
-# 收集Cpp原生接口测试工具当前和最新的commit
 cd ${CPP_TOOL_PATH}
-last_cid_cpp=$(git log --pretty=format:"%h" -1)
 git_pull=$(timeout 100s git pull)
-commit_id_cpp=$(git log --pretty=format:"%h" -1)
-# 收集Python原生接口测试工具当前和最新的commit
 cd ${PYTHON_TOOL_PATH}
-last_cid_python=$(git log --pretty=format:"%h" -1)
 git_pull=$(timeout 100s git pull)
-commit_id_python=$(git log --pretty=format:"%h" -1)
 # 对比判定是否启动测试
 if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是否更新
-	echo "IoTDB代码有更新，当前版本${last_cid_iotdb}未执行过测试"
+	echo "IoTDB代码有更新，当前新版本commit：${commit_id_iotdb} 未执行过测试"
 	# 编译IoTDB并判断是否成功
 	test_date_time=$(date +%Y%m%d%H%M%S)
 	compile_iotdb
