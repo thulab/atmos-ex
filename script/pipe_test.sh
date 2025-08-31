@@ -252,9 +252,9 @@ setup_env() {
 			#echo $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
 			echo $str1
-			if [ "$str1" = "Total line number = 1" ]; then
+			if [ "$str1" = "Total line number = 2" ]; then
 				echo "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
@@ -267,9 +267,9 @@ setup_env() {
 			#echo $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
 			echo $str1
-			if [ "$str1" = "Total line number = 1" ]; then
+			if [ "$str1" = "Total line number = 2" ]; then
 				echo "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
