@@ -327,8 +327,8 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 							str1=500
 							str2=500
 						fi
-						#echo "str1=${str1}"
-						#echo "str2=${str2}"
+						echo "str1=${str1}"
+						echo "str2=${str2}"
 					else
 						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
 						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
@@ -337,7 +337,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						echo "root.test.g_0.d_${device}同步已结束"
 						flag=$[${flag}+1]
 					else
-						echo "同步未全部结束:${flag}"
+						echo "root.test.g_0.d_${device}同步未全部结束:${flag}"
 						flag=0
 						device=0
 					fi
