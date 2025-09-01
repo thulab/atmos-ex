@@ -502,7 +502,7 @@ test_operation() {
 	fi
 	#启动iotdb
 	setup_env
-	sleep 10
+	sleep 60
 	#启动写入程序
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
@@ -513,7 +513,7 @@ test_operation() {
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
 	#等待1分钟
-	sleep 60
+	sleep 10
 	#判断PIPE设置情况
 	if [ $pipflag -ge 2 ]; then
 		monitor_test_status
