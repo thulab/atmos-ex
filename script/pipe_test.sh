@@ -319,7 +319,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			do
 				if [ "${ts_type}" = "tablemode" ]; then
 					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
-					if [[ "{$numOfPointsA[${device}]}" == "$str1" ]]; then
+					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
@@ -348,11 +348,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				fi
-				echo "flagA=${flagA}"
-				echo "flagB=${flagB}"
-				echo "numOfPointsA=${numOfPointsA}"
-				echo "numOfPointsB=${numOfPointsB}"
-				echo "last_update_time=${last_update_time}"
+				#echo "flagA=${flagA}"
+				#echo "flagB=${flagB}"
+				#echo "numOfPointsA=${numOfPointsA}"
+				#echo "numOfPointsB=${numOfPointsB}"
+				#echo "last_update_time=${last_update_time}"
 			done
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${last_update_time}")))
 			if [ $t_time -ge 600 ]; then
