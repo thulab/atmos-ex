@@ -88,6 +88,7 @@ maxDiskIOOpsReadB=0
 maxDiskIOOpsWriteB=0
 maxDiskIOSizeReadB=0
 maxDiskIOSizeWriteB=0
+minPointNum=1000000
 ############定义监控采集项初始值##########################
 pipflag=0
 }
@@ -281,13 +282,13 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 	while true; do
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-		flagB=0
+		flagBM=0
 		for (( m = 1; m <= 2; m++ ))
 		do
-			if [ $t_time -ge 7200 ]; then
+			if [ $t_time -ge 3600 ]; then
 				echo "测试失败"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-				flagB=-1
+				flagBM=-1
 				cost_time=-1
 				break
 			fi
@@ -296,10 +297,10 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				echo "BM写入未结束:${IP_list[${m}]}"  > /dev/null 2>&1 &
 			else
 				echo "BM写入已结束:${IP_list[${m}]}"
-				flagB=$[${flagB}+1]
+				flagBM=$[${flagBM}+1]
 			fi
 		done
-		if [ $flagB -ge 2 ]; then
+		if [ $flagBM -ge 2 ]; then
 			if [ "${ts_type}" = "tablemode" ]; then
 				fstr1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"flush\"")
 				fstr2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"flush\"")
@@ -309,69 +310,60 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			fi
 			#BM写入结束前不进行判定
 			#确认是否测试已结束
-			flag=0
-			if [ "${ts_type}" = "tablemode" ]; then
-				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_0'\" | grep -o '172800' | wc -l ")
-			else
-				str0=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_0\" | grep -o '172800' | wc -l ")
-			fi
-			#echo "str0=${str0}"
-			if [ "$str0" = "1" ]; then
+			flagA=0
+			flagB=0
+			for (( device = 0; device < 50; device++ ))
+			do
+				if [ "${ts_type}" = "tablemode" ]; then
+					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					if [ "$numOfPointsA[${device}]" = "$str1" ]; then
+						flagA=$[${flagA}+1]
+					else
+						numOfPointsA[${device}]=$str1
+						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+					fi
+					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					if [ "$numOfPointsB[${device}]" = "$str2" ]; then
+						flagB=$[${flagB}+1]
+					else
+						numOfPointsB[${device}]=$str2
+						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+					fi
+				else
+					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					if [ "$numOfPointsA[${device}]" = "$str1" ]; then
+						flagA=$[${flagA}+1]
+					else
+						numOfPointsA[${device}]=$str1
+						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+					fi
+					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					if [ "$numOfPointsB[${device}]" = "$str2" ]; then
+						flagB=$[${flagB}+1]
+					else
+						numOfPointsB[${device}]=$str2
+						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+					fi
+				fi
+			done
+			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${last_update_time}")))
+			if [ $t_time -ge 600 ]; then
+				echo "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
+				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+				cost_time=$(($(date +%s -d "${last_update_time}") - $(date +%s -d "${start_time}")))
+				minPointNum=1000000
 				for (( device = 0; device < 50; device++ ))
 				do
-					if [ "${ts_type}" = "tablemode" ]; then
-						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
-						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | grep -o '172800' | wc -l ")
-						if [ "$str1" = "1" ] && [ "$str2" = "1" ]; then
-							#表模型计算方式不用
-							str1=500
-							str2=500
-						fi
-						echo "str1=${str1}"
-						echo "str2=${str2}"
-					else
-						str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
-						str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(*) from root.test.g_0.d_${device}\" | grep -o '172800' | wc -l ")
+					if [ $minPointNum -ge $numOfPointsA[${device}] ]; then
+						minPointNum=$numOfPointsA[${device}]
 					fi
-					if [ "$str1" = "500" ] && [ "$str2" = "500" ]; then
-						echo "root.test.g_0.d_${device}同步已结束"
-						flag=$[${flag}+1]
-					else
-						echo "root.test.g_0.d_${device}同步未全部结束:${flag}"
-						flag=0
-						device=0
-					fi
-					echo "flag=${flag}"
-					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-					if [ $t_time -ge 7200 ]; then
-						echo "测试失败"  #倒序输入形成负数结果
-						end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-						cost_time=-1
-						break
-					fi
-					echo $flag
-					if [ "$flag" = "50" ]; then
-						end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-						cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-						break
+					if [ $minPointNum -ge $numOfPointsB[${device}] ]; then
+						minPointNum=$numOfPointsB[${device}]
 					fi
 				done
-				if [ "$flag" = "50" ]; then
-					break
-				fi
-			else
-				echo "同步未结束:${Control}"
-				now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-				t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-				if [ $t_time -ge 7200 ]; then
-					echo "测试失败"  #倒序输入形成负数结果
-					end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-					cost_time=-1
-					break
-				fi
+				break
 			fi
-		elif [ "$flagB" = "-1" ]; then
+		elif [ "$flagBM" = "-1" ]; then
 			break
 		fi
 	done
@@ -549,7 +541,7 @@ test_operation() {
 		fi
 	done	
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,start_time,end_time,cost_time,wait_time,failPointA,throughputA,LatencyA,numOfSe0LevelA,numOfUnse0LevelA,dataFileSizeA,maxNumofOpenFilesA,maxNumofThreadA,walFileSizeA,avgCPULoadA,maxCPULoadA,maxDiskIOSizeReadA,maxDiskIOSizeWriteA,maxDiskIOOpsReadA,maxDiskIOOpsWriteA,errorLogSizeA,failPointB,throughputB,LatencyB,numOfSe0LevelB,numOfUnse0LevelB,dataFileSizeB,maxNumofOpenFilesB,maxNumofThreadB,walFileSizeB,avgCPULoadB,maxCPULoadB,maxDiskIOSizeReadB,maxDiskIOSizeWriteB,maxDiskIOOpsReadB,maxDiskIOOpsWriteB,errorLogSizeB,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${start_time}','${end_time}',${cost_time},${wait_time},${failPointA},${throughputA},${LatencyA},${numOfSe0LevelA},${numOfUnse0LevelA},${dataFileSizeA},${maxNumofOpenFilesA},${maxNumofThreadA},${walFileSizeA},${avgCPULoadA},${maxCPULoadA},${maxDiskIOSizeReadA},${maxDiskIOSizeWriteA},${maxDiskIOOpsReadA},${maxDiskIOOpsWriteA},${errorLogSizeA},${failPointB},${throughputB},${LatencyB},${numOfSe0LevelB},${numOfUnse0LevelB},${dataFileSizeB},${maxNumofOpenFilesB},${maxNumofThreadB},${walFileSizeB},${avgCPULoadB},${maxCPULoadB},${maxDiskIOSizeReadB},${maxDiskIOSizeWriteB},${maxDiskIOOpsReadB},${maxDiskIOOpsWriteB},${errorLogSizeB},${protocol_class})"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,start_time,end_time,cost_time,wait_time,failPointA,throughputA,LatencyA,numOfSe0LevelA,numOfUnse0LevelA,dataFileSizeA,maxNumofOpenFilesA,maxNumofThreadA,walFileSizeA,avgCPULoadA,maxCPULoadA,maxDiskIOSizeReadA,maxDiskIOSizeWriteA,maxDiskIOOpsReadA,maxDiskIOOpsWriteA,errorLogSizeA,failPointB,throughputB,LatencyB,numOfSe0LevelB,numOfUnse0LevelB,dataFileSizeB,maxNumofOpenFilesB,maxNumofThreadB,walFileSizeB,avgCPULoadB,maxCPULoadB,maxDiskIOSizeReadB,maxDiskIOSizeWriteB,maxDiskIOOpsReadB,maxDiskIOOpsWriteB,errorLogSizeB,minPointNum,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${start_time}','${end_time}',${cost_time},${wait_time},${failPointA},${throughputA},${LatencyA},${numOfSe0LevelA},${numOfUnse0LevelA},${dataFileSizeA},${maxNumofOpenFilesA},${maxNumofThreadA},${walFileSizeA},${avgCPULoadA},${maxCPULoadA},${maxDiskIOSizeReadA},${maxDiskIOSizeWriteA},${maxDiskIOOpsReadA},${maxDiskIOOpsWriteA},${errorLogSizeA},${failPointB},${throughputB},${LatencyB},${numOfSe0LevelB},${numOfUnse0LevelB},${dataFileSizeB},${maxNumofOpenFilesB},${maxNumofThreadB},${walFileSizeB},${avgCPULoadB},${maxCPULoadB},${maxDiskIOSizeReadB},${maxDiskIOSizeWriteB},${maxDiskIOOpsReadB},${maxDiskIOOpsWriteB},${errorLogSizeB},${minPointNum},${protocol_class})"
 
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
