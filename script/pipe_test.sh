@@ -316,14 +316,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			do
 				if [ "${ts_type}" = "tablemode" ]; then
 					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
-					if [ "$numOfPointsA[${device}]" = "$str1" ]; then
+					if [[ "$numOfPointsA[${device}]" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
-					if [ "$numOfPointsB[${device}]" = "$str2" ]; then
+					if [[ "$numOfPointsB[${device}]" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
 						numOfPointsB[${device}]=$str2
@@ -331,14 +331,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 					fi
 				else
 					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
-					if [ "$numOfPointsA[${device}]" = "$str1" ]; then
+					if [[ "$numOfPointsA[${device}]" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
-					if [ "$numOfPointsB[${device}]" = "$str2" ]; then
+					if [[ "$numOfPointsB[${device}]" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
 						numOfPointsB[${device}]=$str2
