@@ -345,6 +345,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				fi
+				echo "flagA=${flagA}"
+				echo "flagB=${flagB}"
+				echo "numOfPointsA=${numOfPointsA}"
+				echo "numOfPointsB=${numOfPointsB}"
+				echo "last_update_time=${last_update_time}"
 			done
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${last_update_time}")))
 			if [ $t_time -ge 600 ]; then
