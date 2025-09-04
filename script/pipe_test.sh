@@ -253,9 +253,10 @@ setup_env() {
 			#echo $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
+			str2=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
 			echo $str1
-			if [ "$str1" = "Total line number = 2" ]; then
+			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]] ; then
 				echo "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
@@ -268,9 +269,10 @@ setup_env() {
 			#echo $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
 			#echo $str1
-			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
+			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
+			str2=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
 			echo $str1
-			if [ "$str1" = "Total line number = 2" ]; then
+			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]] ; then
 				echo "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
@@ -330,14 +332,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				else
-					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
 					if [[ "$numOfPointsA[${device}]" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
 					if [[ "$numOfPointsB[${device}]" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
