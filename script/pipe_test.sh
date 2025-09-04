@@ -281,7 +281,11 @@ setup_env() {
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	TEST_IP=$1
-	
+	for (( device = 0; device < 50; device++ ))
+	do
+		numOfPointsA[${device}]=0
+		numOfPointsB[${device}]=0
+	done
 	while true; do
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
