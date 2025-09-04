@@ -363,10 +363,10 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				for (( device = 0; device < 50; device++ ))
 				do
 					if [ $minPointNum -ge ${numOfPointsA[${device}]} ]; then
-						minPointNum=$numOfPointsA[${device}]
+						minPointNum=${numOfPointsA[${device}]}
 					fi
 					if [ $minPointNum -ge ${numOfPointsB[${device}]} ]; then
-						minPointNum=$numOfPointsB[${device}]
+						minPointNum=${numOfPointsB[${device}]}
 					fi
 				done
 				break
