@@ -44,7 +44,6 @@ if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${B
 fi
 init_items() {
 ############定义监控采集项初始值##########################
-test_date_time=0
 tests_num=0
 errors_num=0
 failures_num=0
@@ -521,6 +520,8 @@ git_pull=$(timeout 100s git fetch --all)
 git_pull=$(git reset --hard origin/master)
 git_pull=$(timeout 100s git pull)
 commit_id_iotdb=$(git log --pretty=format:"%h" -1)
+# 获取IoTDB的commit信息时间
+test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
 # 更新测试工具
 cd ${JAVA_TOOL_PATH}
 git_pull=$(timeout 100s git pull)
@@ -531,8 +532,7 @@ git_pull=$(timeout 100s git pull)
 # 对比判定是否启动测试
 if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是否更新
 	echo "IoTDB代码有更新，当前新版本commit：${commit_id_iotdb} 未执行过测试"
-	# 编译IoTDB并判断是否成功
-	test_date_time=$(date +%Y%m%d%H%M%S)
+	# 编译IoTDB并判断是否编译成功
 	compile_iotdb
 	if [ $? -eq 1 ]; then
 		# 编译失败，休眠并退出当前测试
@@ -566,6 +566,7 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 			echo "Java测试失败"
 		fi
 		# 测试Cpp原生接口
+		init_items
 		echo "测试Cpp原生接口"
 		test_cpp_native_api_test
 		if [ $? -eq 1 ]; then
@@ -573,6 +574,7 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 			echo "Cpp测试失败"
 		fi
 		# 测试Python原生接口
+		init_items
 		echo "测试Python原生接口"
 		test_python_native_api_test
 		if [ $? -eq 1 ]; then
