@@ -406,7 +406,7 @@ else
 		sleep 60
 		for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 		do
-		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 3')
+		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 3')
 		  if [ "${iotdb_state}" = "Total line number = 3" ]; then
 			break
 		  else
@@ -554,7 +554,7 @@ else
 		sleep 60
 		for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 		do
-		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 3')
+		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 3')
 		  if [ "${iotdb_state}" = "Total line number = 3" ]; then
 			break
 		  else
