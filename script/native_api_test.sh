@@ -566,6 +566,7 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 			echo "Java测试失败"
 		fi
 		# 测试Cpp原生接口
+		init_items
 		echo "测试Cpp原生接口"
 		test_cpp_native_api_test
 		if [ $? -eq 1 ]; then
@@ -573,6 +574,7 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 			echo "Cpp测试失败"
 		fi
 		# 测试Python原生接口
+		init_items
 		echo "测试Python原生接口"
 		test_python_native_api_test
 		if [ $? -eq 1 ]; then
