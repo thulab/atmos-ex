@@ -206,7 +206,7 @@ backup_test_data() { # 备份测试数据
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	#sudo rm -rf ${TEST_AINode_PATH}/venv
-	sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
+	#sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mv ${TEST_AINode_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo mv ${TEST_TOOL_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
@@ -489,6 +489,7 @@ else
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			fi
 			#备份本次测试
+			sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
 			backup_test_data ainode_tree
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
@@ -627,6 +628,7 @@ else
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			fi
 			#备份本次测试
+			sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
 			backup_test_data ainode_table
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
