@@ -317,6 +317,10 @@ test_operation() {
 			done			
 			if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				echo "IoTDB正常启动，准备开始测试"
+				##添加用户和权限
+				add_user=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -e "CREATE USER qa_user 'test123456789'")
+				add_user=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -e "GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION")
+				add_user=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -sql_dialect table -e "GRANT ALL TO USER qa_user")
 			else
 				echo "IoTDB未能正常启动，写入负值测试结果！"
 				cost_time=-3
