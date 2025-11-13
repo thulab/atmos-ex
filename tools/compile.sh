@@ -101,15 +101,15 @@ do
 		echo "当前版本${commit_id}未记录,即将编译。"
 		#代码编译
 		date_time=`date +%Y%m%d%H%M%S`
-		comp_mvn=$(mvn clean package -DskipTests -am -pl distribution -P with-ainode)
+		comp_mvn=$(mvn clean package -DskipTests -am -pl distribution)
 		if [ $? -eq 0 ]
 		then
 			echo "${commit_id}编译完成！"
 			rm -rf ${REPO_PATH}/${commit_id}
 			mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
 			cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
-			mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
-			cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-ainode-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+			#mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+			#cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-ainode-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
 			#配置文件整理
 			echo "enforce_strong_password=false" >> ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
 			#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
