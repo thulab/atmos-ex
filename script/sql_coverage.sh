@@ -355,7 +355,7 @@ else
 	#备份本次测试
 	backup_test_data tablemode
 	
-	if [ 1 -ge 0 ]; then
+	if [ 1 -ge 5 ]; then
 		#测试AINode_tree
 		init_items
 		# 获取git commit对比判定是否启动测试
