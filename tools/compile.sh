@@ -94,7 +94,7 @@ do
 		git_reset=$(timeout 100s git reset --hard ${commit_id_list[$i]})
 		# 获取更新后git commit对比判定是否启动测试
 		commit_id=$(git log --pretty=format:"%h" -1 | cut -c1-7)
-		commit_headline=$(git log --pretty=format:"%s" -1)
+		commit_headline=$(git log --pretty=format:"%s" -1 | tr -d '\"' | tr -d "'")
 		author=$(git log --pretty=format:"%an" -1)
 		commit_date_time=$(git log --pretty=format:"%ci" -1 | cut -b 1-19 | sed s/-//g | sed s/://g | sed s/[[:space:]]//g)
 		#对比判定是否启动测试
