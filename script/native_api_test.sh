@@ -410,6 +410,7 @@ test_python_native_api_test() { # 测试Python原生接口
 	pip3 install pytest-html
 	pip3 install numpy==1.25.2
 	pip3 install pandas==2.0.3
+	pip3 install greenlet==2.0.2
 	pip3 install ${IOTDB_PATH}/iotdb-client/client-py/dist/apache_iotdb-*.dev0-py3-none-any.whl # 引入iotdb依赖
 	if [ $? -eq 1 ]; then
 		echo "引入iotdb依赖失败"
