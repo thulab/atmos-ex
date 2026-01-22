@@ -186,11 +186,13 @@ test_java_native_api_test() { # 测试Java原生接口
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
 		cd ${TEST_JAVA_TOOL_PATH}
-		tests_num=$(sed -n '75,75p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
-		errors_num=$(sed -n '76,76p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
-		failures_num=$(sed -n '77,77p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
-		skipped_num=$(sed -n '78,78p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\< '{print $1}')
-		successRate=$(sed -n '79,79p' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | awk -F\> '{print $2}' | awk -F\% '{print $1}')
+		# 从HTML报告中提取Java测试结果
+		tests_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | sed -n '1p' | grep -o '[0-9]*')
+		errors_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | sed -n '2p' | grep -o '[0-9]*')
+		failures_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | sed -n '3p' | grep -o '[0-9]*')
+		skipped_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | sed -n '4p' | grep -o '[0-9]*')
+		successRate=$(grep -o '<td align="left">[0-9]*%</td>' ${TEST_JAVA_TOOL_PATH}/details/target/site/surefire-report.html | sed -n '1p' | grep -o '[0-9]*%')
+		successRate=${successRate//%/}
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
@@ -456,11 +458,28 @@ test_python_native_api_test() { # 测试Python原生接口
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
 		cd ${TEST_PYTHON_TOOL_PATH}
-		tests_num=$(sed -n '64,64p' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | awk -F'>' '{print $2}' | awk -F' ' '{print $1}')
-		errors_num=$(sed -n '85,85p' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | awk -F'>' '{print $2}' | awk -F' ' '{print $1}')
-		failures_num=$(sed -n '75,75p' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | awk -F'>' '{print $2}' | awk -F' ' '{print $1}')
-		skipped_num=$(sed -n '79,79p' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | awk -F'>' '{print $2}' | awk -F' ' '{print $1}')
-		successRate=$(echo "($(sed -n '77,77p' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | awk -F'>' '{print $2}' | awk -F' ' '{print $1}') / ${tests_num}) * 100" | bc)
+		# 从HTML报告中提取测试结果
+		tests_num=$(grep -o '[0-9]\+ tests' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
+		errors_num=$(grep -o '[0-9]\+ Error' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
+		if [ -z "$errors_num" ]; then
+			errors_num=0
+		fi
+		failures_num=$(grep -o '[0-9]\+ Failed' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
+		if [ -z "$failures_num" ]; then
+			failures_num=0
+		fi
+		skipped_num=$(grep -o '[0-9]\+ Skipped' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
+		if [ -z "$skipped_num" ]; then
+			skipped_num=0
+		fi
+		passed_num=$(grep -o '[0-9]\+ Passed' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
+		if [ -z "$passed_num" ]; then
+			passed_num=0
+		fi
+		successRate=$(echo "scale=2; ($passed_num / ${tests_num}) * 100" | bc)
+		if [ -z "$successRate" ]; then
+			successRate=0
+		fi
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
