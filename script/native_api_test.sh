@@ -129,8 +129,23 @@ compile_iotdb() {  # 编译IoTDB
     echo "编译IoTDB完成，准备开始测试！"
   	return 0
   else
-    echo "编译IoTDB失败，写入负值测试结果！"
-  	return 1
+		for (( j = 1; j <= 5; j++ ))
+		do
+			comp_mvn=$(timeout 7200s mvn clean install -DskipTests)
+			if [ $? -eq 0 ]
+			then
+				echo "编译IoTDB完成，准备开始测试！"
+				return 0
+				break
+			else
+				echo "第"$j"次尝试编译IoTDB失败"
+				if [ $j -eq 5 ]; then
+					echo "已经尝试5次编译IoTDB失败，写入负值测试结果！"
+					return 1
+					break
+				fi
+			fi
+		done
   fi
 }
 test_java_native_api_test() { # 测试Java原生接口
