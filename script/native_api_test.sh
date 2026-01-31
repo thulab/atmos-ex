@@ -241,9 +241,9 @@ EOF
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	cd ${BK_PATH}/java
-	git add .
-	git commit -m ${last_cid_iotdb}_${failures_num}
-	git push -f
+	#git add .
+	#git commit -m ${last_cid_iotdb}_${failures_num}
+	#git push -f
 }
 test_cpp_native_api_test() {
 	# C++代码编译
