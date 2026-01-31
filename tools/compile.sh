@@ -147,13 +147,69 @@ do
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 				echo "${commit_id}测试任务已发布！"
 			fi
-		else
-			echo "${commit_id}编译失败！"
-			echo $comp_mvn >> ${INIT_PATH}/compile-error.log
-			str_err='CError'
-			insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${commit_headline}')"
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-			sendEmail 2
+		else	
+			for (( j = 1; j <= 5; j++ ))
+			do
+				comp_mvn=$(mvn clean package -DskipTests -am -pl distribution)
+				if [ $? -eq 0 ]
+				then
+					echo "${commit_id}编译完成！"
+					rm -rf ${REPO_PATH}/${commit_id}
+					mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb/
+					cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb/
+					#mkdir -p ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+					#cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-ainode-bin/apache-iotdb-*-ainode-bin/* ${REPO_PATH}/${commit_id}/apache-iotdb-ainode/
+					#配置文件整理
+					echo "enforce_strong_password=false" >> ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
+					#rm -rf ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
+					#mv ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties.template ${REPO_PATH}/${commit_id}/apache-iotdb/conf/iotdb-system.properties
+					#向异构机器网盘环境复制一份备份
+					#rm -rf ${REPO_PATH_BK}/${commit_id}
+					#mkdir -p ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
+					#cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${REPO_PATH_BK}/${commit_id}/apache-iotdb/
+					#获取本次更新的变更文件列表
+					git log -1 --name-only > $FILENAME
+					#按照文件夹名称排除不必要测试文件夹
+					for (( ix = 0; ix < ${#filter_list_folder_name[*]}; ix++ ))
+					do
+						sed -i "/${filter_list_folder_name[${ix}]}/d" $FILENAME
+					done
+					file_num=0
+					non_file_num=0
+					while read line;do
+						filename=$(basename $line)
+						if echo "$filename" | grep -q -E '\.java$'
+						then
+							file_num=$[${file_num}+1]
+						else
+							non_file_num=$[${non_file_num}+1]
+						fi
+					done <  $FILENAME
+					if [ "${file_num}" = "0" ]; then
+						#不需要测试
+						str_noneed='NoNeed'
+						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${commit_headline}')"
+						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+					else
+						#正常下派所有任务
+						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,remark) values(${commit_date_time},'${commit_id}','${author}','${commit_headline}')"
+						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						echo "${commit_id}测试任务已发布！"
+					fi
+					break
+				else
+					echo "第"$j"次尝试编译IoTDB失败"
+					if [ $j -eq 5 ]; then
+						echo "${commit_id}编译失败！已经尝试5次编译IoTDB失败"
+						echo $comp_mvn >> ${INIT_PATH}/compile-error.log
+						str_err='CError'
+						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,benchants,helishi_test,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${commit_headline}')"
+						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						sendEmail 2
+						break
+					fi
+				fi
+			done
 		fi
 	else
 		echo "当前${commit_id_list[$i]}已经存在！"
