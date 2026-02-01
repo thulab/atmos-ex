@@ -38,7 +38,7 @@ USERNAME="iotdbatm"              # 用户名
 PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
 DBNAME="QA_ATM"                  # 数据库名称
 TABLENAME="ex_se_insert"         # 结果表名
-TABLENAME_T="ex_ex_se_insert_T"         # 企业版结果表名
+TABLENAME_T="ex_se_insert_T"         # 企业版结果表名
 TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
 # -------------------- Prometheus 配置信息 --------------------
