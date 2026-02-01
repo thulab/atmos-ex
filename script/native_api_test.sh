@@ -550,7 +550,8 @@ git_pull=$(git reset --hard origin/master)
 git_pull=$(timeout 100s git pull)
 commit_id_iotdb=$(git log --pretty=format:"%h" -1)
 # 获取IoTDB的commit信息时间
-test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
+#test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
+test_date_time=$(date +%Y%m%d%H%M%S)
 # 更新测试工具
 cd ${JAVA_TOOL_PATH}
 git_pull=$(timeout 100s git pull)
