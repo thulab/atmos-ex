@@ -34,14 +34,7 @@ TABLENAME="native_api_test" #数据库中用例表的名称
 if [ "${PASSWORD}" = "" ]; then
 	echo "需要关注密码设置！"
 fi
-echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-fi
+
 init_items() {
 ############定义监控采集项初始值##########################
 tests_num=0
@@ -386,9 +379,9 @@ EOF
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	cd ${BK_PATH}/cpp
-	git add .
-	git commit -m ${last_cid_iotdb}_${failures_num}
-	git push -f
+	#git add .
+	#git commit -m ${last_cid_iotdb}_${failures_num}
+	#git push -f
 }
 test_python_native_api_test() { # 测试Python原生接口
 	# Python代码编译
@@ -542,9 +535,9 @@ EOF
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	cd ${BK_PATH}/python
-	git add .
-	git commit -m ${last_cid_iotdb}_${failures_num}
-	git push -f
+	#git add .
+	#git commit -m ${last_cid_iotdb}_${failures_num}
+	#git push -f
 }
 echo "ontesting" > ${INIT_PATH}/test_type_file
 # 初始化参数
