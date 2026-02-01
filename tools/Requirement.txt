@@ -1,7 +1,7 @@
 setenforce 0
 sed -i '/^SELINUX=/s/enforcing/Disabled/' /etc/selinux/config
 
-sudo yum install jq
+sudo yum install jq -y
 
 adduser atmos --home /data/atmos -g root
 passwd atmos
