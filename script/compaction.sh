@@ -363,11 +363,6 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	#收集启动后基础监控数据
 	remark_value=$1
-	if [ "${author}" != "Timecho" ]; then
-		TABLENAME=${TABLENAME}
-	else
-		TABLENAME=${TABLENAME_T}
-	fi
 	insert_sql="insert into ${TABLENAME}\
 	(commit_date_time,test_date_time,commit_id,author,ts_type,comp_type,cost_time,numOfSe0Level_before,numOfSe0Level_after,\
 	numOfUnse0Level_before,numOfUnse0Level_after,ts_dataSize,ts_numOfPoints,\
@@ -629,6 +624,11 @@ else
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	if [ "${author}" != "Timecho" ]; then
+		TABLENAME=${TABLENAME}
+	else
+		TABLENAME=${TABLENAME_T}
+	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
