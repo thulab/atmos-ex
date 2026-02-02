@@ -28,6 +28,7 @@ USERNAME="iotdbatm"
 PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_compaction" #数据库中表的名称
+TABLENAME="ex_compaction_T" # 企业版结果表名
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
@@ -362,6 +363,11 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	#收集启动后基础监控数据
 	remark_value=$1
+	if [ "${author}" != "Timecho" ]; then
+		TABLENAME=${TABLENAME}
+	else
+		TABLENAME=${TABLENAME_T}
+	fi
 	insert_sql="insert into ${TABLENAME}\
 	(commit_date_time,test_date_time,commit_id,author,ts_type,comp_type,cost_time,numOfSe0Level_before,numOfSe0Level_after,\
 	numOfUnse0Level_before,numOfUnse0Level_after,ts_dataSize,ts_numOfPoints,\
