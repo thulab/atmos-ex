@@ -248,7 +248,7 @@ EOF
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
-	cd ${BK_PATH}/java
+	#cd ${BK_PATH}/java
 	#git add .
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
@@ -378,7 +378,7 @@ EOF
 	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
-	cd ${BK_PATH}/cpp
+	#cd ${BK_PATH}/cpp
 	#git add .
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
@@ -613,6 +613,10 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		fi
 		#停止IoTDB程序
 		check_iotdb_pid
+		cd ${BK_PATH}
+		git add .
+		git commit -m ${last_cid_iotdb}
+		git push -f
 		###############################测试完成###############################
 		echo "本轮测试${test_date_time}已结束."
 	fi
