@@ -38,6 +38,7 @@ USERNAME="iotdbatm"              # 用户名
 PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
 DBNAME="QA_ATM"                  # 数据库名称
 TABLENAME="ex_weeklytest_insert" # 结果表名
+TABLENAME_T="ex_weeklytest_insert_T" # 企业版结果表名
 TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
 # -------------------- Prometheus 配置信息 --------------------
@@ -306,6 +307,11 @@ else
     update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
     echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	if [ "${author}" != "Timecho" ]; then
+		TABLENAME=${TABLENAME}
+	else
+		TABLENAME=${TABLENAME_T}
+	fi
     test_date_time=$(date +%Y%m%d%H%M%S)
     for protocol in ${protocol_list[@]}; do
         for ts in ${ts_list[@]}; do

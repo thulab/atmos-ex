@@ -28,6 +28,7 @@ USERNAME="iotdbatm"
 PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_last_cache_query" #数据库中表的名称
+TABLENAME_T="ex_last_cache_query_T" #企业版结果表
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
