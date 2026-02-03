@@ -295,6 +295,27 @@ test_operation() {
 		fi
 		#启动iotdb和monitor监控
 		cp -rf ${DATA_PATH}/${query_data_type[${j}]}/data ${TEST_IOTDB_PATH}/
+		sleep 1
+		start_iotdb
+		sleep 10
+		####判断IoTDB是否正常启动
+		for (( t_wait = 0; t_wait <= 10; t_wait++ ))
+		do
+		  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+		  if [ "${iotdb_state}" = "Total line number = 2" ]; then
+			break
+		  else
+			sleep 5
+			continue
+		  fi
+		done
+		if [ "${iotdb_state}" = "Total line number = 2" ]; then
+			echo "IoTDB正常启动，修改|确认密码提高后续测试稳定"
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
+		else
+			echo "IoTDB未能正常启动！后续测试可能会失败"
+		fi
+				
 		for (( s = 0; s < ${#sensor_type_list[*]}; s++ ))
 		do
 			sensor_type=${sensor_type_list[${s}]}
@@ -308,7 +329,7 @@ test_operation() {
 				####判断IoTDB是否正常启动
 				for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 				do
-				  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+				  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 2')
 				  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 					break
 				  else
