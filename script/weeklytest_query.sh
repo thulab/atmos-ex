@@ -33,7 +33,7 @@ TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 metric_server="111.200.37.158:19090"
 sensor_type_list=(one more)
 insert_list=(seq_w unseq_w seq_rw unseq_rw)
-query_data_type=(sequence unsequence)
+query_data_type=(sequence_tree sequence_table unsequence_tree unsequence_table )
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9-1 Q9-2 Q9-3 Q10)
 query_type_list=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, RANGE_QUERY_DESC, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 ############公用函数##########################
@@ -309,13 +309,6 @@ test_operation() {
 			continue
 		  fi
 		done
-		if [ "${iotdb_state}" = "Total line number = 2" ]; then
-			echo "IoTDB正常启动，修改|确认密码提高后续测试稳定"
-			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
-		else
-			echo "IoTDB未能正常启动！后续测试可能会失败"
-		fi
-				
 		for (( s = 0; s < ${#sensor_type_list[*]}; s++ ))
 		do
 			sensor_type=${sensor_type_list[${s}]}
@@ -329,7 +322,7 @@ test_operation() {
 				####判断IoTDB是否正常启动
 				for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 				do
-				  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 2')
+				  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -e "show cluster" | grep 'Total line number = 2')
 				  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 					break
 				  else
