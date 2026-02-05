@@ -301,7 +301,8 @@ test_operation() {
 				return
 			fi
 			#启动iotdb和monitor监控
-			cp -rf ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
+			#cp -rf ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
+			mv ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
 			sleep 1
 			start_iotdb
 			sleep 10
@@ -388,6 +389,7 @@ test_operation() {
 					mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}_${sensor_type_list[${s}]}
 				done
 			done
+			mv  ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${path_new}/
 			echo "本轮${query_data_type[${j}]}_${data_mode[${d}]}时间序列查询测试已结束."
 			#备份本次测试
 			backup_test_data ${query_data_type[${j}]}_${data_mode[${d}]}
