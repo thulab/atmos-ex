@@ -354,7 +354,7 @@ test_operation() {
 					mv_config_file ${sensor_type_list[${s}]} ${query_list[${i}]} ${data_mode[${d}]}
 					for (( m = 1; m <= 2; m++ ))
 					do
-						ts_type=common
+						ts_type=${data_mode[${d}]}
 						data_type=${query_data_type[${j}]}
 						query_num=${m}
 						query_type=${query_list[${i}]}
