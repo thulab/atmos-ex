@@ -388,9 +388,9 @@ test_operation() {
 					mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}_${sensor_type_list[${s}]}
 				done
 			done
-			echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
+			echo "本轮${query_data_type[${j}]}_${data_mode[${d}]}时间序列查询测试已结束."
 			#备份本次测试
-			backup_test_data ${query_data_type[${j}]}
+			backup_test_data ${query_data_type[${j}]}_${data_mode[${d}]}
 		done
 	done
 }
