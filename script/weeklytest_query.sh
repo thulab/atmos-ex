@@ -268,7 +268,7 @@ backup_test_data() { # 备份测试数据
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${BM_PATH}/conf/config.properties
-	if [ "${commit_id}" = "" ]; then
+	if [ $3 = "table" ]; then
 		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
 	fi
 }
