@@ -1,5 +1,4 @@
 #!/bin/sh
-
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
@@ -46,10 +45,10 @@ else
 	delete_sql="delete from ${TABLENAME} where commit_id='${commit_id_new}'"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${delete_sql}"
 	sleep 10
-	str_type='NoNeed'
-	insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,api_insert,ts_performance,insert_records,pipe_test,last_cache_query,api_insert_cts,se_query_test,config_insert,weeklytest_insert,weeklytest_query,restart_db,count_ts,sql_coverage,routine_test,windows_test,benchants,helishi_test,cluster_insert,cluster_insert_2,remark) values(${commit_date_time},'${commit_id_new}','${author}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','TimechoDB')"
+	str_type='retest'
+	insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,api_insert,ts_performance,insert_records,pipe_test,last_cache_query,api_insert_cts,se_query_test,config_insert,weeklytest_insert,weeklytest_query,restart_db,count_ts,sql_coverage,routine_test,windows_test,benchants,helishi_test,cluster_insert,cluster_insert_2,remark) values(${commit_date_time},'${commit_id_new}','${author}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','TimechoDB')"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-	echo "${commit_id_new}测试任务已发布！"
+	echo "${commit_id_new}测试任务已发布！${commit_date_time}" >> /root/timecho/log.txt
 	sleep 10
 	# 判断是否是每周六
 	if [ "$day_of_week" -eq 6 ]; then
