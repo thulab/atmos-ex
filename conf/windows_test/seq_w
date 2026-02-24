@@ -12,7 +12,7 @@ DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
 IoTDB_DIALECT_MODE=tree
 
 # 主机列表，如果有多个主机则使用英文逗号进行分割
-HOST=11.101.17.128
+# HOST=11.101.17.128
 
 # REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
 # REST_AUTHORIZATION=Basic cm9vdDpyb290
@@ -47,7 +47,7 @@ IS_DELETE_DATA=false
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=10000
+LOOP=2000
 
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
@@ -83,7 +83,7 @@ LOOP=10000
 # ANOTHER_DB_SWITCH=IoTDB-130-SESSION_BY_TABLET
 
 # 另一个写入的数据库的主机
-# ANOTHER_HOST=127.0.0.1
+# ANOTHER_HOST=11.101.17.128
 
 # 另一个写入的数据库的端口
 # ANOTHER_PORT=6667
@@ -115,7 +115,7 @@ LOOP=10000
 
 ############## 数据：设备、传感器、客户端 ##################
 # 设备总数
-DEVICE_NUMBER=50
+DEVICE_NUMBER=1000
 
 # 实际写入设备比例，(0, 1]
 # REAL_INSERT_RATE=1.0
@@ -170,22 +170,22 @@ CLIENT_NUMBER=10
 # SG_STRATEGY=mod
 
 # 存储组的数量，对IoTDB而言为database的数量
-GROUP_NUMBER=10
+GROUP_NUMBER=1
 
 # IoTDB 表模型下(IoTDB_DIALECT_MODE=table)，表的数量
-# IoTDB_TABLE_NUMBER=1
+IoTDB_TABLE_NUMBER=1
 
 # IoTDB核心线程池数量
 # IOTDB_SESSION_POOL_SIZE=50
 
 # 是否使用template
-TEMPLATE=false
+TEMPLATE=true
 
 # template的名称
 # TEMPLATE_NAME=BenchmarkTemplate
 
 # 是否使用vector
-VECTOR=false
+VECTOR=true
 
 # 是否使用Debug模式，仅支持iotdb
 # IOTDB_USE_DEBUG=false
@@ -221,7 +221,7 @@ POINT_STEP=5000
 
 # 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
 # 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
-# # OP_MIN_INTERVAL=250
+# OP_MIN_INTERVAL=250
 
 # 是否随机选取操作最小执行间隔：
 # 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
@@ -334,7 +334,7 @@ OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0
 BATCH_SIZE_PER_WRITE=100
 
 # 每批写入设备数，必须能整除每个client被分配到的设备数
-# DEVICE_NUM_PER_WRITE=1
+DEVICE_NUM_PER_WRITE=1
 
 # 是否在写入数据前，创建SCHEMA
 # CREATE_SCHEMA=true
