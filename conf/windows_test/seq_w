@@ -12,7 +12,7 @@ DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
 IoTDB_DIALECT_MODE=tree
 
 # 主机列表，如果有多个主机则使用英文逗号进行分割
-HOST=172.20.31.26
+HOST=11.101.17.128
 
 # REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
 # REST_AUTHORIZATION=Basic cm9vdDpyb290

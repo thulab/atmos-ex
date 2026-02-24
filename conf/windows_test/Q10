@@ -6,7 +6,7 @@
 # 被测试的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件
 DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
 # 主机列表，如果有多个主机则使用英文逗号进行分割
-HOST=172.20.31.26
+HOST=11.101.17.128
 # 端口列表，需要和HOST数量一致，保持一一对应。如果有多个端口则使用英文逗号进行分割。
 PORT=6667
 # 所有被测数据库的用户名，如果为多个数据库，则要求保持一致
@@ -60,7 +60,7 @@ IS_DOUBLE_WRITE=false
 # 另一个写入的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件
 ANOTHER_DB_SWITCH=IoTDB-012-SESSION_BY_TABLET
 # 另一个写入的数据库的主机
-ANOTHER_HOST=172.20.31.26
+ANOTHER_HOST=11.101.17.128
 # 另一个写入的数据库的端口
 ANOTHER_PORT=6667
 # 另一个写入的数据库的用户名
