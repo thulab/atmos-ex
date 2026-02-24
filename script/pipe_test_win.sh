@@ -36,7 +36,7 @@ PASSWORD=${ATMOS_DB_PASSWORD}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_pipe_test_win" #数据库中表的名称
 TABLENAME="ex_pipe_test_win_T" #数据库中表的名称
-TASK_TABLENAME="commit_history" #数据库中任务表的名称
+TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
 ############公用函数##########################
