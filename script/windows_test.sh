@@ -31,7 +31,7 @@ TABLENAME="ex_windows_test" #数据库中表的名称
 TABLENAME_T="ex_windows_test_T" #数据库中表的名称
 TASK_TABLENAME="commit_history" #数据库中任务表的名称
 ############prometheus##########################
-metric_server="172.20.70.11:9090"
+metric_server="111.200.37.158:19090"
 ############公用函数##########################
 if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
