@@ -213,7 +213,7 @@ setup_env() {
 		  if [ "$str1" = "Total line number = 2" ]; then
 			echo "All Nodes is ready"
 			flag=1
-			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\")
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IoTDB_PW}';")
 			break
 		  else
 			echo "All Nodes is not ready.Please wait ..."
