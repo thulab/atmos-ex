@@ -213,6 +213,7 @@ setup_env() {
 		  if [ "$str1" = "Total line number = 2" ]; then
 			echo "All Nodes is ready"
 			flag=1
+			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"")
 			break
 		  else
 			echo "All Nodes is not ready.Please wait ..."
@@ -230,10 +231,10 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e "start pipe test;")
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e "show pipes;" | grep 'Total line number = 1')
-			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -e "show pipes;" | grep 'Total line number = 2')
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
+			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
 			#echo $str1
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
 				echo "PIPE is ready"
@@ -244,10 +245,10 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -e "start pipe test;")
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -e "show pipes;" | grep 'Total line number = 1')
-			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -e "show pipes;" | grep 'Total line number = 2')
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
+			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
 			echo $str1
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
 				echo "PIPE is ready"
@@ -300,11 +301,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		done
 		if [ $flagBM -ge 2 ]; then
 			if [ "${ts_type}" = "tablemode" ]; then
-				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -e "flush;")
-				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -e "flush;")
+				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
+				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
 			else
-				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -e "flush;")
-				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -e "flush;")
+				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
+				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
 			fi
 			#BM写入结束前不进行判定
 			#确认是否测试已结束
@@ -313,14 +314,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			for (( device = 0; device < 50; device++ ))
 			do
 				if [ "${ts_type}" = "tablemode" ]; then
-					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
@@ -328,14 +329,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				else
-					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
