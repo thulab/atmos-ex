@@ -5,7 +5,7 @@ IoTDB_PW=TimechoDB@2021
 test_type=windows_test
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test_win
-ATMOS_PATH=${INIT_PATH}/atmos-e
+ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BUCKUP_PATH=/nasdata/repository/windows_test
 REPOS_PATH=/nasdata/repository/master
