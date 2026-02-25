@@ -214,6 +214,12 @@ setup_env() {
 			echo "All Nodes is ready"
 			flag=1
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IoTDB_PW}';")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 2')
+			if [ "$str1" = "Total line number = 2" ]; then
+				echo "密码修改已生效"
+			else
+				echo "密码修改未生效"
+			fi
 			break
 		  else
 			echo "All Nodes is not ready.Please wait ..."
