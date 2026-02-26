@@ -18,7 +18,7 @@ TEST_IOTDB_PATH_W="D:\\first-rest-test"
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 IoTDB_IP=11.101.17.128
 Control=11.101.17.111
-insert_list=(seq_w unseq_w seq_rw unseq_rw)
+insert_list=(unseq_w seq_w seq_rw unseq_rw)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9-1  Q9-2 Q9-3 Q10)
 query_type=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, RANGE_QUERY_DESC, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 ############mysql信息##########################
@@ -78,6 +78,15 @@ maxNumofThread=0
 errorLogSize=0
 walFileSize=0
 ############定义监控采集项初始值##########################
+}
+check_benchmark_pid() { # 检查benchmark的pid，有就停止
+	monitor_pid=$(jps | grep App | awk '{print $1}')
+	if [ "${monitor_pid}" = "" ]; then
+		echo "未检测到监控程序！"
+	else
+		kill -9 ${monitor_pid}
+		echo "BM程序已停止！"
+	fi
 }
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_PATH}" ]; then
@@ -203,7 +212,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ ! -d "$csvOutput" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 10800 ]; then
+			if [ $t_time -ge 14400 ]; then
 				echo "测试失败"
 				mkdir -p ${BM_PATH}/data/csvOutput
 				cd ${BM_PATH}/data/csvOutput
@@ -285,6 +294,7 @@ test_operation() {
 			return
 		fi
 		#设置环境并启动IoTDB
+		check_benchmark_pid
 		setup_env ${TEST_IP}
 		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
 		echo "写入测试开始！"
@@ -315,10 +325,12 @@ test_operation() {
 			mv_config_file ${op_type}
 			for (( m = 1; m <= 1; m++ ))
 			do
+				check_benchmark_pid
+				sleep 3
 				start_benchmark
 				start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 				#等待1分钟
-				sleep 10
+				sleep 3
 				monitor_test_status
 				#测试结果收集写入数据库
 				csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
@@ -330,7 +342,7 @@ test_operation() {
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			done
 			#停止IoTDB程序和监控程序
-			sleep 30
+			sleep 10
 		done
 	done
 }
