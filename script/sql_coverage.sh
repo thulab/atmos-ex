@@ -57,7 +57,7 @@ local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'
 sendEmail() {
 sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
-check_benchmark_pid() { # 检查benchmark的pid，有就停止
+check_sql_test_pid() { # 检查benchmark的pid，有就停止
 	monitor_pid=$(jps | grep InterFace | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到InterFace程序！"
@@ -248,6 +248,7 @@ else
 	#开始测试
 	#清理环境，确保无旧程序影响
 	check_iotdb_pid
+	check_sql_test_pid
 	#复制当前程序到执行位置
 	set_env
 	#IoTDB 调整内存，关闭合并
@@ -372,6 +373,7 @@ else
 		#开始测试
 		#清理环境，确保无旧程序影响
 		check_iotdb_pid
+		check_sql_test_pid
 		#复制当前程序到执行位置
 		set_env
 		#IoTDB 调整内存，关闭合并
@@ -520,6 +522,7 @@ else
 		#开始测试
 		#清理环境，确保无旧程序影响
 		check_iotdb_pid
+		check_sql_test_pid
 		#复制当前程序到执行位置
 		set_env
 		#IoTDB 调整内存，关闭合并
