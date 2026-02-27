@@ -23,7 +23,7 @@ PORT=6667
 USERNAME=root
 
 # 所有被测数据库的密码，如果为多个数据库，则要求保持一致
-PASSWORD=root
+PASSWORD=TimechoDB@2021
 
 # 即将被测试写入的数据库的名称
 # DB_NAME=test
