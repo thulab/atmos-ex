@@ -318,6 +318,7 @@ test_operation() {
 		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		#查询测试
+		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
 		for (( j = 0; j < ${#query_list[*]}; j++ ))
 		do
 			echo "开始${query_list[${j}]}查询！"
@@ -340,14 +341,12 @@ test_operation() {
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
 				echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
 			done
 			#停止IoTDB程序和监控程序
 			sleep 10
 		done
-		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
 		scp -r  ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
-		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
-		cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
 	done
 }
 echo "ontesting" > ${INIT_PATH}/test_type_file
