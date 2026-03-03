@@ -344,6 +344,10 @@ test_operation() {
 			#停止IoTDB程序和监控程序
 			sleep 10
 		done
+		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
+		scp -r  ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
+		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
+		cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
 	done
 }
 echo "ontesting" > ${INIT_PATH}/test_type_file
