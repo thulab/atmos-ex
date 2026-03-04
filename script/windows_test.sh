@@ -321,34 +321,38 @@ test_operation() {
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		#查询测试
 		mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
-		for (( j = 0; j < ${#query_list[*]}; j++ ))
-		do
-			echo "开始${query_list[${j}]}查询！"
-			op_type=${query_list[${j}]}
-			mv_config_file ${op_type}
-			for (( m = 1; m <= 1; m++ ))
+		cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
+		if [[ "${data_type}" == "seq_w" || "${data_type}" == "unseq_w" ]]; then 
+			for (( j = 0; j < ${#query_list[*]}; j++ ))
 			do
-				check_benchmark_pid
-				sleep 3
-				start_benchmark
-				start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-				#等待1分钟
-				sleep 3
-				monitor_test_status
-				#测试结果收集写入数据库
-				csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
-				read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-				read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
-				echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
-				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-				cp -rf ${BM_PATH}/apache-iotdb/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
+				echo "开始${query_list[${j}]}查询！"
+				op_type=${query_list[${j}]}
+				mv_config_file ${op_type}
+				mkdir -p ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}
+				for (( m = 1; m <= 1; m++ ))
+				do
+					check_benchmark_pid
+					sleep 3
+					start_benchmark
+					start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+					#等待1分钟
+					sleep 3
+					monitor_test_status
+					#测试结果收集写入数据库
+					csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
+					read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
+					read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
+					cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+					insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
+					echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
+					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+					cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
+				done
+				#停止IoTDB程序和监控程序
+				sleep 10
 			done
-			#停止IoTDB程序和监控程序
-			sleep 10
-		done
-		scp -r  ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
+		fi
+		scp -r  ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
 	done
 }
 echo "ontesting" > ${INIT_PATH}/test_type_file
