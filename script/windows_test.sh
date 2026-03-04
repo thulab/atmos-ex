@@ -341,7 +341,7 @@ test_operation() {
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
 				echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-				cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
+				cp -rf ${BM_PATH}/apache-iotdb/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
 			done
 			#停止IoTDB程序和监控程序
 			sleep 10
