@@ -131,6 +131,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	echo "dn_rpc_address=${IoTDB_IP}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "dn_internal_address=${IoTDB_IP}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	echo "dn_seed_config_node=${IoTDB_IP}:10710" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	
+	echo "query_timeout_threshold=60000000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 }
 set_protocol_class() { 
 	config_node=$1
