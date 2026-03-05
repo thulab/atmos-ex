@@ -386,6 +386,7 @@ test_operation() {
 					check_iotdb_pid
 					#备份本次测试
 					cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
+					cp -rf ${BM_PATH}/logs ${TEST_IOTDB_PATH}/logs/
 					mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}_${sensor_type_list[${s}]}
 				done
 			done
