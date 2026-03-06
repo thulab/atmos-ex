@@ -347,6 +347,7 @@ test_operation() {
 					echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 					cp -rf ${BM_PATH}/logs ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
+					cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
 				done
 				#停止IoTDB程序和监控程序
 				sleep 10
