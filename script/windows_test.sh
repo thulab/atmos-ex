@@ -343,6 +343,8 @@ test_operation() {
 					if [ ! -f "$csvOutputfile" ]; then
 						echo "未找到CSV文件"
 						sleep 60
+					else
+						echo "$csvOutputfile"
 					fi
 					read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
 					read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
