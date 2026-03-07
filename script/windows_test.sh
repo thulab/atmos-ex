@@ -339,7 +339,8 @@ test_operation() {
 					sleep 3
 					monitor_test_status
 					#测试结果收集写入数据库
-					csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
+					#csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
+					csvOutputfile=$(find ${BM_PATH}/data/csvOutput/ -type f -name "*.csv")
 					if [ ! -f "$csvOutputfile" ]; then
 						echo "未找到CSV文件"
 						sleep 60
