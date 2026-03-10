@@ -304,19 +304,6 @@ test_operation() {
 			#cp -rf ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
 			mv ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
 			sleep 1
-			start_iotdb
-			sleep 10
-			####判断IoTDB是否正常启动
-			for (( t_wait = 0; t_wait <= 10; t_wait++ ))
-			do
-			  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
-				break
-			  else
-				sleep 5
-				continue
-			  fi
-			done
 			for (( s = 0; s < ${#sensor_type_list[*]}; s++ ))
 			do
 				sensor_type=${sensor_type_list[${s}]}
@@ -340,6 +327,8 @@ test_operation() {
 					done
 					if [ "${iotdb_state}" = "Total line number = 2" ]; then
 						echo "IoTDB正常启动，准备开始测试"
+						#等待1分钟
+						sleep 60
 					else
 						echo "IoTDB未能正常启动，写入负值测试结果！"
 						cost_time=-3
@@ -364,7 +353,7 @@ test_operation() {
 						start_benchmark
 
 						#等待1分钟
-						sleep 10
+						sleep 3
 						
 						monitor_test_status
 						m_end_time=$(date +%s)
@@ -382,7 +371,7 @@ test_operation() {
 					done
 					#停止IoTDB程序
 					stop_iotdb
-					sleep 30
+					sleep 10
 					check_iotdb_pid
 					#备份本次测试
 					cp -rf ${BM_PATH}/data/csvOutput ${TEST_IOTDB_PATH}/logs/ 
