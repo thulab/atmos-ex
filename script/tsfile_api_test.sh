@@ -11,7 +11,7 @@ TSFILE_PATH=${INIT_PATH}/tsfile
 JAVA_TOOL_PATH=${INIT_PATH}/java-tsfile-api-test
 CPP_TOOL_PATH=${INIT_PATH}/cpp-tsfile-api-test
 PYTHON_TOOL_PATH=${INIT_PATH}/python-tsfile-api-test
-#BK_PATH=${INIT_PATH}/tsfile_api_test_report # 未创建仓库
+BK_PATH=${INIT_PATH}/tsfile_api_test_report
 #测试数据运行路径
 TEST_INIT_PATH=/data/qa
 TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-tsfile-api-test
