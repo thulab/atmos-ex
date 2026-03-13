@@ -3,6 +3,8 @@
 ACCOUNT=root
 test_type=native_api_test
 #初始环境存放路径
+export HTTP_PROXY=http://172.20.31.76:7890
+export HTTPS_PROXY=$HTTP_PROXY
 INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 IOTDB_PATH=${INIT_PATH}/iotdb
