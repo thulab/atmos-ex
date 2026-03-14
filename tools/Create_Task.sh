@@ -51,8 +51,8 @@ else
 	echo "${commit_id_new}测试任务已发布！${commit_date_time}" >> /root/timecho/log.txt
 	sleep 10
 	# 判断是否是每周六
-	if [ "$day_of_week" -eq 6 ]; then
-		echo $date "  今天是周六，准备下派长耗时任务"
+	if  [[ "$day_of_week" -eq 6 ]] || [[ "$day_of_week" -eq 3 ]]; then
+		echo $date "  今天是周三/六，准备下派长耗时任务"
 		update_sql="update ${TABLENAME} set weeklytest_insert = '${str_type}',weeklytest_query = '${str_type}',config_insert = '${str_type}',cluster_insert = '${str_type}',cluster_insert_2 = '${str_type}',restart_db = '${str_type}',count_ts = '${str_type}' where commit_id = '${commit_id_new}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	fi
