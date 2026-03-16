@@ -244,7 +244,7 @@ function test_operation() {
         222) set_protocol_class 2 2 2 ;;
         223) set_protocol_class 2 2 3 ;;
         211) set_protocol_class 2 1 1 ;;
-		211) set_protocol_class 2 2 4 ;;
+		224) set_protocol_class 2 2 4 ;;
         *) echo "协议设置错误！"; return ;;
     esac
     start_iotdb
