@@ -46,13 +46,13 @@ else
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${delete_sql}"
 	sleep 10
 	str_type='retest'
-	insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,api_insert,ts_performance,insert_records,pipe_test,last_cache_query,api_insert_cts,se_query_test,config_insert,weeklytest_insert,weeklytest_query,restart_db,count_ts,sql_coverage,routine_test,windows_test,benchants,helishi_test,cluster_insert,cluster_insert_2,remark) values(${commit_date_time},'${commit_id_new}','${author}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','TimechoDB')"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,api_insert,ts_performance,insert_records,pipe_test,last_cache_query,api_insert_cts,se_query_test,pipe_test_win,config_insert,weeklytest_insert,weeklytest_query,restart_db,count_ts,sql_coverage,routine_test,windows_test,benchants,helishi_test,cluster_insert,cluster_insert_2,remark) values(${commit_date_time},'${commit_id_new}','${author}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','${str_type}','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','NoNeed','TimechoDB')"
 	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	echo "${commit_id_new}测试任务已发布！${commit_date_time}" >> /root/timecho/log.txt
 	sleep 10
 	# 判断是否是每周六
-	if [ "$day_of_week" -eq 6 ]; then
-		echo $date "  今天是周六，准备下派长耗时任务"
+	if  [[ "$day_of_week" -eq 6 ]] || [[ "$day_of_week" -eq 3 ]]; then
+		echo $date "  今天是周三/六，准备下派长耗时任务"
 		update_sql="update ${TABLENAME} set weeklytest_insert = '${str_type}',weeklytest_query = '${str_type}',config_insert = '${str_type}',cluster_insert = '${str_type}',cluster_insert_2 = '${str_type}',restart_db = '${str_type}',count_ts = '${str_type}' where commit_id = '${commit_id_new}'"
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
 	fi
