@@ -458,5 +458,4 @@ else
 	echo "没有更新，都执行过测试"
 	sleep 300s
 fi
-#echo "${test_type}" > ${INIT_PATH}/test_type_file
 echo "native_api_test" > ${INIT_PATH}/test_type_file
