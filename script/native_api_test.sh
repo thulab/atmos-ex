@@ -222,9 +222,9 @@ test_java_native_api_test() { # 测试Java原生接口
 EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
-      echo "备份Java原生接口测试报告"
-      mkdir -p /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
-      cp -rf  ${TEST_JAVA_TOOL_PATH}/details/target/site /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
+      		echo "备份Java原生接口测试报告"
+      		mkdir -p /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
+      		cp -rf  ${TEST_JAVA_TOOL_PATH}/details/target/site /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
 			return 1
 		fi
 	else
@@ -258,7 +258,7 @@ test_cpp_native_api_test() {
 	# C++代码编译
 	echo "编译C++客户端"
 	cd ${IOTDB_PATH}
-	comp_cpp=$(timeout 7200s  bash -c "source /etc/profile &&  ./mvnw clean package -pl example/client-cpp-example -am -DskipTests -P with-cpp -Diotdb-tools-thrift.version=0.14.1.1-glibc223-SNAPSHOT")
+	comp_cpp=$(timeout 7200s  bash -c "source /etc/profile &&  ./mvnw clean package -pl example/client-cpp-example -am -DskipTests -P with-cpp")
 	if [ $? -eq 0 ]; then
 		echo "编译C++客户端完成，准备开始测试！"
 	else
@@ -270,7 +270,7 @@ test_cpp_native_api_test() {
 		successRate=-2
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
-		ruturn 1
+		return 1
 	fi
 	# 拷贝Cpp工具到测试路径
 	if [ ! -d "${TEST_CPP_TOOL_PATH}" ]; then
@@ -352,8 +352,8 @@ EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Cpp原生接口测试报告"
-      mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
-      cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
+      		mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
+      		cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}/
 			return 1
 		fi
 	else
@@ -507,8 +507,8 @@ EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Python原生接口测试报告"
-      mkdir -p /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
-      cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
+      		mkdir -p /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
+      		cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
 			return 1
 		fi
 	else
@@ -627,4 +627,3 @@ else # 没有更新则等待下一轮测试
 	echo "tsfile_api_test" > ${INIT_PATH}/test_type_file
 	sh ${ATMOS_PATH}/script/tsfile_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
