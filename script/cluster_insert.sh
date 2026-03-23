@@ -369,16 +369,23 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 		if [ $t_time -ge 6000 ]; then
 			echo "测试失败"
-			end_time=-1
-			cost_time=-1
-			ssh ${ACCOUNT}@${B_IP_list[1]} "mkdir -p ${BM_PATH}/data/csvOutput"
-			ssh ${ACCOUNT}@${B_IP_list[1]} "touch ${BM_PATH}/data/Stuck_result.csv"
-			array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
-			for ((i=0;i<100;i++))
-			do
-				ssh ${ACCOUNT}@${B_IP_list[1]} "echo $array1 >> ${BM_PATH}/data/Stuck_result.csv"
-			done
-			break
+			#end_time=-1
+			#cost_time=-1
+			ssh ${ACCOUNT}@${B_IP_list[1]} "test -f ${BM_PATH}/data/*result.csv"
+			if [ $? -eq 0 ]; then
+				echo "文件存在"
+				ssh ${ACCOUNT}@${B_IP_list[1]} "rm -rf ${BM_PATH}/data/csvOutput"
+			else
+				echo "文件不存在"
+				ssh ${ACCOUNT}@${B_IP_list[1]} "mkdir -p ${BM_PATH}/data/csvOutput"
+				ssh ${ACCOUNT}@${B_IP_list[1]} "touch ${BM_PATH}/data/Stuck_result.csv"
+				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
+				for ((i=0;i<100;i++))
+				do
+					ssh ${ACCOUNT}@${B_IP_list[1]} "echo $array1 >> ${BM_PATH}/data/Stuck_result.csv"
+				done
+				break
+			fi
 		fi
 		if [ "$flag" = "1" ]; then
 			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
