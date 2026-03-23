@@ -115,9 +115,9 @@ test_java_tsfile_api_test() { # 测试Java
 EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
-      echo "备份Java测试报告"
-      mkdir -p /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
-      cp -rf  ${TEST_JAVA_TOOL_PATH}/target/site /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
+			echo "备份Java测试报告"
+			mkdir -p /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
+			cp -rf  ${TEST_JAVA_TOOL_PATH}/target/site /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
 			return 1
 		fi
 	else
@@ -160,7 +160,7 @@ test_cpp_tsfile_api_test() {
 		successRate=-2
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
-		ruturn 1
+		return 1
 	fi
 	# 拷贝Cpp工具到测试路径
 	if [ ! -d "${TEST_CPP_TOOL_PATH}" ]; then
@@ -242,8 +242,8 @@ EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Cpp测试报告"
-      mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
-      cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
+			mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
+			cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}/
 			return 1
 		fi
 	else
@@ -305,7 +305,7 @@ test_python_tsfile_api_test() { # 测试Python
 	pip3 install pytest-html
 	pip3 install numpy==1.25.2
 	pip3 install pandas==2.0.3
-	pip3 install ${TSFILE_PATH}/python/dist/tsfile-*.dev0-cp310-cp310-linux_x86_64.whl
+	pip3 install ${TSFILE_PATH}/python/dist/tsfile-*.whl
  # 引入TsFile依赖
 	if [ $? -eq 1 ]; then
 		echo "引入TsFile依赖失败"
@@ -357,7 +357,7 @@ test_python_tsfile_api_test() { # 测试Python
 		failures_num=$(grep -o '[0-9]\+ Failed' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
 		skipped_num=$(grep -o '[0-9]\+ Skipped' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
 		passed_num=$(grep -o '[0-9]\+ Passed' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
-		successRate=$(echo "scale=2; ($passed_num / ${tests_num}) * 100" | bc)
+		successRate=$(awk -v t="$tests_num" -v e="$errors_num" -v f="$failures_num" -v s="$skipped_num" 'BEGIN{printf "%.2f", t?((t-e-f-s)*100/t):0}')
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
@@ -378,8 +378,8 @@ EOF
 			)
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Python测试报告"
-      mkdir -p /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
-      cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
+			mkdir -p /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
+			cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
 			return 1
 		fi
 	else
