@@ -160,7 +160,7 @@ test_cpp_tsfile_api_test() {
 		successRate=-2
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
-		ruturn 1
+		return 1
 	fi
 	# 拷贝Cpp工具到测试路径
 	if [ ! -d "${TEST_CPP_TOOL_PATH}" ]; then
@@ -243,7 +243,7 @@ EOF
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Cpp测试报告"
       mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
-      cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
+      cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}/
 			return 1
 		fi
 	else
