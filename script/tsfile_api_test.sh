@@ -305,6 +305,7 @@ test_python_tsfile_api_test() { # 测试Python
 	pip3 install pytest-html
 	pip3 install numpy
 	pip3 install pandas
+	pip3 install pyarrow
 	pip3 install ${TSFILE_PATH}/python/dist/tsfile-*.whl
  # 引入TsFile依赖
 	if [ $? -eq 1 ]; then
