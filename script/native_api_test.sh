@@ -23,8 +23,6 @@ TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-native-api-testcase
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223 222 211)
-ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
@@ -620,10 +618,10 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 	fi
 	# 调用tsfile测试
 	echo "tsfile_api_test" > ${INIT_PATH}/test_type_file
-	sh ${ATMOS_PATH}/script/tsfile_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+	sh ${ATMOS_PATH}/script/tsfile_api_test.sh >> ${INIT_PATH}/log_tsfile_api_test 2>&1 &
 else # 没有更新则等待下一轮测试
 	echo "没有更新，都执行过测试"
 	# 调用tsfile测试
 	echo "tsfile_api_test" > ${INIT_PATH}/test_type_file
-	sh ${ATMOS_PATH}/script/tsfile_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+	sh ${ATMOS_PATH}/script/tsfile_api_test.sh >> ${INIT_PATH}/log_tsfile_api_test 2>&1 &
 fi
