@@ -10,13 +10,13 @@
 TEST_IP="11.101.17.143"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
 IoTDB_PW=TimechoDB@2021
-test_type=api_insert
+test_type=api_insert_cts
 
 # -------------------- 路径相关变量 --------------------
 INIT_PATH=/data/atmos/zk_test     # 初始环境存放路径
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/api_insert
+BUCKUP_PATH=/nasdata/repository/api_insert_cts
 REPOS_PATH=/nasdata/repository/master
 
 # -------------------- 测试数据路径 --------------------
