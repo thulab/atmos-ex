@@ -4,7 +4,7 @@
 
 ################### 被测数据库配置 #######################
 # 被测试的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件，注意版本需要匹配
-DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
+DB_SWITCH=IoTDB-130-SESSION_BY_TABLET
 
 # IoTDB-2.0需指定sql_dialect, 并且一个IoTDB只能指定一种。支持tree、table,默认值为tree。
 # sql_dialect等于table时，要满足：device数量 >= table数量 >= database数量
