@@ -239,6 +239,7 @@ setup_env() {
 			TEST_IP=${IP_list[$i]}
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IoTDB_PW}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
 			echo $str1
+			sleep 3
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
 			echo $str1
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
@@ -256,6 +257,7 @@ setup_env() {
 			TEST_IP=${IP_list[$i]}
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IoTDB_PW}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
 			echo $str1
+			sleep 3
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
 			echo $str1
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
