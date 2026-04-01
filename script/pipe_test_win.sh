@@ -241,7 +241,8 @@ setup_env() {
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
 			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
-			#echo $str1
+			echo $str1
+			echo $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
 				echo "PIPE is ready"
 				pipeflag=$[${pipeflag}+1]
@@ -256,12 +257,14 @@ setup_env() {
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
 			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
 			echo $str1
+			echo $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
 				echo "PIPE is ready"
 				pipeflag=$[${pipeflag}+1]
 			fi
 		done
 	fi
+	echo $pipeflag
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	sleep 600  #等待六百秒，因为测试执行至少20分钟
