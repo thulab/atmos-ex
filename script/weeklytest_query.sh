@@ -415,7 +415,7 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	test_operation 222
+	test_operation 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
