@@ -288,7 +288,7 @@ mv_config_file() { # 移动配置文件
 }
 test_operation() {
 	protocol_class=$1
-	data_type=sequence
+	data_type=unsequence
 	#查询测试	
 	for (( j = 0; j < ${#query_data_type[*]}; j++ ))
 	do
