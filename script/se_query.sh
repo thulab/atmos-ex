@@ -176,9 +176,27 @@ start_iotdb() { # 启动iotdb
 stop_iotdb() { # 停止iotdb
 	cd ${TEST_IOTDB_PATH}
 	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
-	sleep 10
+	sleep 3
 	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+	sleep 5
 	cd ~/
+	####判断IoTDB是否正常停止
+	for (( t_wait = 0; t_wait <= 10; t_wait++ ))
+	do
+		dn_pid=$(jps | grep DataNode | awk '{print $1}')
+		cn_pid=$(jps | grep ConfigNode | awk '{print $1}')
+		if [ "${dn_pid}" = "" ] && [ "${cn_pid}" = "" ]; then
+			break
+		else
+			cd ${TEST_IOTDB_PATH}
+			data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+			sleep 3
+			conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
+			sleep 5
+			cd ~/
+			continue
+		fi
+	done
 }
 start_benchmark() { # 启动benchmark
 	cd ${BM_PATH}
