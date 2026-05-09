@@ -61,6 +61,8 @@ readonly DEFAULT_DISK_ID="sdb"
 
 readonly MONITOR_TIMEOUT_SECONDS=7200
 readonly MONITOR_POLL_INTERVAL_SECONDS=10
+readonly FLUSH_METRIC_RETRIES=6
+readonly FLUSH_METRIC_POLL_INTERVAL_SECONDS=5
 readonly IOTDB_READY_RETRIES=10
 readonly IOTDB_READY_INTERVAL_SECONDS=5
 readonly STARTUP_GRACE_SECONDS=10
@@ -881,21 +883,58 @@ normalize_decimal() {
     }'
 }
 
+wait_for_file_metrics_after_flush() {
+    local ip="$1"
+    local preflush_seq="$2"
+    local preflush_unseq="$3"
+    local current_time=0
+    local current_seq="${preflush_seq}"
+    local current_unseq="${preflush_unseq}"
+    local attempt=0
+    local seq_query="sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})"
+    local unseq_query="sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})"
+
+    # flush 之后需要等待一次 Prometheus 抓取，否则查询到的仍可能是 flush 前的旧样本。
+    for ((attempt = 1; attempt <= FLUSH_METRIC_RETRIES; attempt++)); do
+        sleep "${FLUSH_METRIC_POLL_INTERVAL_SECONDS}"
+        current_time="$(date +%s)"
+        current_seq="$(get_single_index "${seq_query}" "${current_time}")"
+        current_unseq="$(get_single_index "${unseq_query}" "${current_time}")"
+
+        if [ "${current_seq}" != "${preflush_seq}" ] || [ "${current_unseq}" != "${preflush_unseq}" ]; then
+            printf '%s\n' "${current_time}"
+            return 0
+        fi
+    done
+
+    printf '%s\n' "$(date +%s)"
+}
+
 collect_monitor_data() {
     local ip="$1"
     local metric_window=$((m_end_time - m_start_time))
+    local storage_metric_time="${m_end_time}"
     local maxNumofThread_C=0
     local maxNumofThread_D=0
     local datanode_error_log_file="${TEST_IOTDB_PATH}/logs/log_datanode_error.log"
     local confignode_error_log_file="${TEST_IOTDB_PATH}/logs/log_confignode_error.log"
     local datanode_error_log_size=0
     local confignode_error_log_size=0
+    local data_size_query="sum(file_global_size{instance=~\"${ip}:9091\"})"
+    local seq_count_query="sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})"
+    local unseq_count_query="sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})"
+    local preflush_seq=0
+    local preflush_unseq=0
 
     resolve_monitor_disk_id
-    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")"
+    preflush_seq="$(get_single_index "${seq_count_query}" "${m_end_time}")"
+    preflush_unseq="$(get_single_index "${unseq_count_query}" "${m_end_time}")"
+    storage_metric_time="$(wait_for_file_metrics_after_flush "${ip}" "${preflush_seq}" "${preflush_unseq}")"
+    dataFileSize="$(get_single_index "${data_size_query}" "${storage_metric_time}")"
     dataFileSize="$(bytes_to_gib "${dataFileSize}")"
-    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
-    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
+    numOfSe0Level="$(get_single_index "${seq_count_query}" "${storage_metric_time}")"
+    numOfUnse0Level="$(get_single_index "${unseq_count_query}" "${storage_metric_time}")"
+    log "file metrics sampled after flush at ${storage_metric_time}: seq ${preflush_seq} -> ${numOfSe0Level}, unseq ${preflush_unseq} -> ${numOfUnse0Level}"
     maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${metric_window}s])" "${m_end_time}")"
     maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
     maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
