@@ -19,7 +19,7 @@ readonly TABLENAME_T="ex_${TEST_TYPE}_T"
 readonly IOTDB_PW="TimechoDB@2021"
 
 readonly INIT_PATH="/data/atmos/zk_test"
-readonly ATMOS_PATH="${INIT_PATH}/atmos-e"
+readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly BM_PATH="${INIT_PATH}/iot-benchmark"
 readonly REPOS_PATH="/nasdata/repository/master"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
