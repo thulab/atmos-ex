@@ -555,7 +555,7 @@ check_throughput_monitor() {
     local mean std
     mean="$(echo "$data" | awk '
         {sum+=$1; sumsq+=$1*$1} 
-        END {if(NR>0) print sum/NR; else print 0}
+        END {if(NR>0) printf "%.10f\n", sum/NR; else print 0}
     ')"
     
     std="$(echo "$data" | awk '
@@ -564,7 +564,7 @@ check_throughput_monitor() {
             if(NR>0) {
                 var = sumsq/NR - (sum/NR)^2
                 if(var < 0) var = 0
-                print sqrt(var)
+                printf "%.10f\n", sqrt(var)
             } else {
                 print 0
             }
@@ -573,16 +573,19 @@ check_throughput_monitor() {
     
     # 计算控制限
     local ucl lcl
-    ucl="$(echo "$mean + 3 * $std" | bc -l 2>/dev/null || echo "0")"
-    lcl="$(echo "$mean - 3 * $std" | bc -l 2>/dev/null || echo "0")"
+    mean="$(normalize_decimal "${mean}")"
+    std="$(normalize_decimal "${std}")"
+    ucl="$(awk -v mean="${mean}" -v std="${std}" 'BEGIN { printf "%.10f\n", mean + 3 * std }')"
+    lcl="$(awk -v mean="${mean}" -v std="${std}" 'BEGIN { value = mean - 3 * std; if (value < 0) value = 0; printf "%.10f\n", value }')"
     
     # 确保LCL不小于0
-    lcl="$(echo "if ($lcl < 0) 0 else $lcl" | bc -l 2>/dev/null || echo "0")"
+    ucl="$(normalize_decimal "${ucl}")"
+    lcl="$(normalize_decimal "${lcl}")"
     log "吞吐量 $throughput 控制限 [$lcl, $ucl] (均值: $mean, 标准差: $std)"
     # 检查最新吞吐量是否超出控制限
-    if (( $(echo "$throughput > 0" | bc -l 2>/dev/null) )); then
-        if (( $(echo "$throughput > $ucl" | bc -l 2>/dev/null) )) || \
-           (( $(echo "$throughput < $lcl && $lcl > 0" | bc -l 2>/dev/null) )); then
+    if awk -v throughput="${throughput}" 'BEGIN { exit !((throughput + 0) > 0) }'; then
+        if awk -v throughput="${throughput}" -v ucl="${ucl}" 'BEGIN { exit !((throughput + 0) > (ucl + 0)) }' || \
+           awk -v throughput="${throughput}" -v lcl="${lcl}" 'BEGIN { exit !((throughput + 0) < (lcl + 0) && (lcl + 0) > 0) }'; then
             log "监控警报: 吞吐量 $throughput 超出控制限 [$lcl, $ucl] (均值: $mean, 标准差: $std)"
 			sendMsg 1 "${throughput}" "${ucl}" "${lcl}" "${mean}"
             return 1
@@ -863,6 +866,19 @@ bytes_to_gib() {
 
 to_int() {
     awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
+}
+
+normalize_decimal() {
+    awk -v value="${1:-0}" 'BEGIN {
+        value += 0
+        text = sprintf("%.10f", value)
+        sub(/0+$/, "", text)
+        sub(/\.$/, "", text)
+        if (text == "" || text == "-0") {
+            text = "0"
+        }
+        print text
+    }'
 }
 
 collect_monitor_data() {
