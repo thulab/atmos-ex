@@ -55,10 +55,10 @@ export ATMOS_DB_PASSWORD=XXXXXX
 
 yum install -y chrony
 # 编辑配置文件，使用国内 NTP 服务器（如阿里云）
-# vim /etc/chrony.conf
+vim /etc/chrony.conf
 # 注释原有 server 行，添加：
-# server ntp.aliyun.com iburst
-# server ntp1.aliyun.com iburst
+server ntp.aliyun.com iburst
+server ntp1.aliyun.com iburst
 
 systemctl enable chronyd --now
 chronyc -a makestep  # 强制步进时间（若误差大）
