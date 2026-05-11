@@ -1,5 +1,6 @@
 #!/bin/sh
 #登录用户名
+TEST_IP="11.101.17.115"
 ACCOUNT=atmos
 test_type=ts_performance
 #初始环境存放路径
