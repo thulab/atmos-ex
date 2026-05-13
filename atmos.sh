@@ -44,7 +44,7 @@ do
 	elif [ "$test_type" = "unse_query" ]; then
 		nohup bash ${ATMOS_PATH}/script/unse_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "native_api_test" ]; then
-		nohup bssh ${ATMOS_PATH}/script/native_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/native_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "compile" ]; then
 		nohup bash ${ATMOS_PATH}/tools/compile.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	else
