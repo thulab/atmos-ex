@@ -29,7 +29,8 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
 protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
 protocol_list=(223)
-ts_list=(SESSION_BY_TABLET_TABLE SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
+ts_list=(tempaligned)
+api_list=(SESSION_BY_TABLET_TABLE SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 
 # -------------------- MySQL 配置信息 --------------------
 MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
@@ -63,7 +64,7 @@ function check_benchmark_version() {
 
 function init_items() {
     # 定义监控采集项初始值
-    ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
+    api_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
     throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
     numOfSe0Level=0; start_time=0; end_time=0; cost_time=0; numOfUnse0Level=0; dataFileSize=0
     maxNumofOpenFiles=0; maxNumofThread=0; errorLogSize=0; walFileSize=0; maxCPULoad=0; avgCPULoad=0
@@ -178,7 +179,7 @@ function monitor_test_status() {
             continue
         else
             end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            echo "${ts_type}写入已完成！"
+            echo "${api_type}写入已完成！"
             break
         fi
     done
@@ -216,8 +217,8 @@ function collect_monitor_data() {
 }
 
 function backup_test_data() {
-    local ts_type=$1
-    local backup_dir="${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}"
+    local api_type=$1
+    local backup_dir="${BUCKUP_PATH}/${api_type}/${commit_date_time}_${commit_id}_${protocol_class}"
     sudo rm -rf $backup_dir
     sudo mkdir -p $backup_dir
     sudo rm -rf ${TEST_IOTDB_PATH}/data
@@ -226,15 +227,16 @@ function backup_test_data() {
 }
 
 function mv_config_file() {
-    local ts_type=$1
+    local api_type=$1
     rm -rf ${BM_PATH}/conf/config.properties
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/$ts_type ${BM_PATH}/conf/config.properties
+    cp -rf ${ATMOS_PATH}/conf/${test_type}/$api_type ${BM_PATH}/conf/config.properties
 }
 
 function test_operation() {
     local protocol_class_input=$1
-    local ts_type=$2
-    echo "开始测试${ts_type}时间序列！"
+    local api_type=$2
+	local ts_type="tempaligned"
+    echo "开始测试${api_type}时间序列！"
     check_benchmark_pid
     check_iotdb_pid
     set_env
@@ -255,14 +257,14 @@ function test_operation() {
     if [ "${iotdb_state}" != "Total line number = 2" ]; then
         echo "IoTDB未能正常启动，写入负值测试结果！"
         cost_time=-3; throughput=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
+		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,api_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${api_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
         mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
         update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
         mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
         return
     fi
 	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
-    mv_config_file ${ts_type}
+    mv_config_file ${api_type}
     start_benchmark
     start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
     m_start_time=$(date +%s)
@@ -275,13 +277,13 @@ function test_operation() {
     read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
     read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
     cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
+	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,api_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${api_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
     stop_iotdb
     sleep 30
     check_benchmark_pid
     check_iotdb_pid
-    backup_test_data ${ts_type}
+    backup_test_data ${api_type}
 }
 
 # -------------------- 主流程 --------------------
@@ -314,10 +316,10 @@ else
 	fi
     test_date_time=$(date +%Y%m%d%H%M%S)
     for protocol in ${protocol_list[@]}; do
-        for ts in ${ts_list[@]}; do
+        for api in ${api_list[@]}; do
             init_items
-            echo "开始测试${protocol}协议下的${ts}时间序列！"
-            test_operation $protocol $ts
+            echo "开始测试${protocol}协议下的${api}时间序列！"
+            test_operation $protocol $api
         done
     done
     echo "本轮测试${test_date_time}已结束."
