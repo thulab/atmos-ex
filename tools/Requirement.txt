@@ -1,6 +1,12 @@
 setenforce 0
 sed -i '/^SELINUX=/s/enforcing/Disabled/' /etc/selinux/config
 
+
+sudo mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+sudo wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+sudo yum clean all
+sudo yum makecache
+
 sudo yum install jq bc -y
 
 adduser atmos --home /data/atmos -g root
