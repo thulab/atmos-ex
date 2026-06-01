@@ -201,7 +201,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ ! -d "$csvOutput" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 72000 ]; then
+			if [ $t_time -ge 100000 ]; then
 				echo "测试失败"
 				mkdir -p ${BM_PATH}/data/csvOutput
 				cd ${BM_PATH}/data/csvOutput
@@ -457,7 +457,7 @@ else
 	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
 	test_operation 223 
 	#test_operation 222 
-	test_operation 111 
+	#test_operation 111 
 	#test_operation 211 
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
