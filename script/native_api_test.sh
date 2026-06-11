@@ -254,9 +254,11 @@ EOF
 }
 test_cpp_native_api_test() {
 	# C++代码编译
+	# 新版 C++ 客户端改为发布预打包的 Session SDK：构建 iotdb-client/client-cpp 模块，
+	# Thrift/Boost 已封装进 iotdb_session 库内，产物安装到 target/install/（含 include/、lib/）。
 	echo "编译C++客户端"
 	cd ${IOTDB_PATH}
-	comp_cpp=$(timeout 7200s  bash -c "source /etc/profile &&  ./mvnw clean package -pl example/client-cpp-example -am -DskipTests -P with-cpp")
+	comp_cpp=$(timeout 7200s  bash -c "source /etc/profile &&  ./mvnw -P with-cpp clean package -pl iotdb-client/client-cpp -am -DskipTests")
 	if [ $? -eq 0 ]; then
 		echo "编译C++客户端完成，准备开始测试！"
 	else
@@ -278,10 +280,12 @@ test_cpp_native_api_test() {
 		mkdir -p ${TEST_CPP_TOOL_PATH}
 	fi
 	cp -rf ${CPP_TOOL_PATH}/* ${TEST_CPP_TOOL_PATH}/
-	# 拷贝依赖到工具中
-	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/build/main/generated-sources-cpp/* ${TEST_CPP_TOOL_PATH}/client/include/
-	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/thrift/include/* ${TEST_CPP_TOOL_PATH}/client/include/
-	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/client-cpp-*-SNAPSHOT-cpp-linux-x86_64/lib/* ${TEST_CPP_TOOL_PATH}/client/lib/
+	# 拷贝依赖到工具中（新版 SDK 公开头文件和库统一在 target/install/ 下，
+	# Thrift/Boost 已封进 iotdb_session 库，无需再单独拷贝 thrift/generated-sources）
+	# 头文件：含 Session.h 等 C/C++ 公开 API
+	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/install/include/* ${TEST_CPP_TOOL_PATH}/client/include/
+	# 库文件：libiotdb_session.so（保留符号链接链用 -P）
+	cp -rfP ${IOTDB_PATH}/iotdb-client/client-cpp/target/install/lib/* ${TEST_CPP_TOOL_PATH}/client/lib/
 	# 编译工具
 	cd ${TEST_CPP_TOOL_PATH}
 	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
