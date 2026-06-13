@@ -1,6 +1,6 @@
 #!/bin/sh
 #登录用户名
-TEST_IP="11.101.17.141"
+TEST_IP="11.101.17.152"
 ACCOUNT=atmos
 IoTDB_PW=TimechoDB@2021
 test_type=se_query
