@@ -12,7 +12,8 @@ set -o pipefail
 readonly TEST_IP="${TREEVIEW_QUERY_TEST_IP:-11.101.17.155}"
 readonly TEST_TYPE="treeview_query"
 readonly IOTDB_PW="${TREEVIEW_IOTDB_PW:-root}"
-readonly RESULT_TABLE_NAME="${TREEVIEW_RESULT_TABLE_NAME:-ex_${TEST_TYPE}}"
+readonly RESULT_TABLE_NAME_BASE="${TREEVIEW_RESULT_TABLE_NAME:-ex_${TEST_TYPE}}"
+readonly RESULT_TABLE_NAME_ENTERPRISE="${TREEVIEW_RESULT_TABLE_NAME_T:-${RESULT_TABLE_NAME_BASE}_T}"
 
 readonly INIT_PATH="${TREEVIEW_INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${TREEVIEW_ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
@@ -97,6 +98,7 @@ commit_id=""
 author=""
 commit_date_time=""
 test_date_time=""
+result_table_name="${RESULT_TABLE_NAME_BASE}"
 ts_type=""
 data_type=""
 query_type=""
@@ -1005,7 +1007,7 @@ insert_result_row() {
     local insert_sql=""
 
     insert_sql=$(cat <<EOF
-insert into ${RESULT_TABLE_NAME} (
+insert into ${result_table_name} (
     commit_date_time,test_date_time,commit_id,author,ts_type,data_type,query_type,
     okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,
     MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,
@@ -1234,8 +1236,14 @@ main() {
         return 0
     fi
 
+    if [ "${author}" = "Timecho" ]; then
+        result_table_name="${RESULT_TABLE_NAME_ENTERPRISE}"
+    else
+        result_table_name="${RESULT_TABLE_NAME_BASE}"
+    fi
+
     update_task_status "ontesting"
-    log "start query test for commit ${commit_id}"
+    log "start query test for commit ${commit_id}, result table ${result_table_name}"
 
     test_date_time="$(date +%Y%m%d%H%M%S)"
     for protocol in "${PROTOCOL_LIST[@]}"; do
@@ -1247,7 +1255,9 @@ main() {
     log "query test ${test_date_time} finished"
     if [ "${task_failed}" -eq 0 ]; then
         update_task_status "done"
-        mark_older_commits_skip
+        if [ "${author}" != "Timecho" ]; then
+            mark_older_commits_skip
+        fi
     else
         update_task_status "RError"
     fi
