@@ -83,6 +83,7 @@ function init_longrun_route() {
     else
         AUTHOR_FILTER="author != 'Timecho'"
     fi
+    TEST_IP=${local_ip}
 }
 
 function init_items() {
