@@ -7,17 +7,24 @@
 DB_SWITCH=IoTDB-200-SESSION_BY_RECORD
 
 # IoTDB-2.0需指定sql_dialect, 并且一个IoTDB只能指定一种。支持tree、table,默认值为tree。
-# sql_dialect等于table时，要满足：device数量 >= table数量 >= database数量
+# sql_dialect等于table时，要满足：device数为table数的整数倍，table数为database数的整数倍
 # sql_dialect等于tree时，要满足：device数量 >= database数量
 IoTDB_DIALECT_MODE=tree
+
+# 表模型中时间列的名字，默认为time
+# TABLE_TIME_COLUMN=time
+
+# 表模型是否创建并使用可写视图，开启后会在建表后创建可写视图，后续读写都针对视图进行
+# IoTDB_TABLE_WRITABLE_VIEW=false
 
 # 主机列表，如果有多个主机则使用英文逗号进行分割
 # HOST=127.0.0.1
 
-# REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
-# REST_AUTHORIZATION=Basic cm9vdDpyb290
 # 端口列表，需要和HOST数量一致，保持一一对应。如果有多个端口则使用英文逗号进行分割。
 # PORT=6667
+
+# REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
+# REST_AUTHORIZATION=Basic cm9vdDpyb290
 
 # 所有被测数据库的用户名，如果为多个数据库，则要求保持一致
 USERNAME=root
@@ -67,6 +74,19 @@ LOOP=100
 
 # Benchmark的统计信息结果的精度，单位为%
 # RESULT_PRECISION=0.1
+
+# 控制 session 是否开启刷新 DataNode list。
+# ENABLE_AUTO_FETCH=false
+
+# 测点数据写入时间为当前系统时间
+# IS_RECORD_CURRENT_REALLY_TIME=false
+
+# 是否开启SSL。
+# USE_SSL=false
+
+# SSL 配置
+# TRUST_STORE_PATH=
+# TRUST_STORE_PWD=
 
 ################ Benchmark：集群模式 ####################
 # 是否在Benchmark集群模式下运行
@@ -121,6 +141,7 @@ DEVICE_NUMBER=10000
 # REAL_INSERT_RATE=1.0
 
 # 每个设备的传感器总数
+# 如果使用 IoTDB 表模型，则控制测点列数量
 SENSOR_NUMBER=10
 
 # 各个传感器时间戳是否对齐
@@ -156,12 +177,19 @@ SENSOR_NUMBER=10
 # 是否将设备绑定给客户端，如果绑定，则客户端数小于等于设备数，否则可以大于
 # IS_CLIENT_BIND=true
 
-# 客户端总数
-CLIENT_NUMBER=10
+# schema 客户端总数，schema_client 负责注册元数据
+SCHEMA_CLIENT_NUMBER=10
+
+# data 客户端总数, data_client 负责读写数据
+# iotdb表模型下，client数为table数的整数倍
+DATA_CLIENT_NUMBER=10
 
 ############## 被测系统为IoTDB时扩展参数 ##################
 # 是否使用thrift压缩，需要在iotdb的配置文件iotdb-datanode.properties中设置dn_rpc_thrift_compression_enable=true
 # ENABLE_THRIFT_COMPRESSION=false
+
+# 是否使用 IoTDB 额外的 RPC 压缩，需要使用 IoTDB 2.0.6 及以上版本
+ENABLE_IOTDB_RPC_COMPRESSION=false
 
 # Device分配进入存储组的策略，目前支持
 # hash  表示Device通过hash的方式分配到存储组中
@@ -215,18 +243,52 @@ VECTOR=true
 # influxdb ORG名
 # INFLUXDB_ORG=company1
 
+############## 被测系统为 DolphinDB 时扩展参数 ########
+# DolphinDB 的 DB_SWITCH 取值（写入方式由第三段指定）：
+#   DolphinDB-3-MTW / DolphinDB-2-MTW —— MultithreadedTableWriter，按行缓冲写入
+#   DolphinDB-3-PTA / DolphinDB-2-PTA —— PartitionedTableAppender，每个 batch 列式整表追加（经连接池路由分区）
+# 例：DB_SWITCH=DolphinDB-3-PTA
+# DFS HASH(deviceId) 分区桶数，默认 8
+# DOLPHINDB_DEVICE_HASH_BUCKETS=8
+
 ################### 操作时间配置 #########################
 # 时间戳间隔，即生成的数据两个时间戳之间的固定长度(如果定长生成)，非正常速率
 POINT_STEP=1000
 
-# 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
+# 操作最小执行间隔（ms）：作用在每个 loop 结束后（一个 loop = 一个 operation）
+# 对于写入操作，一个 loop 会把该线程负责的所有设备都写一遍
+# 若 loop 耗时 < OP_MIN_INTERVAL，则等待剩余时间；若已超过则立即执行下一个 loop
 # 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
+#
+#   Thread-0:
+#   ┌── Loop 0 ─────────────────────────────┐
+#   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
+#   └───────────────────────────────────────┘
+#   ┌── Loop 1 ─────────────────────────────┐
+#   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
+#   └───────────────────────────────────────┘
+#
 # OP_MIN_INTERVAL=0
 
 # 是否随机选取操作最小执行间隔：
 # 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
 # 如果为false，每次操作最小执行间隔的取值为 OP_MIN_INTERVAL
 # OP_MIN_INTERVAL_RANDOM=false
+
+# 每次写入请求的最小执行间隔（ms）：作用在每个 batch 写入之后
+# 与 OP_MIN_INTERVAL 不同，该参数让写入负载在时间上分布更均匀
+# 若单次 batch 写入耗时 < INTERVAL_BETWEEN_WRITE_BATCH，则等待剩余时间；若已超过则立即执行下一次写入
+# 默认值为0，即不等待
+#
+#   Thread-0:
+#   ┌── Loop 0 ───────────────────────────────────────────────────────────────┐
+#   │ 写 D0 → 等待至间隔 → 写 D1 → 等待至间隔 → ... → 写 D(N/M-1) → 等待至间隔 │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+# 两个参数可同时生效：loop 内每个 batch 之间等待 INTERVAL_BETWEEN_WRITE_BATCH，
+# loop 结束后再等待 OP_MIN_INTERVAL
+#
+# INTERVAL_BETWEEN_WRITE_BATCH=0
 
 # 时间戳精度，均支持ms，只有IoTDB和InfluxDB支持us
 # TIMESTAMP_PRECISION=ms
@@ -238,8 +300,14 @@ POINT_STEP=1000
 # 浮点数小数位数
 # DOUBLE_LENGTH=2
 
-# 插入数据的数据类型的比例，BOOLEAN:INT32:INT64:FLOAT:DOUBLE:TEXT:STRING:BLOB:TIMESTAMP:DATE
-# INSERT_DATATYPE_PROPORTION=1:1:1:1:1:1:0:0:0:0
+# OBJECT长度
+# OBJECT_LENGTH=1000
+
+# 是否对OBJECT类型测点使用READ_OBJECT函数查询完整内容（返回类型为BLOB），开启后对Q1、Q2、Q3、Q9、Q10生效
+# OBJECT_QUERY_FULL_CONTENT=false
+
+# 插入数据的数据类型的比例，BOOLEAN:INT32:INT64:FLOAT:DOUBLE:TEXT:STRING:BLOB:TIMESTAMP:DATE:OBJECT
+# INSERT_DATATYPE_PROPORTION=1:1:1:1:1:1:0:0:0:0:0
 
 ################ IoTDB相关元数据参数 #####################
 # 压缩方式 UNCOMPRESSED | SNAPPY | LZ4 (仅对IoTDB有效)
@@ -319,8 +387,8 @@ POINT_STEP=1000
 # Q9  倒序范围查询（只限制起止时间）select v1... from data where time > ? and time < ? and device in ? order by time desc
 # Q10 倒序带值过滤的范围查询 select v1... from data where time > ? and time < ? and v1 > ? and device in ? order by time desc
 # Q11 分组聚合查询，倒序；目前仅支持iotdb、tdengine-3.0、influxdb v1
-# IoTDB-2.0 表模型支持 Q1 Q2 Q3 Q9 Q10
-OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0
+# Q12 集合操作查询，目前仅支持iotdb-2.0, 且仅支持表模型，集合操作中的每一个子集合都是范围查询 select v1... from data where time > ? and time < ? and device in ? union select v1... from data where time > ? and time < ?
+OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0:0
 
 # 最长等待写时间，单位毫秒，即如果整个写操作在指定时间内没有返回，则终止此操作
 # WRITE_OPERATION_TIMEOUT_MS=120000
@@ -328,12 +396,18 @@ OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0
 # 最长等待读时间，单位毫秒，即如果整个读操作在指定时间内没有返回，则终止此操作
 # READ_OPERATION_TIMEOUT_MS=300000
 
+# 是否启用固定查询模式,所有查询线程使用相同的设备和传感器组合，生成一致的查询 SQL
+# ENABLE_FIXED_QUERY=true
+
 ################## 操作信息：写入参数 ###################
 # 每批每个设备写入数据行数，一行是某个设备所有传感器在某一时间戳的数据
 # 每个Batch写入数据总点数=DEVICE_NUM_PER_WRITE * SENSOR_NUMBER * BATCH_SIZE_PER_WRITE
 BATCH_SIZE_PER_WRITE=100
 
 # 每批写入设备数，必须能整除每个client被分配到的设备数
+# DEVICE_NUMBER / CLIENT_NUMBER 必须为 DEVICE_NUM_PER_WRITE 的倍数。
+# 表模型下,若想一个batch写入多个device数据，还需满足以下条件：
+# DEVICE_NUMBER / IoTDB_TABLE_NUMBER 必须为 DEVICE_NUM_PER_WRITE 的倍数；
 # DEVICE_NUM_PER_WRITE=1
 
 # 是否在写入数据前，创建SCHEMA
@@ -397,6 +471,12 @@ IS_REGULAR_FREQUENCY=true
 
 # 在聚集查询中使用的聚集函数，比如count
 # QUERY_AGGREGATE_FUN=count
+
+# 指定集合查询的类型，包括 union, intersect, except, 可以加上 all或者distinct, 默认是union
+# QUERY_SET_OP_TYPE=union
+
+# 集合查询中的子集合数量，必须大于等于2
+# QUERY_SET_OP_NUM=2
 
 # 含起止时间的查询中开始时间与结束时间之间的时间间隔，和Group By中的时间间隔（单位按照精度决定）
 # QUERY_INTERVAL=250000
