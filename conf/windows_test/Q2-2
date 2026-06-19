@@ -7,17 +7,24 @@
 DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
 
 # IoTDB-2.0需指定sql_dialect, 并且一个IoTDB只能指定一种。支持tree、table,默认值为tree。
-# sql_dialect等于table时，要满足：device数量 >= table数量 >= database数量
+# sql_dialect等于table时，要满足：device数为table数的整数倍，table数为database数的整数倍
 # sql_dialect等于tree时，要满足：device数量 >= database数量
 IoTDB_DIALECT_MODE=tree
+
+# 表模型中时间列的名字，默认为time
+# TABLE_TIME_COLUMN=time
+
+# 表模型是否创建并使用可写视图，开启后会在建表后创建可写视图，后续读写都针对视图进行
+# IoTDB_TABLE_WRITABLE_VIEW=false
 
 # 主机列表，如果有多个主机则使用英文逗号进行分割
 HOST=11.101.17.128
 
-# REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
-# REST_AUTHORIZATION=Basic cm9vdDpyb290
 # 端口列表，需要和HOST数量一致，保持一一对应。如果有多个端口则使用英文逗号进行分割。
 PORT=6667
+
+# REST 接口的授权头，默认是"root:root" 的 Base64 编码结果
+# REST_AUTHORIZATION=Basic cm9vdDpyb290
 
 # 所有被测数据库的用户名，如果为多个数据库，则要求保持一致
 USERNAME=root
@@ -26,24 +33,24 @@ USERNAME=root
 PASSWORD=TimechoDB@2021
 
 # 即将被测试写入的数据库的名称
-# DB_NAME=test
+DB_NAME=test
 
 # 数据库连接认证Token，InfluxDB 2.0使用
-# TOKEN=token
+TOKEN=token
 
 ############### 数据库初始化：清理数据 ####################
 # 测试启动前是否清理数据
 IS_DELETE_DATA=false
 
 # IS_DELETE_DATA = true 时生效，单位为ms，如果清理数据，则需要等待INIT_WAIT_TIME时间待数据库数据清理完成，当数据库为KairosDB, InfluxDb, OpenTSDB, TimescaleDB时必须
-# INIT_WAIT_TIME=1000
+INIT_WAIT_TIME=1000
 
 ################### 数据源：Kafka #######################
-# KAFKA_LOCATION=127.0.0.1:9092
+KAFKA_LOCATION=127.0.0.1:9092
 
-# ZOOKEEPER_LOCATION=127.0.0.1:2181
+ZOOKEEPER_LOCATION=127.0.0.1:2181
 
-# TOPIC_NAME=test-topic
+TOPIC_NAME=test-topic
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
@@ -54,60 +61,73 @@ LOOP=5
 # generateDataMode      生成数据模式，生成Benchmark本身识别的数据
 # verificationWriteMode 单数据库正确性写入模式，需要配置 FILE_PATH 以及 DATA_SET
 # verificationQueryMode 单数据库正确性查询模式，需要配置 FILE_PATH 以及 DATA_SET
-# BENCHMARK_WORK_MODE=testWithDefaultPath
+BENCHMARK_WORK_MODE=testWithDefaultPath
 
 # 对于数据写入或查询，限制最长耗时，设置为0表示无限制，单位为ms
 # 对数据写入，最大误差约为WRITE_OPERATION_TIMEOUT_MS
 # 对数据查询，最大误差约为READ_OPERATION_TIMEOUT_MS
 # 此参数不限制预先注册元数据的耗时
-# TEST_MAX_TIME=0
+TEST_MAX_TIME=0
 
 # 是否启动Benchmark统计模块
-# USE_MEASUREMENT=true
+USE_MEASUREMENT=true
 
 # Benchmark的统计信息结果的精度，单位为%
-# RESULT_PRECISION=0.1
+RESULT_PRECISION=0.1
+
+# 控制 session 是否开启刷新 DataNode list。
+# ENABLE_AUTO_FETCH=false
+
+# 测点数据写入时间为当前系统时间
+# IS_RECORD_CURRENT_REALLY_TIME=false
+
+# 是否开启SSL。
+# USE_SSL=false
+
+# SSL 配置
+# TRUST_STORE_PATH=
+# TRUST_STORE_PWD=
 
 ################ Benchmark：集群模式 ####################
 # 是否在Benchmark集群模式下运行
-# BENCHMARK_CLUSTER=false
+BENCHMARK_CLUSTER=false
 
 # 如果 BENCHMARK_CLUSTER=true, 则为当前Benchmark的编号
-# BENCHMARK_INDEX=0
+BENCHMARK_INDEX=0
 
 ################ Benchmark：双写模式 ####################
 # 双写模式仅支持不同数据库之间进行比较，不支持同一个数据库不同版本进行双写，不支持iotdb树模型与表模型的比较。
-# IS_DOUBLE_WRITE=false
+IS_DOUBLE_WRITE=false
 
 # 另一个写入的数据库，目前的格式为{name}{-version}{-insert mode}(注意-号)其全部参考值参见README文件
-# ANOTHER_DB_SWITCH=IoTDB-130-SESSION_BY_TABLET
+ANOTHER_DB_SWITCH=IoTDB-012-SESSION_BY_TABLET
 
 # 另一个写入的数据库的主机
-# ANOTHER_HOST=11.101.17.128
+ANOTHER_HOST=172.20.31.26
 
 # 另一个写入的数据库的端口
-# ANOTHER_PORT=6667
+ANOTHER_PORT=6667
 
 # 另一个写入的数据库的用户名
-# ANOTHER_USERNAME=root
+ANOTHER_USERNAME=root
 
 # 另一个写入的数据库的密码，如果为多个数据库，则要求保持一致
-# ANOTHER_PASSWORD=TimechoDB@2021
+ANOTHER_PASSWORD=TimechoDB@2021
 
 # 另一个写入的数据库的名称
-# ANOTHER_DB_NAME=test
+ANOTHER_DB_NAME=test
 
 # 另一个数据库认证使用的Token，目前仅限于InfluxDB 2.0使用
-# ANOTHER_TOKEN=token
+ANOTHER_TOKEN=token
 
 # 是否将两个数据库中的查询结果集进行比较
-# IS_COMPARISON=false
+IS_COMPARISON=false
 
 # 是否进行两个数据库间点对点数据对比，为真时OPERATION_PROPORTION不生效
-# IS_POINT_COMPARISON=false
+IS_POINT_COMPARISON=false
 
 # 点对点验证的批量验证大小，单位为一个batch的时间跨度
-# VERIFICATION_STEP_SIZE=10000
+VERIFICATION_STEP_SIZE=10000
 
 ########################################################
 ################## 数据模式基本配置 #######################
@@ -118,34 +138,35 @@ LOOP=5
 DEVICE_NUMBER=1000
 
 # 实际写入设备比例，(0, 1]
-# REAL_INSERT_RATE=1.0
+REAL_INSERT_RATE=1.0
 
 # 每个设备的传感器总数
+# 如果使用 IoTDB 表模型，则控制测点列数量
 SENSOR_NUMBER=500
 
 # 各个传感器时间戳是否对齐
-# IS_SENSOR_TS_ALIGNMENT=true
+IS_SENSOR_TS_ALIGNMENT=true
 
 # 当传感器不对齐时，每个设备的传感器的保留比例，(0, 1]
-# TS_ALIGNMENT_RATIO=1.0
+TS_ALIGNMENT_RATIO=1.0
 
 # 存储组名称前缀
-# GROUP_NAME_PREFIX=g_
+GROUP_NAME_PREFIX=g_
 
 # IoTDB 表模型下(IoTDB_DIALECT_MODE=table)，表名称前缀
 # IoTDB_TABLE_NAME_PREFIX=table_
 
 # 设备名称前缀
-# DEVICE_NAME_PREFIX=d_
+DEVICE_NAME_PREFIX=d_
 
 # 传感器名称前缀
-# SENSOR_NAME_PREFIX=s_
+SENSOR_NAME_PREFIX=s_
 
 # 标签名数量
 # TAG_NUMBER=0
 
 # 标签名前缀
-# TAG_KEY_PREFIX=tag_
+TAG_KEY_PREFIX=tag_
 
 # 标签值前缀
 # TAG_VALUE_PREFIX=value_
@@ -154,29 +175,36 @@ SENSOR_NUMBER=500
 # TAG_VALUE_CARDINALITY=
 
 # 是否将设备绑定给客户端，如果绑定，则客户端数小于等于设备数，否则可以大于
-# IS_CLIENT_BIND=true
+IS_CLIENT_BIND=true
 
-# 客户端总数
-CLIENT_NUMBER=10
+# schema 客户端总数，schema_client 负责注册元数据
+SCHEMA_CLIENT_NUMBER=10
+
+# data 客户端总数, data_client 负责读写数据
+# iotdb表模型下，client数为table数的整数倍
+DATA_CLIENT_NUMBER=10
 
 ############## 被测系统为IoTDB时扩展参数 ##################
 # 是否使用thrift压缩，需要在iotdb的配置文件iotdb-datanode.properties中设置dn_rpc_thrift_compression_enable=true
-# ENABLE_THRIFT_COMPRESSION=false
+ENABLE_THRIFT_COMPRESSION=false
+
+# 是否使用 IoTDB 额外的 RPC 压缩，需要使用 IoTDB 2.0.6 及以上版本
+ENABLE_IOTDB_RPC_COMPRESSION=false
 
 # Device分配进入存储组的策略，目前支持
 # hash  表示Device通过hash的方式分配到存储组中
 # mod   表示Device通过对存储组数取模的方式平均分配到存储组中（相邻编号Device分散在不同存储组中）
 # div   表示Device通过对存储组数取商的方式分配到存储组中（相邻编号Device集中在相同存储组中）
-# SG_STRATEGY=mod
+SG_STRATEGY=mod
 
 # 存储组的数量，对IoTDB而言为database的数量
 GROUP_NUMBER=1
 
 # IoTDB 表模型下(IoTDB_DIALECT_MODE=table)，表的数量
-IoTDB_TABLE_NUMBER=1
+# IoTDB_TABLE_NUMBER=1
 
 # IoTDB核心线程池数量
-# IOTDB_SESSION_POOL_SIZE=50
+IOTDB_SESSION_POOL_SIZE=50
 
 # 是否使用template
 TEMPLATE=true
@@ -188,17 +216,17 @@ TEMPLATE=true
 VECTOR=true
 
 # 是否使用Debug模式，仅支持iotdb
-# IOTDB_USE_DEBUG=false
+IOTDB_USE_DEBUG=false
 
 # 使用DEBUG查询的比率 [0, 1]
-# IOTDB_USE_DEBUG_RATIO=0.01
+IOTDB_USE_DEBUG_RATIO=0.01
 
 ############## 被测系统使用HTTP请求时扩展参数 ##################
-# HTTP_CLIENT_POOL_SIZE=1000
+HTTP_CLIENT_POOL_SIZE=1000
 
 ############## 被测系统为MS SQL SERVER时扩展参数 ##############
 # 表压缩方式，NONE, ROW, PAGE
-# COMPRESSION=NONE
+COMPRESSION=NONE
 
 ############## 被测系统为TimescaleDB Cluster时扩展参数 ########
 # timescaledb的副本数
@@ -215,12 +243,31 @@ VECTOR=true
 # influxdb ORG名
 # INFLUXDB_ORG=company1
 
+############## 被测系统为 DolphinDB 时扩展参数 ########
+# DolphinDB 的 DB_SWITCH 取值（写入方式由第三段指定）：
+#   DolphinDB-3-MTW / DolphinDB-2-MTW —— MultithreadedTableWriter，按行缓冲写入
+#   DolphinDB-3-PTA / DolphinDB-2-PTA —— PartitionedTableAppender，每个 batch 列式整表追加（经连接池路由分区）
+# 例：DB_SWITCH=DolphinDB-3-PTA
+# DFS HASH(deviceId) 分区桶数，默认 8
+# DOLPHINDB_DEVICE_HASH_BUCKETS=8
+
 ################### 操作时间配置 #########################
 # 时间戳间隔，即生成的数据两个时间戳之间的固定长度(如果定长生成)，非正常速率
 POINT_STEP=5000
 
-# 操作最小执行间隔：若当前操作耗时大于该间隔则马上执行下一个操作，否则等待 (OP_MIN_INTERVAL-实际执行时间) ms
+# 操作最小执行间隔（ms）：作用在每个 loop 结束后（一个 loop = 一个 operation）
+# 对于写入操作，一个 loop 会把该线程负责的所有设备都写一遍
+# 若 loop 耗时 < OP_MIN_INTERVAL，则等待剩余时间；若已超过则立即执行下一个 loop
 # 如果为0，则参数不生效；如果为-1，则其值和POINT_STEP一致
+#
+#   Thread-0:
+#   ┌── Loop 0 ─────────────────────────────┐
+#   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
+#   └───────────────────────────────────────┘
+#   ┌── Loop 1 ─────────────────────────────┐
+#   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
+#   └───────────────────────────────────────┘
+#
 OP_MIN_INTERVAL=0
 
 # 是否随机选取操作最小执行间隔：
@@ -228,40 +275,61 @@ OP_MIN_INTERVAL=0
 # 如果为false，每次操作最小执行间隔的取值为 OP_MIN_INTERVAL
 # OP_MIN_INTERVAL_RANDOM=false
 
+# 每次写入请求的最小执行间隔（ms）：作用在每个 batch 写入之后
+# 与 OP_MIN_INTERVAL 不同，该参数让写入负载在时间上分布更均匀
+# 若单次 batch 写入耗时 < INTERVAL_BETWEEN_WRITE_BATCH，则等待剩余时间；若已超过则立即执行下一次写入
+# 默认值为0，即不等待
+#
+#   Thread-0:
+#   ┌── Loop 0 ───────────────────────────────────────────────────────────────┐
+#   │ 写 D0 → 等待至间隔 → 写 D1 → 等待至间隔 → ... → 写 D(N/M-1) → 等待至间隔 │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+# 两个参数可同时生效：loop 内每个 batch 之间等待 INTERVAL_BETWEEN_WRITE_BATCH，
+# loop 结束后再等待 OP_MIN_INTERVAL
+#
+# INTERVAL_BETWEEN_WRITE_BATCH=0
+
 # 时间戳精度，均支持ms，只有IoTDB和InfluxDB支持us
-# TIMESTAMP_PRECISION=ms
+TIMESTAMP_PRECISION=ms
 
 #################### 数据相关参数 ########################
 # 字符串规定长度
-# STRING_LENGTH=2
+STRING_LENGTH=2
 
 # 浮点数小数位数
-# DOUBLE_LENGTH=2
+DOUBLE_LENGTH=2
 
-# 插入数据的数据类型的比例，BOOLEAN:INT32:INT64:FLOAT:DOUBLE:TEXT:STRING:BLOB:TIMESTAMP:DATE
-# INSERT_DATATYPE_PROPORTION=1:1:1:1:1:1:0:0:0:0
+# OBJECT长度
+# OBJECT_LENGTH=1000
+
+# 是否对OBJECT类型测点使用READ_OBJECT函数查询完整内容（返回类型为BLOB），开启后对Q1、Q2、Q3、Q9、Q10生效
+# OBJECT_QUERY_FULL_CONTENT=false
+
+# 插入数据的数据类型的比例，BOOLEAN:INT32:INT64:FLOAT:DOUBLE:TEXT:STRING:BLOB:TIMESTAMP:DATE:OBJECT
+INSERT_DATATYPE_PROPORTION=1:1:1:1:1:1:0:0:0:0
 
 ################ IoTDB相关元数据参数 #####################
 # 压缩方式 UNCOMPRESSED | SNAPPY | LZ4 (仅对IoTDB有效)
-# COMPRESSOR=LZ4
+COMPRESSOR=SNAPPY
 
 # BOOLEAN: PLAIN/RLE 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_BOOLEAN=RLE
+ENCODING_BOOLEAN=PLAIN
 
 # INT32: PLAIN/RLE/TS_2DIFF 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_INT32=TS_2DIFF
+ENCODING_INT32=PLAIN
 
 # INT64: PLAIN/RLE/TS_2DIFF 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_INT64=TS_2DIFF
+ENCODING_INT64=PLAIN
 
 # FLOAT: PLAIN/RLE/TS_2DIFF/GORILLA 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_FLOAT=GORILLA
+ENCODING_FLOAT=PLAIN
 
 # DOUBLE: PLAIN/RLE/TS_2DIFF/GORILLA 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_DOUBLE=GORILLA
+ENCODING_DOUBLE=PLAIN
 
 # TEXT: PLAIN/DICTIONARY 等，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
-# ENCODING_TEXT=DICTIONARY
+ENCODING_TEXT=PLAIN
 
 # STRING: PLAIN 暂不支持DICTIONARY，与对应 tsfile 版本中的 CompressionType 枚举类型保持一致
 # ENCODING_STRING=PLAIN
@@ -277,29 +345,29 @@ OP_MIN_INTERVAL=0
 ################ 真实数据集：测试数据 #####################
 # 如下两个参数，当且仅当BENCHMARK_MODE = verificationWriteMode 和 verificationQueryMode 时生效
 # 数据文件地址
-# FILE_PATH=data/test
+FILE_PATH=data/test
 
 # 每个数据文件包含的Batch个数
-# BIG_BATCH_SIZE=100
+BIG_BATCH_SIZE=100
 
 ############### 生成数据集：生成数据规律 ###################
 # 线性
-# LINE_RATIO=1
+LINE_RATIO=1
 
 # 傅里叶函数
-# SIN_RATIO=1
+SIN_RATIO=1
 
 # 方波
-# SQUARE_RATIO=1
+SQUARE_RATIO=1
 
 # 随机数
-# RANDOM_RATIO=1
+RANDOM_RATIO=1
 
 # 常数
-# CONSTANT_RATIO=1
+CONSTANT_RATIO=1
 
 # 数据生成随机数种子
-# DATA_SEED=666
+DATA_SEED=666
 
 ########################################################
 #################### 操作基本配置 ########################
@@ -319,14 +387,17 @@ OP_MIN_INTERVAL=0
 # Q9  倒序范围查询（只限制起止时间）select v1... from data where time > ? and time < ? and device in ? order by time desc
 # Q10 倒序带值过滤的范围查询 select v1... from data where time > ? and time < ? and v1 > ? and device in ? order by time desc
 # Q11 分组聚合查询，倒序；目前仅支持iotdb、tdengine-3.0、influxdb v1
-# IoTDB-2.0 表模型支持 Q1 Q2 Q3 Q9 Q10
+# Q12 集合操作查询，目前仅支持iotdb-2.0, 且仅支持表模型，集合操作中的每一个子集合都是范围查询 select v1... from data where time > ? and time < ? and device in ? union select v1... from data where time > ? and time < ?
 OPERATION_PROPORTION=0:0:1:0:0:0:0:0:0:0:0
 
 # 最长等待写时间，单位毫秒，即如果整个写操作在指定时间内没有返回，则终止此操作
-# WRITE_OPERATION_TIMEOUT_MS=120000
+WRITE_OPERATION_TIMEOUT_MS=120000
 
 # 最长等待读时间，单位毫秒，即如果整个读操作在指定时间内没有返回，则终止此操作
-# READ_OPERATION_TIMEOUT_MS=300000
+READ_OPERATION_TIMEOUT_MS=300000
+
+# 是否启用固定查询模式,所有查询线程使用相同的设备和传感器组合，生成一致的查询 SQL
+# ENABLE_FIXED_QUERY=true
 
 ################## 操作信息：写入参数 ###################
 # 每批每个设备写入数据行数，一行是某个设备所有传感器在某一时间戳的数据
@@ -334,10 +405,13 @@ OPERATION_PROPORTION=0:0:1:0:0:0:0:0:0:0:0
 BATCH_SIZE_PER_WRITE=100
 
 # 每批写入设备数，必须能整除每个client被分配到的设备数
-DEVICE_NUM_PER_WRITE=1
+# DEVICE_NUMBER / CLIENT_NUMBER 必须为 DEVICE_NUM_PER_WRITE 的倍数。
+# 表模型下,若想一个batch写入多个device数据，还需满足以下条件：
+# DEVICE_NUMBER / IoTDB_TABLE_NUMBER 必须为 DEVICE_NUM_PER_WRITE 的倍数；
+# DEVICE_NUM_PER_WRITE=1
 
 # 是否在写入数据前，创建SCHEMA
-# CREATE_SCHEMA=true
+CREATE_SCHEMA=true
 
 # 开始写入数据的时间戳
 START_TIME=2024-01-01T00:00:00+08:00
@@ -352,13 +426,13 @@ START_TIME=2024-01-01T00:00:00+08:00
 #   + d_0
 #       + *.csv 将第一列修改为如"Sensor,s_0,s_1,..."
 #   + schema.txt 每一行解释每个Sensor的Type,如"d_0 s_0 3\n d_0 s_1 4"
-# IS_COPY_MODE=false
+IS_COPY_MODE=false
 
-# IS_ADD_ANOMALY=false
+IS_ADD_ANOMALY=false
 
-# ANOMALY_RATE=0.2
+ANOMALY_RATE=0.2
 
-# ANOMALY_TIMES=2
+ANOMALY_TIMES=2
 
 ################## 操作信息：乱序写入 ###################
 # 是否乱序写入
@@ -367,19 +441,19 @@ IS_OUT_OF_ORDER=false
 # 乱序写入模式，目前如下2种
 # POISSON 按泊松分布的乱序模式
 # BATCH 批插入乱序模式
-# OUT_OF_ORDER_MODE=POISSON
+OUT_OF_ORDER_MODE=POISSON
 
 # 乱序写入的数据的比例
-# OUT_OF_ORDER_RATIO=0.5
+OUT_OF_ORDER_RATIO=0.5
 
 # 是否为等长时间戳
 IS_REGULAR_FREQUENCY=false
 
 # 泊松分布的期望和方差
-# LAMBDA=2200.0
+LAMBDA=2200.0
 
 # 泊松分布模型的随机数的最大值
-# MAX_K=170000
+MAX_K=170000
 
 ################ 操作信息：查询操作参数 ###################
 # 在读写混合的场景下，是否优先查询最近写入的数据
@@ -397,6 +471,12 @@ QUERY_DEVICE_NUM=1
 
 # 在聚集查询中使用的聚集函数，比如count
 QUERY_AGGREGATE_FUN=count
+
+# 指定集合查询的类型，包括 union, intersect, except, 可以加上 all或者distinct, 默认是union
+QUERY_SET_OP_TYPE=union
+
+# 集合查询中的子集合数量，必须大于等于2
+QUERY_SET_OP_NUM=2
 
 # 含起止时间的查询中开始时间与结束时间之间的时间间隔，和Group By中的时间间隔（单位按照精度决定）
 QUERY_INTERVAL=50000000
@@ -420,41 +500,41 @@ QUERY_SEED=151658
 
 ################ Workload：相关参数 ######################
 # workload的缓冲区的大小
-# WORKLOAD_BUFFER_SIZE=100
+WORKLOAD_BUFFER_SIZE=100
 
 ########################################################
 #################### 输出结果配置 ########################
 ########################################################
 # 结果持久化选择，支持None，IoTDB，MySQL和CSV
-# TEST_DATA_PERSISTENCE=None
+TEST_DATA_PERSISTENCE=None
 
 # 是否将结果划分后输出到多个记录, IoTDB 暂时不支持
-# RECORD_SPLIT=true
+RECORD_SPLIT=true
 
 # 记录行数的上限
-# RECORD_SPLIT_MAX_LINE=10000000
+RECORD_SPLIT_MAX_LINE=10000000
 
 ############## 输出结果：输出数据库参数 ####################
 # 数据库的IP地址
-# TEST_DATA_STORE_IP=127.0.0.1
+TEST_DATA_STORE_IP=127.0.0.1
 
 # 数据库的端口号
-# TEST_DATA_STORE_PORT=6667
+TEST_DATA_STORE_PORT=6667
 
 # 数据库的名称
-# TEST_DATA_STORE_DB=result
+TEST_DATA_STORE_DB=result
 
 # 数据库用户名
-# TEST_DATA_STORE_USER=root
+TEST_DATA_STORE_USER=root
 
 # 数据库用户密码
-# TEST_DATA_STORE_PW=root
+TEST_DATA_STORE_PW=root
 
 # 数据库写超时，单位毫秒
-# TEST_DATA_WRITE_TIME_OUT=300000
+TEST_DATA_WRITE_TIME_OUT=300000
 
 # 数据库写入并发池最多限制
-# TEST_DATA_MAX_CONNECTION=1
+TEST_DATA_MAX_CONNECTION=1
 
 # 对本次实验的备注，作为表名的一部分存入数据库(如MySQL)中，注意不要有.等特殊字符
 REMARK=Q2-2
@@ -469,9 +549,17 @@ CSV_OUTPUT=true
 
 ################# 输出结果：日志参数 ######################
 # 是否使用静默模式，静默模式会关闭部分日志输出
-# IS_QUIET_MODE=true
+IS_QUIET_MODE=true
 # 测试过程中测试进度日志的输出间隔，单位为秒
-# LOG_PRINT_INTERVAL=5
+LOG_PRINT_INTERVAL=5
 # 测试过程中当前测试结果日志的输出间隔，单位为秒
 # 设为0时，benchmark 仅在结束前输出一次测试结果日志
 RESULT_PRINT_INTERVAL=0
+
+
+################### Legacy active parameters kept for this scenario ###################
+NET_DEVICE=eth0
+IOTDB_DATA_DIR=/data/qa/apache-iotdb/data/data
+IOTDB_WAL_DIR=/data/qa/apache-iotdb/data/wal
+IOTDB_SYSTEM_DIR=/data/qa/apache-iotdb/data/system
+MONITOR_INTERVAL=0
