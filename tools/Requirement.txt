@@ -8,6 +8,7 @@ sudo yum clean all
 sudo yum makecache
 
 sudo yum install jq bc -y
+sudo yum install -y net-tools
 
 adduser atmos --home /data/atmos -g root
 passwd atmos
