@@ -9,6 +9,7 @@
 # -------------------- 基础环境变量 --------------------
 TEST_IP="11.101.17.154"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
+TIMECHO_LONGRUN_IP="11.101.17.154"
 IoTDB_PW=TimechoDB@2021
 test_type=longrun_test
 
@@ -64,6 +65,23 @@ function check_benchmark_version() {
         cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE}
 		rm -rf ${BM_PATH_TABLE}
         cp -rf ${BM_REPOS_PATH} ${BM_PATH_TABLE}
+    fi
+}
+
+function init_longrun_route() {
+    local local_ip
+    local_ip=$(
+        {
+            hostname -I 2>/dev/null
+            ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:"
+        } | tr ' ' '\n' | grep -v '^$'
+    )
+
+    if echo "${local_ip}" | grep -Fxq "${TIMECHO_LONGRUN_IP}"; then
+        AUTHOR_FILTER="author = 'Timecho'"
+        TABLENAME=${TABLENAME_T}
+    else
+        AUTHOR_FILTER="author != 'Timecho'"
     fi
 }
 
@@ -329,15 +347,16 @@ function test_operation() {
 # -------------------- 主流程 --------------------
 check_password
 check_benchmark_version
+init_longrun_route
 
 echo "ontesting" > ${INIT_PATH}/test_type_file
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' and author != 'Timecho' ORDER BY commit_date_time desc limit 1 "
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' and ${AUTHOR_FILTER} ORDER BY commit_date_time desc limit 1 "
 result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 if [ -z "${commit_id}" ]; then
-    query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL and author != 'Timecho' ORDER BY commit_date_time desc limit 1 "
+    query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL and ${AUTHOR_FILTER} ORDER BY commit_date_time desc limit 1 "
     result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
     commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
     author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -350,19 +369,12 @@ else
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
     echo "当前版本${commit_id}未执行过测试，即将编译后启动"
     init_items
-	if [ "${author}" != "Timecho" ]; then
-		TABLENAME=${TABLENAME}
-	else
-		TABLENAME=${TABLENAME_T}
-	fi
     test_date_time=$(date +%Y%m%d%H%M%S)
 	test_operation 223
     echo "本轮测试${test_date_time}已结束."
     update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
-    update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
-	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
-	fi
+    update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and ${AUTHOR_FILTER} and commit_date_time < '${commit_date_time}'"
+    result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
 fi
 echo "${test_type}" > ${INIT_PATH}/test_type_file
