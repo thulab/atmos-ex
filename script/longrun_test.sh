@@ -20,6 +20,7 @@ BM_PATH=${INIT_PATH}/iot-benchmark_tree
 BM_PATH_TREE=${INIT_PATH}/iot-benchmark_tree
 BM_PATH_TABLE=${INIT_PATH}/iot-benchmark_table
 BUCKUP_PATH=/nasdata/repository/longrun_test
+BUCKUP_DATA_PATH=/data/atmos/zk_test
 REPOS_PATH=/nasdata/repository/master
 
 # -------------------- 测试数据路径 --------------------
@@ -125,7 +126,7 @@ function set_env() {
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
     cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
     cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
-	[ -d "${BUCKUP_PATH}/data" ] && sudo mv ${BUCKUP_PATH}/data ${TEST_IOTDB_PATH}/
+	[ -d "${BUCKUP_DATA_PATH}/data" ] && sudo mv ${BUCKUP_DATA_PATH}/data ${TEST_IOTDB_PATH}/
 }
 
 function modify_iotdb_config() {
@@ -189,19 +190,31 @@ function start_benchmark() {
     cd ~/
 }
 function monitor_test_status() {
+    local csvOutput_tree=${BM_PATH_TREE}/data/csvOutput
+    local csvOutput_table=${BM_PATH_TABLE}/data/csvOutput
+
     while true; do
-        csvOutput=${BM_PATH_TREE}/data/csvOutput
-        if [ ! -d "$csvOutput" ]; then
+        if [ ! -d "$csvOutput_tree" ] || [ ! -d "$csvOutput_table" ]; then
             now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
             t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
             if [ $t_time -ge 72000 ]; then
                 echo "测试失败"
-                mkdir -p ${BM_PATH_TREE}/data/csvOutput
-                cd ${BM_PATH_TREE}/data/csvOutput
-                touch Stuck_result.csv
-                for ((i=0;i<100;i++)); do
-                    echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
-                done
+                if [ ! -d "$csvOutput_tree" ]; then
+                    mkdir -p "$csvOutput_tree"
+                    cd "$csvOutput_tree"
+                    touch Stuck_result.csv
+                    for ((i=0;i<100;i++)); do
+                        echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
+                    done
+                fi
+                if [ ! -d "$csvOutput_table" ]; then
+                    mkdir -p "$csvOutput_table"
+                    cd "$csvOutput_table"
+                    touch Stuck_result.csv
+                    for ((i=0;i<100;i++)); do
+                        echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
+                    done
+                fi
                 cd ~
                 break
             fi
@@ -340,8 +353,8 @@ function test_operation() {
     sleep 30
     check_benchmark_pid
     check_iotdb_pid
-    sudo rm -rf ${BUCKUP_PATH}/data
-    sudo mv ${TEST_IOTDB_PATH}/data ${BUCKUP_PATH}
+    sudo rm -rf ${BUCKUP_DATA_PATH}/data
+    sudo mv ${TEST_IOTDB_PATH}/data ${BUCKUP_DATA_PATH}
     backup_test_data ${ts_type}
 }
 
