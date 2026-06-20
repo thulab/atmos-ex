@@ -177,15 +177,28 @@ function stop_iotdb() {
     cd ~/
 }
 
+function update_benchmark_start_time() {
+    local benchmark_path=$1
+    local config_file=${benchmark_path}/conf/config.properties
+    local benchmark_start_time
+
+    benchmark_start_time=$(date '+%Y-%m-%dT%H:%M:%S%:z')
+    if [ -f "${config_file}" ]; then
+        sed -i "s|^START_TIME=.*$|START_TIME=${benchmark_start_time}|g" "${config_file}"
+    fi
+}
+
 function start_benchmark() {
     cd ${BM_PATH_TREE}
     [ -d "${BM_PATH_TREE}/logs" ] && rm -rf ${BM_PATH_TREE}/logs
     [ -d "${BM_PATH_TREE}/data" ] && rm -rf ${BM_PATH_TREE}/data
+    update_benchmark_start_time ${BM_PATH_TREE}
     ${BM_PATH_TREE}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
     cd ${BM_PATH_TABLE}
     [ -d "${BM_PATH_TABLE}/logs" ] && rm -rf ${BM_PATH_TABLE}/logs
     [ -d "${BM_PATH_TABLE}/data" ] && rm -rf ${BM_PATH_TABLE}/data
+    update_benchmark_start_time ${BM_PATH_TABLE}
     ${BM_PATH_TABLE}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
 }
