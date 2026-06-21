@@ -19,6 +19,8 @@ ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark_tree
 BM_PATH_TREE=${INIT_PATH}/iot-benchmark_tree
 BM_PATH_TABLE=${INIT_PATH}/iot-benchmark_table
+BM_PATH_TREE_QUERY=${INIT_PATH}/iot-benchmark_tree_query
+BM_PATH_TABLE_QUERY=${INIT_PATH}/iot-benchmark_table_query
 BUCKUP_PATH=/nasdata/repository/longrun_test
 BUCKUP_DATA_PATH=/data/atmos/zk_test
 REPOS_PATH=/nasdata/repository/master
@@ -35,8 +37,8 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(223)
 ts_list=(aligned tablemode)
 insert_list=(unseq_rw)
-op_type_csv=(INGESTION, PRECISE_POINT, TIME_RANGE, VALUE_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC, GROUP_BY_DESC)
-op_type_name=(INGESTION PRECISE_POINT TIME_RANGE VALUE_RANGE AGG_RANGE AGG_VALUE AGG_RANGE_VALUE GROUP_BY LATEST_POINT RANGE_QUERY_DESC VALUE_RANGE_QUERY_DESC GROUP_BY_DESC)
+op_type_csv=(PRECISE_POINT, TIME_RANGE, VALUE_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC, GROUP_BY_DESC, VERIFICATION_QUERY, DEVICE_QUERY, SET_OPERATION,)
+op_type_name=(PRECISE_POINT TIME_RANGE VALUE_RANGE AGG_RANGE AGG_VALUE AGG_RANGE_VALUE GROUP_BY LATEST_POINT RANGE_QUERY_DESC VALUE_RANGE_QUERY_DESC GROUP_BY_DESC VERIFICATION_QUERY DEVICE_QUERY SET_OPERATION)
 # -------------------- MySQL 配置信息 --------------------
 MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
 PORT="13306"                     # 端口
@@ -66,6 +68,10 @@ function check_benchmark_version() {
         cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE}
 		rm -rf ${BM_PATH_TABLE}
         cp -rf ${BM_REPOS_PATH} ${BM_PATH_TABLE}
+        rm -rf ${BM_PATH_TREE_QUERY}
+        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE_QUERY}
+		rm -rf ${BM_PATH_TABLE_QUERY}
+        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TABLE_QUERY}
     fi
 }
 
@@ -201,13 +207,27 @@ function start_benchmark() {
     update_benchmark_start_time ${BM_PATH_TABLE}
     ${BM_PATH_TABLE}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
+    cd ${BM_PATH_TREE_QUERY}
+    [ -d "${BM_PATH_TREE_QUERY}/logs" ] && rm -rf ${BM_PATH_TREE_QUERY}/logs
+    [ -d "${BM_PATH_TREE_QUERY}/data" ] && rm -rf ${BM_PATH_TREE_QUERY}/data
+    update_benchmark_start_time ${BM_PATH_TREE_QUERY}
+    ${BM_PATH_TREE_QUERY}/benchmark.sh >/dev/null 2>&1 &
+    cd ~/
+    cd ${BM_PATH_TABLE_QUERY}
+    [ -d "${BM_PATH_TABLE_QUERY}/logs" ] && rm -rf ${BM_PATH_TABLE_QUERY}/logs
+    [ -d "${BM_PATH_TABLE_QUERY}/data" ] && rm -rf ${BM_PATH_TABLE_QUERY}/data
+    update_benchmark_start_time ${BM_PATH_TABLE_QUERY}
+    ${BM_PATH_TABLE_QUERY}/benchmark.sh >/dev/null 2>&1 &
+    cd ~/
 }
 function monitor_test_status() {
     local csvOutput_tree=${BM_PATH_TREE}/data/csvOutput
     local csvOutput_table=${BM_PATH_TABLE}/data/csvOutput
+    local csvOutput_tree_query=${BM_PATH_TREE_QUERY}/data/csvOutput
+    local csvOutput_table_query=${BM_PATH_TABLE_QUERY}/data/csvOutput
 
     while true; do
-        if [ ! -d "$csvOutput_tree" ] || [ ! -d "$csvOutput_table" ]; then
+        if [ ! -d "$csvOutput_tree" ] || [ ! -d "$csvOutput_table" ] || [ ! -d "$csvOutput_tree_query" ] || [ ! -d "$csvOutput_table_query" ]; then
             now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
             t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
             if [ $t_time -ge 72000 ]; then
@@ -293,6 +313,10 @@ function mv_config_file() {
     cp -rf ${ATMOS_PATH}/conf/${test_type}/aligned ${BM_PATH_TREE}/conf/config.properties
 	rm -rf ${BM_PATH_TABLE}/conf/config.properties
     cp -rf ${ATMOS_PATH}/conf/${test_type}/tablemode ${BM_PATH_TABLE}/conf/config.properties
+    rm -rf ${BM_PATH_TREE_QUERY}/conf/config.properties
+    cp -rf ${ATMOS_PATH}/conf/${test_type}/aligned_query ${BM_PATH_TREE_QUERY}/conf/config.properties
+	rm -rf ${BM_PATH_TABLE_QUERY}/conf/config.properties
+    cp -rf ${ATMOS_PATH}/conf/${test_type}/tablemode_query ${BM_PATH_TABLE_QUERY}/conf/config.properties
 }
 
 function test_operation() {
@@ -344,6 +368,22 @@ function test_operation() {
 	####收集树模型写入吞吐添加到数据库
     csvOutputfile=${BM_PATH_TREE}/data/csvOutput/*result.csv
 	local ts_type='tree'
+    read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
+    read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
+    local op_type='INGESTION'
+    insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
+    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+	####收集表模型写入吞吐添加到数据库
+    csvOutputfile=${BM_PATH_TABLE}/data/csvOutput/*result.csv
+	local ts_type='table'
+    read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
+    read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
+    local op_type='INGESTION'
+    insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
+    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+    ####收集树模型查询吞吐添加到数据库
+    csvOutputfile=${BM_PATH_TREE_QUERY}/data/csvOutput/*result.csv
+	local ts_type='tree'
 	for (( i = 0; i < ${#op_type_csv[*]}; i++ ))
 	do
 		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${op_type_csv[${i}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
@@ -352,8 +392,8 @@ function test_operation() {
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
         mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	done
-	####收集表模型写入吞吐添加到数据库
-    csvOutputfile=${BM_PATH_TABLE}/data/csvOutput/*result.csv
+	####收集表模型查询吞吐添加到数据库
+    csvOutputfile=${BM_PATH_TABLE_QUERY}/data/csvOutput/*result.csv
 	local ts_type='table'
 	for (( i = 0; i < ${#op_type_csv[*]}; i++ ))
 	do

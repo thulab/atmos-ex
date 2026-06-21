@@ -54,7 +54,7 @@ IS_DELETE_DATA=false
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=864000
+LOOP=300
 
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
@@ -67,7 +67,7 @@ LOOP=864000
 # 对数据写入，最大误差约为WRITE_OPERATION_TIMEOUT_MS
 # 对数据查询，最大误差约为READ_OPERATION_TIMEOUT_MS
 # 此参数不限制预先注册元数据的耗时
-TEST_MAX_TIME=21600000
+# TEST_MAX_TIME=0
 
 # 是否启动Benchmark统计模块
 # USE_MEASUREMENT=true
@@ -79,7 +79,7 @@ TEST_MAX_TIME=21600000
 # ENABLE_AUTO_FETCH=false
 
 # 测点数据写入时间为当前系统时间
-IS_RECORD_CURRENT_REALLY_TIME=true
+# IS_RECORD_CURRENT_REALLY_TIME=false
 
 # 是否开启SSL。
 # USE_SSL=false
@@ -182,7 +182,7 @@ SCHEMA_CLIENT_NUMBER=10
 
 # data 客户端总数, data_client 负责读写数据
 # iotdb表模型下，client数为table数的整数倍
-DATA_CLIENT_NUMBER=10
+DATA_CLIENT_NUMBER=1
 
 ############## 被测系统为IoTDB时扩展参数 ##################
 # 是否使用thrift压缩，需要在iotdb的配置文件iotdb-datanode.properties中设置dn_rpc_thrift_compression_enable=true
@@ -268,7 +268,7 @@ POINT_STEP=1000
 #   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
 #   └───────────────────────────────────────┘
 #
-# OP_MIN_INTERVAL=0
+OP_MIN_INTERVAL=60000
 
 # 是否随机选取操作最小执行间隔：
 # 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
@@ -388,7 +388,7 @@ POINT_STEP=1000
 # Q10 倒序带值过滤的范围查询 select v1... from data where time > ? and time < ? and v1 > ? and device in ? order by time desc
 # Q11 分组聚合查询，倒序；目前仅支持iotdb、tdengine-3.0、influxdb v1
 # Q12 集合操作查询，目前仅支持iotdb-2.0, 且仅支持表模型，集合操作中的每一个子集合都是范围查询 select v1... from data where time > ? and time < ? and device in ? union select v1... from data where time > ? and time < ?
-OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0:0
+OPERATION_PROPORTION=0:1:1:1:1:1:1:1:1:1:1:1:1
 
 # 最长等待写时间，单位毫秒，即如果整个写操作在指定时间内没有返回，则终止此操作
 # WRITE_OPERATION_TIMEOUT_MS=120000
