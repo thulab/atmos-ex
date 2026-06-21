@@ -64,6 +64,8 @@ function check_benchmark_version() {
     BM_NEW=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_REPOS_PATH}/git.properties)
     BM_OLD=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_PATH}/git.properties 2>/dev/null)
     if [ -n "${BM_OLD}" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
+        rm -rf ${BM_PATH}
+        cp -rf ${BM_REPOS_PATH} ${BM_PATH}
         rm -rf ${BM_PATH_TREE}
         cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE}
 		rm -rf ${BM_PATH_TABLE}
