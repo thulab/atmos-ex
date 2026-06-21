@@ -80,10 +80,8 @@ else
     readonly -a QUERY_DATA_TYPES=(
         seq_common
         seq_aligned
-        seq_tempaligned
         unseq_common
         unseq_aligned
-        unseq_tempaligned
     )
 fi
 
