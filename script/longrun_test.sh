@@ -343,6 +343,12 @@ function test_operation() {
     sleep 10
     for (( t_wait = 0; t_wait <= 10; t_wait++ )); do
         iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
+        if [ "${iotdb_state}" != "Total line number = 2" ]; then
+            iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -pw root -e "show cluster" | grep 'Total line number = 2')
+        fi
+        if [ "${iotdb_state}" != "Total line number = 2" ]; then
+            iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -pw TimechoDB@2021 -e "show cluster" | grep 'Total line number = 2')
+        fi
         [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 5
     done
     if [ "${iotdb_state}" != "Total line number = 2" ]; then
