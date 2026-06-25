@@ -11,6 +11,7 @@ TEST_IP="11.101.17.154"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
 TIMECHO_LONGRUN_IP="11.101.17.154"
 IoTDB_PW=TimechoDB@2021
+DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
 test_type=longrun_test
 
 # -------------------- 路径相关变量 --------------------
@@ -295,10 +296,12 @@ function update_benchmark_start_time() {
     timestamp_precision=$(get_iotdb_timestamp_precision)
 
     if echo "${last_sensor_time}" | grep -Eq '^[0-9]+$'; then
-        benchmark_start_time=$(format_benchmark_start_time "${last_sensor_time}" "${timestamp_precision}")
-    else
-        benchmark_start_time=$(date '+%Y-%m-%dT%H:%M:%S%:z')
-        echo "query last s_0 timestamp failed for ${config_file}, fallback to current time ${benchmark_start_time}"
+        benchmark_start_time=$(format_benchmark_start_time "${last_sensor_time}" "${timestamp_precision}" 2>/dev/null)
+    fi
+
+    if [ -z "${benchmark_start_time}" ]; then
+        benchmark_start_time=${DEFAULT_BENCHMARK_START_TIME}
+        echo "query last s_0 timestamp failed or returned invalid time for ${config_file}, fallback to ${benchmark_start_time}"
     fi
 
     sed -i "s|^START_TIME=.*$|START_TIME=${benchmark_start_time}|g" "${config_file}"
