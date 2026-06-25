@@ -185,15 +185,123 @@ function stop_iotdb() {
     cd ~/
 }
 
+function get_benchmark_config_value() {
+    local config_file=$1
+    local config_key=$2
+
+    awk -F= -v key="${config_key}" '
+        /^[[:space:]]*#/ { next }
+        $1 == key {
+            print substr($0, index($0, "=") + 1)
+            exit
+        }
+    ' "${config_file}"
+}
+
+function get_benchmark_config_value_or_default() {
+    local config_file=$1
+    local config_key=$2
+    local default_value=$3
+    local config_value
+
+    config_value=$(get_benchmark_config_value "${config_file}" "${config_key}")
+    if [ -n "${config_value}" ]; then
+        echo "${config_value}"
+    else
+        echo "${default_value}"
+    fi
+}
+
+function get_iotdb_timestamp_precision() {
+    local properties_file=${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    local timestamp_precision
+
+    if [ -f "${properties_file}" ]; then
+        timestamp_precision=$(awk -F= '
+            /^[[:space:]]*#/ { next }
+            $1 == "timestamp_precision" {
+                value = $2
+            }
+            END {
+                print value
+            }
+        ' "${properties_file}" | tr -d '[:space:]')
+    fi
+
+    if [ -z "${timestamp_precision}" ]; then
+        timestamp_precision=ms
+    fi
+    echo "${timestamp_precision}"
+}
+
+function query_last_sensor_time() {
+    local config_file=$1
+    local dialect_mode
+    local db_name
+    local group_name_prefix
+    local table_name_prefix
+    local device_name_prefix
+    local sensor_name_prefix
+    local sensor_name
+    local query_sql
+    local query_result
+
+    dialect_mode=$(get_benchmark_config_value_or_default "${config_file}" "IoTDB_DIALECT_MODE" "tree")
+    db_name=$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")
+    group_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")
+    table_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "IoTDB_TABLE_NAME_PREFIX" "table_")
+    device_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")
+    sensor_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")
+    sensor_name=${sensor_name_prefix}0
+
+    if [ "${dialect_mode}" = "table" ]; then
+        query_sql="select max_time(${sensor_name}) from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0'"
+        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
+    else
+        query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
+        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
+    fi
+
+    echo "${query_result}"
+}
+
+function format_benchmark_start_time() {
+    local raw_timestamp=$1
+    local timestamp_precision=$2
+    local benchmark_start_epoch
+
+    case "${timestamp_precision}" in
+        ns) benchmark_start_epoch=$((raw_timestamp / 1000000000 + 3600)) ;;
+        us) benchmark_start_epoch=$((raw_timestamp / 1000000 + 3600)) ;;
+        s) benchmark_start_epoch=$((raw_timestamp + 3600)) ;;
+        ms|*) benchmark_start_epoch=$((raw_timestamp / 1000 + 3600)) ;;
+    esac
+
+    date -d "@${benchmark_start_epoch}" '+%Y-%m-%dT%H:%M:%S%:z'
+}
+
 function update_benchmark_start_time() {
     local benchmark_path=$1
     local config_file=${benchmark_path}/conf/config.properties
     local benchmark_start_time
+    local last_sensor_time
+    local timestamp_precision
 
-    benchmark_start_time=$(date '+%Y-%m-%dT%H:%M:%S%:z')
-    if [ -f "${config_file}" ]; then
-        sed -i "s|^START_TIME=.*$|START_TIME=${benchmark_start_time}|g" "${config_file}"
+    if [ ! -f "${config_file}" ]; then
+        return
     fi
+
+    last_sensor_time=$(query_last_sensor_time "${config_file}")
+    timestamp_precision=$(get_iotdb_timestamp_precision)
+
+    if echo "${last_sensor_time}" | grep -Eq '^[0-9]+$'; then
+        benchmark_start_time=$(format_benchmark_start_time "${last_sensor_time}" "${timestamp_precision}")
+    else
+        benchmark_start_time=$(date '+%Y-%m-%dT%H:%M:%S%:z')
+        echo "query last s_0 timestamp failed for ${config_file}, fallback to current time ${benchmark_start_time}"
+    fi
+
+    sed -i "s|^START_TIME=.*$|START_TIME=${benchmark_start_time}|g" "${config_file}"
 }
 
 function start_benchmark() {
