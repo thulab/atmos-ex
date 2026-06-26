@@ -255,13 +255,13 @@ function query_last_sensor_time() {
     sensor_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")
     sensor_name=${sensor_name_prefix}0
 
-    if [ "${dialect_mode}" = "table" ]; then
-        query_sql="select max_time(${sensor_name}) from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0'"
-        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
-    else
+#    if [ "${dialect_mode}" = "table" ]; then
+#        query_sql="select max_time(${sensor_name}) from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0'"
+#        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
+#    else
         query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
         query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
-    fi
+#    fi
 
     echo "${query_result}"
 }
