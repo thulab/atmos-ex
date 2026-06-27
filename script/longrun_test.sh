@@ -11,7 +11,7 @@ TEST_IP="11.101.17.154"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
 TIMECHO_LONGRUN_IP="11.101.17.154"
 IoTDB_PW=TimechoDB@2021
-DEFAULT_QUERY_MAX_TIME="2020-12-31T23:00:00+08:00"
+DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
 DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
 test_type=longrun_test
 
@@ -104,6 +104,8 @@ function init_items() {
     numOfSe0Level=0; start_time=0; end_time=0; cost_time=0; numOfUnse0Level=0; dataFileSize=0
     maxNumofOpenFiles=0; maxNumofThread=0; errorLogSize=0; walFileSize=0; maxCPULoad=0; avgCPULoad=0
     maxDiskIOOpsRead=0; maxDiskIOOpsWrite=0; maxDiskIOSizeRead=0; maxDiskIOSizeWrite=0
+    TREE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
+    TABLE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
     QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
 }
 
@@ -243,6 +245,7 @@ function query_last_sensor_time() {
     local db_name
     local group_name_prefix
     local table_name_prefix
+    local table_time_column
     local device_name_prefix
     local sensor_name_prefix
     local sensor_name
@@ -253,17 +256,18 @@ function query_last_sensor_time() {
     db_name=$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")
     group_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")
     table_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "IoTDB_TABLE_NAME_PREFIX" "table_")
+    table_time_column=$(get_benchmark_config_value_or_default "${config_file}" "TABLE_TIME_COLUMN" "time")
     device_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")
     sensor_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")
     sensor_name=${sensor_name_prefix}0
 
-#    if [ "${dialect_mode}" = "table" ]; then
-#        query_sql="select max_time(${sensor_name}) from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0'"
-#        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
-#    else
+    if [ "${dialect_mode}" = "table" ]; then
+        query_sql="select ${table_time_column} from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0' and ${sensor_name} is not null order by ${table_time_column} desc limit 1"
+        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
+    else
         query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
-        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | sed -n '4p' | sed 's/|//g' | sed 's/[[:space:]]//g')
-#    fi
+        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
+    fi
 
     echo "${query_result}"
 }
@@ -272,16 +276,22 @@ function format_iotdb_time() {
     local raw_timestamp=$1
     local timestamp_precision=$2
     local offset_seconds=${3:-0}
+    local output_format=${4:-'+%Y-%m-%dT%H:%M:%S%:z'}
     local target_epoch
 
-    case "${timestamp_precision}" in
-        ns) target_epoch=$((raw_timestamp / 1000000000 + offset_seconds)) ;;
-        us) target_epoch=$((raw_timestamp / 1000000 + offset_seconds)) ;;
-        s) target_epoch=$((raw_timestamp + offset_seconds)) ;;
-        ms|*) target_epoch=$((raw_timestamp / 1000 + offset_seconds)) ;;
-    esac
+    if echo "${raw_timestamp}" | grep -Eq '^[0-9]+$'; then
+        case "${timestamp_precision}" in
+            ns) target_epoch=$((raw_timestamp / 1000000000 + offset_seconds)) ;;
+            us) target_epoch=$((raw_timestamp / 1000000 + offset_seconds)) ;;
+            s) target_epoch=$((raw_timestamp + offset_seconds)) ;;
+            ms|*) target_epoch=$((raw_timestamp / 1000 + offset_seconds)) ;;
+        esac
+    else
+        target_epoch=$(date -d "${raw_timestamp}" +%s 2>/dev/null) || return 1
+        target_epoch=$((target_epoch + offset_seconds))
+    fi
 
-    date -d "@${target_epoch}" '+%Y-%m-%dT%H:%M:%S%:z'
+    date -d "@${target_epoch}" "${output_format}"
 }
 
 function set_result_max_time() {
@@ -290,13 +300,20 @@ function set_result_max_time() {
 
     case "${benchmark_path}" in
         "${BM_PATH_TREE}"|"${BM_PATH_TREE_QUERY}")
+            TREE_QUERY_MAX_TIME=${formatted_max_time}
             QUERY_MAX_TIME=${formatted_max_time}
+            ;;
+        "${BM_PATH_TABLE}"|"${BM_PATH_TABLE_QUERY}")
+            TABLE_QUERY_MAX_TIME=${formatted_max_time}
             ;;
     esac
 }
 
 function get_result_max_time() {
-    echo "${QUERY_MAX_TIME}"
+    case "$1" in
+        table) echo "${TABLE_QUERY_MAX_TIME}" ;;
+        tree|*) echo "${TREE_QUERY_MAX_TIME}" ;;
+    esac
 }
 
 function update_benchmark_start_time() {
@@ -314,8 +331,8 @@ function update_benchmark_start_time() {
     last_sensor_time=$(query_last_sensor_time "${config_file}")
     timestamp_precision=$(get_iotdb_timestamp_precision)
 
-    if echo "${last_sensor_time}" | grep -Eq '^[0-9]+$'; then
-        formatted_max_time=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 2>/dev/null)
+    if [ -n "${last_sensor_time}" ]; then
+        formatted_max_time=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
         benchmark_start_time=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>/dev/null)
     fi
 
