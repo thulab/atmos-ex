@@ -107,6 +107,7 @@ function init_items() {
     TREE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
     TABLE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
     QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
+    BENCHMARK_START_TIME=${DEFAULT_BENCHMARK_START_TIME}
 }
 
 function sendEmail() {
@@ -241,33 +242,22 @@ function get_iotdb_timestamp_precision() {
 
 function query_last_sensor_time() {
     local config_file=$1
-    local dialect_mode
     local db_name
     local group_name_prefix
-    local table_name_prefix
-    local table_time_column
     local device_name_prefix
     local sensor_name_prefix
     local sensor_name
     local query_sql
     local query_result
 
-    dialect_mode=$(get_benchmark_config_value_or_default "${config_file}" "IoTDB_DIALECT_MODE" "tree")
     db_name=$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")
     group_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")
-    table_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "IoTDB_TABLE_NAME_PREFIX" "table_")
-    table_time_column=$(get_benchmark_config_value_or_default "${config_file}" "TABLE_TIME_COLUMN" "time")
     device_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")
     sensor_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")
     sensor_name=${sensor_name_prefix}0
 
-    if [ "${dialect_mode}" = "table" ]; then
-        query_sql="select ${table_time_column} from ${db_name}_${group_name_prefix}0.${table_name_prefix}0 where device_id = '${device_name_prefix}0' and ${sensor_name} is not null order by ${table_time_column} desc limit 1"
-        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect table -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
-    else
-        query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
-        query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
-    fi
+    query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
+    query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
 
     echo "${query_result}"
 }
@@ -299,12 +289,10 @@ function set_result_max_time() {
     local formatted_max_time=$2
 
     case "${benchmark_path}" in
-        "${BM_PATH_TREE}"|"${BM_PATH_TREE_QUERY}")
+        "${BM_PATH_TREE}"|"${BM_PATH_TREE_QUERY}"|"${BM_PATH_TABLE}"|"${BM_PATH_TABLE_QUERY}")
             TREE_QUERY_MAX_TIME=${formatted_max_time}
-            QUERY_MAX_TIME=${formatted_max_time}
-            ;;
-        "${BM_PATH_TABLE}"|"${BM_PATH_TABLE_QUERY}")
             TABLE_QUERY_MAX_TIME=${formatted_max_time}
+            QUERY_MAX_TIME=${formatted_max_time}
             ;;
     esac
 }
@@ -346,7 +334,19 @@ function update_benchmark_start_time() {
     fi
 
     set_result_max_time "${benchmark_path}" "${formatted_max_time}"
-    sed -i "s|^START_TIME=.*$|START_TIME=${benchmark_start_time}|g" "${config_file}"
+    BENCHMARK_START_TIME=${benchmark_start_time}
+    sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
+}
+
+function apply_benchmark_start_time() {
+    local benchmark_path=$1
+    local config_file=${benchmark_path}/conf/config.properties
+
+    if [ ! -f "${config_file}" ]; then
+        return
+    fi
+
+    sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
 }
 
 function start_benchmark() {
@@ -359,19 +359,19 @@ function start_benchmark() {
     cd ${BM_PATH_TABLE}
     [ -d "${BM_PATH_TABLE}/logs" ] && rm -rf ${BM_PATH_TABLE}/logs
     [ -d "${BM_PATH_TABLE}/data" ] && rm -rf ${BM_PATH_TABLE}/data
-    update_benchmark_start_time ${BM_PATH_TABLE}
+    apply_benchmark_start_time ${BM_PATH_TABLE}
     ${BM_PATH_TABLE}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
     cd ${BM_PATH_TREE_QUERY}
     [ -d "${BM_PATH_TREE_QUERY}/logs" ] && rm -rf ${BM_PATH_TREE_QUERY}/logs
     [ -d "${BM_PATH_TREE_QUERY}/data" ] && rm -rf ${BM_PATH_TREE_QUERY}/data
-    update_benchmark_start_time ${BM_PATH_TREE_QUERY}
+    apply_benchmark_start_time ${BM_PATH_TREE_QUERY}
     ${BM_PATH_TREE_QUERY}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
     cd ${BM_PATH_TABLE_QUERY}
     [ -d "${BM_PATH_TABLE_QUERY}/logs" ] && rm -rf ${BM_PATH_TABLE_QUERY}/logs
     [ -d "${BM_PATH_TABLE_QUERY}/data" ] && rm -rf ${BM_PATH_TABLE_QUERY}/data
-    update_benchmark_start_time ${BM_PATH_TABLE_QUERY}
+    apply_benchmark_start_time ${BM_PATH_TABLE_QUERY}
     ${BM_PATH_TABLE_QUERY}/benchmark.sh >/dev/null 2>&1 &
     cd ~/
 }
