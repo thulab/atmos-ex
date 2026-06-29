@@ -7,9 +7,9 @@
 # ------------------------------------------------------------------------------
 
 # -------------------- 基础环境变量 --------------------
-TEST_IP="11.101.17.154"           # 测试服务器IP
+TEST_IP="11.101.17.112"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
-TIMECHO_LONGRUN_IP="11.101.17.154"
+TIMECHO_LONGRUN_IP="11.101.17.112"
 IoTDB_PW=TimechoDB@2021
 DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
 DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
@@ -24,12 +24,15 @@ BM_PATH_TABLE=${INIT_PATH}/iot-benchmark_table
 BM_PATH_TREE_QUERY=${INIT_PATH}/iot-benchmark_tree_query
 BM_PATH_TABLE_QUERY=${INIT_PATH}/iot-benchmark_table_query
 BUCKUP_PATH=/nasdata/repository/longrun_test
-BUCKUP_DATA_PATH=/data/atmos/zk_test
 REPOS_PATH=/nasdata/repository/master
 
 # -------------------- 测试数据路径 --------------------
 TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
+IOTDB_HDD_DATA_DIR=/data/data_dir
+IOTDB_SSD_DATA_DIR=/ssd_dcpmm/data_dir
+IOTDB_DATA_DIRS=${IOTDB_HDD_DATA_DIR},${IOTDB_SSD_DATA_DIR}
+IOTDB_CONF_DIR=/ssd_dcpmm/conf_dir
 
 # -------------------- 协议相关变量 --------------------
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
@@ -140,12 +143,12 @@ function set_env() {
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
     cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
     cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
-	[ -d "${BUCKUP_DATA_PATH}/data" ] && sudo mv ${BUCKUP_DATA_PATH}/data ${TEST_IOTDB_PATH}/
+    mkdir -p ${IOTDB_HDD_DATA_DIR} ${IOTDB_SSD_DATA_DIR} ${IOTDB_CONF_DIR}
 }
 
 function modify_iotdb_config() {
     #修改IoTDB的配置
-    sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
+    sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"50G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
     #清空配置文件
     # echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
     #关闭影响写入性能的其他功能
@@ -154,6 +157,20 @@ function modify_iotdb_config() {
     echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
     #修改集群名称
     echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "cn_system_dir=${IOTDB_CONF_DIR}/confignode/system" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "cn_pipe_receiver_file_dir=${IOTDB_CONF_DIR}/confignode/system/pipe/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_system_dir=${IOTDB_SSD_DATA_DIR}/datanode/system" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_data_dirs=${IOTDB_DATA_DIRS}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_consensus_dir=${IOTDB_SSD_DATA_DIR}/datanode/consensus" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_wal_dirs=${IOTDB_SSD_DATA_DIR}/datanode/wal" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_tracing_dir=${IOTDB_SSD_DATA_DIR}/datanode/tracing" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_sync_dir=${IOTDB_SSD_DATA_DIR}/datanode/sync" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "sort_tmp_dir=${IOTDB_SSD_DATA_DIR}/datanode/tmp" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "dn_pipe_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "iot_consensus_v2_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "iot_consensus_v2_deletion_file_dir=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/deletion" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    echo "remote_tsfile_cache_dirs=${IOTDB_SSD_DATA_DIR}/datanode/data/cache" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
     #添加启动监控功能
     echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
     echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
@@ -572,8 +589,6 @@ function test_operation() {
     sleep 30
     check_benchmark_pid
     check_iotdb_pid
-    sudo rm -rf ${BUCKUP_DATA_PATH}/data
-    sudo mv ${TEST_IOTDB_PATH}/data ${BUCKUP_DATA_PATH}
     backup_test_data ${ts_type}
 }
 
