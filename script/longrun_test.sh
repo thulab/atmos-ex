@@ -29,6 +29,7 @@ REPOS_PATH=/nasdata/repository/master
 # -------------------- 测试数据路径 --------------------
 TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
+LONGRUN_START_TIME_LOG=${TEST_IOTDB_PATH}/logs/longrun_start_time_debug.log
 IOTDB_HDD_DATA_DIR=/data/data_dir
 IOTDB_SSD_DATA_DIR=/ssd_dcpmm/data_dir
 IOTDB_DATA_DIRS=${IOTDB_HDD_DATA_DIR},${IOTDB_SSD_DATA_DIR}
@@ -62,6 +63,14 @@ function check_password() {
     if [ -z "${PASSWORD}" ]; then
         echo "需要关注密码设置！"
     fi
+}
+
+function longrun_start_time_log() {
+    local log_line
+    log_line="$(date '+%Y-%m-%d %H:%M:%S') $*"
+    mkdir -p "${TEST_IOTDB_PATH}/logs"
+    echo "${log_line}" >> "${LONGRUN_START_TIME_LOG}"
+    echo "${log_line}" >&2
 }
 
 function check_benchmark_version() {
@@ -266,6 +275,8 @@ function query_last_sensor_time() {
     local sensor_name
     local query_sql
     local query_result
+    local cli_output
+    local cli_status
 
     db_name=$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")
     group_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")
@@ -274,7 +285,31 @@ function query_last_sensor_time() {
     sensor_name=${sensor_name_prefix}0
 
     query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
-    query_result=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>/dev/null | awk -F'|' 'NR == 4 { value = $2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", value); print value }')
+    longrun_start_time_log "query config=${config_file} db=${db_name} group_prefix=${group_name_prefix} device_prefix=${device_name_prefix} sensor=${sensor_name}"
+    longrun_start_time_log "query sql=${query_sql}"
+
+    cli_output=$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)
+    cli_status=$?
+    longrun_start_time_log "query cli_status=${cli_status}"
+    longrun_start_time_log "query raw_output_begin"
+    printf '%s\n' "${cli_output}" >> "${LONGRUN_START_TIME_LOG}"
+    printf '%s\n' "${cli_output}" >&2
+    longrun_start_time_log "query raw_output_end"
+
+    query_result=$(printf '%s\n' "${cli_output}" | awk -F'|' '
+        /^\+/ { next }
+        /Total line number/ { next }
+        NF >= 3 {
+            value = $2
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            if (value == "" || value ~ /^max_time/) {
+                next
+            }
+            print value
+            exit
+        }
+    ')
+    longrun_start_time_log "query parsed_last_sensor_time=${query_result}"
 
     echo "${query_result}"
 }
@@ -328,31 +363,54 @@ function update_benchmark_start_time() {
     local last_sensor_time
     local timestamp_precision
     local formatted_max_time
+    local format_output
+    local format_status
 
     if [ ! -f "${config_file}" ]; then
+        longrun_start_time_log "skip update start time: config file not found, config=${config_file}"
         return
     fi
 
+    longrun_start_time_log "update benchmark start time begin, benchmark_path=${benchmark_path}, config=${config_file}"
     last_sensor_time=$(query_last_sensor_time "${config_file}")
     timestamp_precision=$(get_iotdb_timestamp_precision)
+    longrun_start_time_log "timestamp_precision=${timestamp_precision} last_sensor_time=${last_sensor_time}"
 
     if [ -n "${last_sensor_time}" ]; then
-        formatted_max_time=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
-        benchmark_start_time=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>/dev/null)
+        format_output=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)
+        format_status=$?
+        if [ ${format_status} -eq 0 ] && [ -n "${format_output}" ]; then
+            formatted_max_time=${format_output}
+        else
+            longrun_start_time_log "format max time failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
+        fi
+
+        format_output=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>&1)
+        format_status=$?
+        if [ ${format_status} -eq 0 ] && [ -n "${format_output}" ]; then
+            benchmark_start_time=${format_output}
+        else
+            longrun_start_time_log "format benchmark start time failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
+        fi
+    else
+        longrun_start_time_log "query returned empty last_sensor_time"
     fi
 
     if [ -z "${formatted_max_time}" ]; then
         formatted_max_time=${DEFAULT_QUERY_MAX_TIME}
+        longrun_start_time_log "formatted_max_time fallback=${formatted_max_time}"
     fi
 
     if [ -z "${benchmark_start_time}" ]; then
         benchmark_start_time=${DEFAULT_BENCHMARK_START_TIME}
+        longrun_start_time_log "benchmark_start_time fallback=${benchmark_start_time}"
         echo "query last s_0 timestamp failed or returned invalid time for ${config_file}, fallback to ${benchmark_start_time}"
     fi
 
     set_result_max_time "${benchmark_path}" "${formatted_max_time}"
     BENCHMARK_START_TIME=${benchmark_start_time}
     sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
+    longrun_start_time_log "update benchmark start time end, BENCHMARK_START_TIME=${BENCHMARK_START_TIME}, QUERY_MAX_TIME=${formatted_max_time}"
 }
 
 function apply_benchmark_start_time() {
