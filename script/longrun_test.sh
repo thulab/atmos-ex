@@ -692,7 +692,7 @@ format_iotdb_time() {
     local raw_timestamp="$1"
     local timestamp_precision="$2"
     local offset_seconds="${3:-0}"
-    local output_format="${4:-'+%Y-%m-%dT%H:%M:%S%:z'}"
+    local output_format="${4:-+%Y-%m-%dT%H:%M:%S%:z}"
     local target_epoch=0
 
     if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
