@@ -10,6 +10,7 @@ ATMOS_PATH=${INIT_PATH}/atmos-ex
 IOTDB_PATH=${INIT_PATH}/iotdb
 JAVA_TOOL_PATH=${INIT_PATH}/java-native-api-testcase
 CPP_TOOL_PATH=${INIT_PATH}/cpp-native-api-testcase
+C_TOOL_PATH=${INIT_PATH}/c-native-api-testcase
 PYTHON_TOOL_PATH=${INIT_PATH}/python-native-api-testcase
 BK_PATH=${INIT_PATH}/native_api_test_report
 #测试数据运行路径
@@ -18,6 +19,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_DATANODE_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-native-api-testcase
 TEST_CPP_TOOL_PATH=${TEST_INIT_PATH}/cpp-native-api-testcase
+TEST_C_TOOL_PATH=${TEST_INIT_PATH}/c-native-api-testcase
 TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-native-api-testcase
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
@@ -384,6 +386,115 @@ EOF
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
 }
+test_c_native_api_test() {
+	# C 原生接口测试（SessionC.h，C 驱动）。复用 cpp 已编译的 client-cpp 产物，不重复编译。
+	# 依赖填充对齐 cpp：从 install/ 拷头文件(含 SessionC.h)与库；gtest 由仓库 setup_client.sh 备用路径补。
+	echo "准备C原生接口测试依赖"
+	# 拷C工具到测试路径
+	if [ ! -d "${TEST_C_TOOL_PATH}" ]; then
+		mkdir -p ${TEST_C_TOOL_PATH}
+	else
+		rm -rf ${TEST_C_TOOL_PATH}
+		mkdir -p ${TEST_C_TOOL_PATH}
+	fi
+	cp -rf ${C_TOOL_PATH}/* ${TEST_C_TOOL_PATH}/
+	# 拷依赖（与 cpp 同源：install 下含 SessionC.h 与导出 ts_* 的 libiotdb_session.so）
+	mkdir -p ${TEST_C_TOOL_PATH}/client/include ${TEST_C_TOOL_PATH}/client/lib
+	cp -rf ${IOTDB_PATH}/iotdb-client/client-cpp/target/install/include/* ${TEST_C_TOOL_PATH}/client/include/
+	cp -rfP ${IOTDB_PATH}/iotdb-client/client-cpp/target/install/lib/* ${TEST_C_TOOL_PATH}/client/lib/
+	# 补 gtest 头文件与静态库（测试框架，来自固定备份目录）
+	cp -rf /data/iotdb-test/safe/client/include/gtest ${TEST_C_TOOL_PATH}/client/include/ 2>/dev/null
+	cp -f /data/iotdb-test/safe/client/lib/libgtest.a ${TEST_C_TOOL_PATH}/client/lib/ 2>/dev/null
+	# 编译工具
+	cd ${TEST_C_TOOL_PATH}
+	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
+	if [ $? -eq 0 ]; then
+		echo "编译C原生接口测试工具完成，准备开始测试！"
+	else
+		echo "编译C原生接口工具失败，写入负值测试结果！"
+		tests_num=-3
+		errors_num=-3
+		failures_num=-3
+		skipped_num=-3
+		successRate=-3
+		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+		return 1
+	fi
+	echo "开始C原生接口测试"
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	start_test=$(timeout 7200s bash -c "source /etc/profile && ./run.sh")
+	for (( t_wait = 0; t_wait <= 20; ))
+	do
+		cd ${TEST_C_TOOL_PATH}
+		result_file=${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json
+		if [ ! -f "$result_file" ]; then
+			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
+			if [ $t_time -ge 14400 ]; then
+				echo "C原生接口测试失败"
+				flag=1
+				break
+			fi
+			continue
+		else
+			echo "C原生接口测试完成"
+			break
+		fi
+	done
+	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
+	sleep 60
+	if [ $flag -eq 0 ]; then
+		#收集测试结果
+		cd ${TEST_C_TOOL_PATH}
+		tests_num=$(jq -r '.tests' "${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json")
+		errors_num=$(jq -r '.errors' "${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json")
+		failures_num=$(jq -r '.failures' "${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json")
+		skipped_num=$(jq -r '.disabled' "${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json")
+		successRate=$(awk -v t="$tests_num" -v e="$errors_num" -v f="$failures_num" -v s="$skipped_num" 'BEGIN{printf "%.2f", t?((t-e-f-s)*100/t):0}')
+		#结果写入mysql
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+		if [ $? -ne 0 ]; then
+			echo "执行mysql命令失败"
+			tests_num=-5
+			errors_num=-5
+			failures_num=-5
+			skipped_num=-5
+			successRate=-5
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+			sql=$(cat <<EOF
+			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C',"${insert_sql_c}")
+EOF
+			)
+			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			echo "备份C原生接口测试报告"
+			mkdir -p /data/qa/backup/c/${last_cid_iotdb}_${failures_num}
+			cp -rf ${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json /data/qa/backup/c/${last_cid_iotdb}_${failures_num}/
+			return 1
+		fi
+	else
+		cd ${TEST_C_TOOL_PATH}
+		tests_num=-4
+		errors_num=-4
+		failures_num=-4
+		skipped_num=-4
+		successRate=-4
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
+		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+	fi
+	#备份本次测试
+	echo "备份C原生接口测试报告"
+	rm -rf ${BK_PATH}/c/*
+	mkdir -p ${BK_PATH}/c
+	cp -f ${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json ${BK_PATH}/c/
+	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
+	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
+	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
+}
 test_python_native_api_test() { # 测试Python原生接口
 	# Python代码编译
 	echo "编译python客户端"
@@ -602,6 +713,14 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		if [ $? -eq 1 ]; then
 			sleep 60
 			echo "Cpp测试失败"
+		fi
+		# 测试C原生接口
+		init_items
+		echo "测试C原生接口"
+		test_c_native_api_test
+		if [ $? -eq 1 ]; then
+			sleep 60
+			echo "C测试失败"
 		fi
 		# 测试Python原生接口
 		init_items
