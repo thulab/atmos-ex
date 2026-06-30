@@ -993,6 +993,11 @@ insert_result_row() {
     local current_api_type="$3"
     local insert_sql=""
 
+    if declare -F insert_custom_result_row >/dev/null 2>&1; then
+        insert_custom_result_row "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+        return
+    fi
+
     insert_sql=$(cat <<EOF
 insert into ${result_table} (
     commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,
@@ -1051,6 +1056,31 @@ cleanup_processes() {
     check_iotdb_pid
 }
 
+check_current_throughput_monitor() {
+    local commit_date_time="$1"
+    local throughput="$2"
+    local protocol_code="$3"
+    local current_ts_type="$4"
+    local current_api_type="$5"
+
+    if declare -F check_custom_throughput_monitor >/dev/null 2>&1; then
+        check_custom_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+        return
+    fi
+
+    check_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+}
+
+apply_iotdb_config_hook() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_api_type="$3"
+
+    if declare -F modify_iotdb_config_for_case >/dev/null 2>&1; then
+        modify_iotdb_config_for_case "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+    fi
+}
+
 test_operation() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -1065,6 +1095,7 @@ test_operation() {
     cleanup_processes
     set_env
     modify_iotdb_config
+    apply_iotdb_config_hook "${protocol_code}" "${current_ts_type}" "${current_api_type}"
 
     if ! set_protocol_class "${protocol_code}"; then
         log "协议设置错误: ${protocol_code}"
@@ -1125,7 +1156,7 @@ test_operation() {
     
     # 在插入结果后，调用监控函数检查是否报警
     if (( $(echo "$throughput > 0" | bc -l 2>/dev/null) )); then
-        if ! check_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"; then
+        if ! check_current_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"; then
             log "当前测试结果触发监控警报，但测试流程继续"
         else
             log "当前测试结果吞吐符合规律"
