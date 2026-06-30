@@ -1,294 +1,663 @@
-#!/bin/sh
-# ----------------------------------------------------------------------------
-# IoTDB Longrun Test Script (结构优化版)
-# ----------------------------------------------------------------------------
-# Author: qingxin.feng
-# Description: 自动化执行IoTDB longrun_test 写入测试，结构优化、风格统一。
-# ------------------------------------------------------------------------------
+#!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+    exec bash "${BASH_SOURCE[0]}" "$@"
+fi
 
-# -------------------- 基础环境变量 --------------------
-TEST_IP="11.101.17.112"           # 测试服务器IP
-ACCOUNT=atmos                     # 登录用户名
-TIMECHO_LONGRUN_IP="11.101.17.112"
-IoTDB_PW=TimechoDB@2021
-DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
-DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
-test_type=longrun_test
+set -u
+set -o pipefail
 
-# -------------------- 路径相关变量 --------------------
-INIT_PATH=/data/atmos/zk_test     # 初始环境存放路径
-ATMOS_PATH=${INIT_PATH}/atmos-ex
-BM_PATH=${INIT_PATH}/iot-benchmark_tree
-BM_PATH_TREE=${INIT_PATH}/iot-benchmark_tree
-BM_PATH_TABLE=${INIT_PATH}/iot-benchmark_table
-BM_PATH_TREE_QUERY=${INIT_PATH}/iot-benchmark_tree_query
-BM_PATH_TABLE_QUERY=${INIT_PATH}/iot-benchmark_table_query
-BUCKUP_PATH=/nasdata/repository/longrun_test
-REPOS_PATH=/nasdata/repository/master
+TEST_IP="11.101.17.112"
+readonly TIMECHO_LONGRUN_IP="11.101.17.112"
+readonly IOTDB_PW="TimechoDB@2021"
+readonly TEST_TYPE="longrun_test"
+readonly DATA_TYPE="unseq_rw"
+readonly DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
+readonly DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
 
-# -------------------- 测试数据路径 --------------------
-TEST_INIT_PATH=/data/atmos
-TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
-LONGRUN_START_TIME_LOG=${TEST_IOTDB_PATH}/logs/longrun_start_time_debug.log
-IOTDB_HDD_DATA_DIR=/data/data_dir
-IOTDB_SSD_DATA_DIR=/ssd_dcpmm/data_dir
-IOTDB_DATA_DIRS=${IOTDB_HDD_DATA_DIR},${IOTDB_SSD_DATA_DIR}
-IOTDB_CONF_DIR=/ssd_dcpmm/conf_dir
+readonly INIT_PATH="/data/atmos/zk_test"
+readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
+readonly BM_PATH_TREE="${INIT_PATH}/iot-benchmark_tree"
+readonly BM_PATH_TABLE="${INIT_PATH}/iot-benchmark_table"
+readonly BM_PATH_TREE_QUERY="${INIT_PATH}/iot-benchmark_tree_query"
+readonly BM_PATH_TABLE_QUERY="${INIT_PATH}/iot-benchmark_table_query"
+readonly BACKUP_PATH="/nasdata/repository/${TEST_TYPE}"
+readonly REPOS_PATH="/nasdata/repository/master"
+readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
 
-# -------------------- 协议相关变量 --------------------
-# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
-# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
-# 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(223)
-ts_list=(aligned tablemode)
-insert_list=(unseq_rw)
-op_type_csv=(PRECISE_POINT, TIME_RANGE, VALUE_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC, GROUP_BY_DESC, VERIFICATION_QUERY, DEVICE_QUERY, SET_OPERATION,)
-op_type_name=(PRECISE_POINT TIME_RANGE VALUE_RANGE AGG_RANGE AGG_VALUE AGG_RANGE_VALUE GROUP_BY LATEST_POINT RANGE_QUERY_DESC VALUE_RANGE_QUERY_DESC GROUP_BY_DESC VERIFICATION_QUERY DEVICE_QUERY SET_OPERATION)
-# -------------------- MySQL 配置信息 --------------------
-MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
-PORT="13306"                     # 端口
-USERNAME="iotdbatm"              # 用户名
-PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
-DBNAME="QA_ATM"                  # 数据库名称
-TABLENAME="ex_longrun_test"         # 结果表名
-TABLENAME_T="ex_longrun_test_T"         # 企业版结果表名
-TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
+readonly TEST_INIT_PATH="/data/atmos"
+readonly TEST_IOTDB_PATH="${TEST_INIT_PATH}/apache-iotdb"
+readonly LONGRUN_START_TIME_LOG="${TEST_IOTDB_PATH}/logs/longrun_start_time_debug.log"
+readonly IOTDB_HDD_DATA_DIR="/data/data_dir"
+readonly IOTDB_SSD_DATA_DIR="/ssd_dcpmm/data_dir"
+readonly IOTDB_DATA_DIRS="${IOTDB_HDD_DATA_DIR},${IOTDB_SSD_DATA_DIR}"
+readonly IOTDB_CONF_DIR="/ssd_dcpmm/conf_dir"
 
-# -------------------- Prometheus 配置信息 --------------------
-metric_server="111.200.37.158:19090"
+readonly -a PROTOCOL_CLASS=(
+    ""
+    "org.apache.iotdb.consensus.simple.SimpleConsensus"
+    "org.apache.iotdb.consensus.ratis.RatisConsensus"
+    "org.apache.iotdb.consensus.iot.IoTConsensus"
+    "org.apache.iotdb.consensus.iot.IoTConsensusV2"
+)
+readonly -a PROTOCOL_LIST=(223)
+readonly -a OP_TYPE_LABELS=(
+    PRECISE_POINT
+    TIME_RANGE
+    VALUE_RANGE
+    AGG_RANGE
+    AGG_VALUE
+    AGG_RANGE_VALUE
+    GROUP_BY
+    LATEST_POINT
+    RANGE_QUERY_DESC
+    VALUE_RANGE_QUERY_DESC
+    GROUP_BY_DESC
+    VERIFICATION_QUERY
+    DEVICE_QUERY
+    SET_OPERATION
+)
+readonly -a OP_TYPE_NAMES=(
+    PRECISE_POINT
+    TIME_RANGE
+    VALUE_RANGE
+    AGG_RANGE
+    AGG_VALUE
+    AGG_RANGE_VALUE
+    GROUP_BY
+    LATEST_POINT
+    RANGE_QUERY_DESC
+    VALUE_RANGE_QUERY_DESC
+    GROUP_BY_DESC
+    VERIFICATION_QUERY
+    DEVICE_QUERY
+    SET_OPERATION
+)
 
-# -------------------- 公用函数 --------------------
-function check_password() {
-    if [ -z "${PASSWORD}" ]; then
-        echo "需要关注密码设置！"
+readonly MYSQLHOSTNAME="111.200.37.158"
+readonly PORT="13306"
+readonly USERNAME="iotdbatm"
+readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly DBNAME="QA_ATM"
+readonly TABLENAME="ex_${TEST_TYPE}"
+readonly TABLENAME_T="ex_${TEST_TYPE}_T"
+readonly TASK_TABLENAME="ex_commit_history"
+
+readonly METRIC_SERVER="111.200.37.158:19090"
+readonly DEFAULT_DISK_ID="sdb"
+readonly MONITOR_TIMEOUT_SECONDS=72000
+readonly MONITOR_POLL_INTERVAL_SECONDS=10
+readonly IOTDB_READY_RETRIES=10
+readonly IOTDB_READY_INTERVAL_SECONDS=5
+readonly STARTUP_GRACE_SECONDS=10
+readonly BENCHMARK_WARMUP_SECONDS=60
+readonly BENCHMARK_STOP_WAIT_SECONDS=30
+
+result_table="${TABLENAME}"
+AUTHOR_FILTER_SQL="author != 'Timecho'"
+commit_id=""
+author=""
+commit_date_time=""
+test_date_time=""
+
+okPoint=0
+okOperation=0
+failPoint=0
+failOperation=0
+throughput=0
+Latency=0
+MIN=0
+P10=0
+P25=0
+MEDIAN=0
+P75=0
+P90=0
+P95=0
+P99=0
+P999=0
+MAX=0
+numOfSe0Level=0
+start_time=""
+end_time=""
+cost_time=0
+numOfUnse0Level=0
+dataFileSize=0
+maxNumofOpenFiles=0
+maxNumofThread=0
+errorLogSize=0
+walFileSize=0
+maxCPULoad=0
+avgCPULoad=0
+maxDiskIOOpsRead=0
+maxDiskIOOpsWrite=0
+maxDiskIOSizeRead=0
+maxDiskIOSizeWrite=0
+m_start_time=0
+m_end_time=0
+TREE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
+
+log() {
+    printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+
+die() {
+    log "ERROR: $*"
+    exit 1
+}
+
+trim() {
+    local value="${1:-}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "${value}"
+}
+
+current_datetime() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+datetime_to_epoch() {
+    date -d "$1" +%s
+}
+
+normalize_datetime() {
+    printf '%s' "$1" | tr -cd '0-9'
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+ensure_runtime_dependencies() {
+    local cmd=""
+
+    for cmd in awk cat cp curl date du grep jq jps kill mkdir mv mysql rm sed sudo tr; do
+        require_command "${cmd}"
+    done
+}
+
+check_password() {
+    [ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+}
+
+path_is_safe() {
+    local path="$1"
+    [ -n "${path}" ] || return 1
+
+    case "${path}" in
+        "/"|"/data"|"/nasdata"|".")
+            return 1
+            ;;
+        "${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+safe_rm() {
+    local path="$1"
+    [ -e "${path}" ] || return 0
+    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
+    rm -rf -- "${path}"
+}
+
+sudo_safe_rm() {
+    local path="$1"
+    [ -e "${path}" ] || return 0
+    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
+    sudo rm -rf -- "${path}"
+}
+
+copy_if_exists() {
+    local source="$1"
+    local target="$2"
+    local label="${3:-$1}"
+
+    if [ ! -e "${source}" ]; then
+        log "skip copy, missing ${label}: ${source}"
+        return 0
+    fi
+
+    cp -rf -- "${source}" "${target}"
+}
+
+mysql_exec() {
+    local sql="$1"
+    MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+}
+
+sql_quote() {
+    local value="${1:-}"
+    value="${value//\\/\\\\}"
+    value="$(printf '%s' "${value}" | sed "s/'/''/g")"
+    printf "'%s'" "${value}"
+}
+
+update_task_status() {
+    local status="$1"
+    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+}
+
+mark_older_commits_skip() {
+    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < $(sql_quote "${commit_date_time}")"
+}
+
+query_next_commit() {
+    local status_filter="$1"
+
+    if [ "${status_filter}" = "retest" ]; then
+        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc LIMIT 1"
+    else
+        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc LIMIT 1"
     fi
 }
 
-function longrun_start_time_log() {
-    local log_line
+fetch_next_commit() {
+    local row=""
+    local raw_commit_date_time=""
+
+    row="$(query_next_commit "retest")"
+    if [ -z "${row}" ]; then
+        row="$(query_next_commit "pending")"
+    fi
+    [ -n "${row}" ] || return 1
+
+    IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
+    author="$(trim "${author}")"
+    commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
+    [ -n "${commit_id}" ] || return 1
+    [ -n "${commit_date_time}" ] || die "failed to parse commit_date_time."
+}
+
+detect_local_ips() {
+    {
+        hostname -I 2>/dev/null || true
+        ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:" || true
+    } | tr ' ' '\n' | awk 'NF && !seen[$0]++'
+}
+
+init_longrun_route() {
+    local local_ips=""
+    local first_ip=""
+
+    local_ips="$(detect_local_ips)"
+    first_ip="$(printf '%s\n' "${local_ips}" | awk 'NF {print; exit}')"
+
+    if printf '%s\n' "${local_ips}" | grep -Fxq "${TIMECHO_LONGRUN_IP}"; then
+        AUTHOR_FILTER_SQL="author = 'Timecho'"
+        result_table="${TABLENAME_T}"
+        TEST_IP="${TIMECHO_LONGRUN_IP}"
+    else
+        AUTHOR_FILTER_SQL="author != 'Timecho'"
+        result_table="${TABLENAME}"
+        if [ -n "${first_ip}" ]; then
+            TEST_IP="${first_ip}"
+        fi
+    fi
+
+    log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
+}
+
+git_commit_abbrev() {
+    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
+}
+
+sync_benchmark_path() {
+    local target_path="$1"
+    local source_version=""
+    local target_version=""
+
+    [ -f "${BM_REPOS_PATH}/git.properties" ] || die "missing benchmark git.properties: ${BM_REPOS_PATH}/git.properties"
+    source_version="$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")"
+    [ -n "${source_version}" ] || die "failed to read benchmark version."
+
+    if [ -f "${target_path}/git.properties" ]; then
+        target_version="$(git_commit_abbrev "${target_path}/git.properties")"
+    fi
+
+    if [ ! -d "${target_path}" ] || [ "${target_version}" != "${source_version}" ]; then
+        log "sync benchmark to ${target_path}"
+        safe_rm "${target_path}"
+        cp -rf -- "${BM_REPOS_PATH}" "${target_path}"
+    fi
+}
+
+check_benchmark_version() {
+    sync_benchmark_path "${BM_PATH_TREE}"
+    sync_benchmark_path "${BM_PATH_TABLE}"
+    sync_benchmark_path "${BM_PATH_TREE_QUERY}"
+    sync_benchmark_path "${BM_PATH_TABLE_QUERY}"
+}
+
+init_items() {
+    okPoint=0
+    okOperation=0
+    failPoint=0
+    failOperation=0
+    throughput=0
+    Latency=0
+    MIN=0
+    P10=0
+    P25=0
+    MEDIAN=0
+    P75=0
+    P90=0
+    P95=0
+    P99=0
+    P999=0
+    MAX=0
+    numOfSe0Level=0
+    start_time=""
+    end_time=""
+    cost_time=0
+    numOfUnse0Level=0
+    dataFileSize=0
+    maxNumofOpenFiles=0
+    maxNumofThread=0
+    errorLogSize=0
+    walFileSize=0
+    maxCPULoad=0
+    avgCPULoad=0
+    maxDiskIOOpsRead=0
+    maxDiskIOOpsWrite=0
+    maxDiskIOSizeRead=0
+    maxDiskIOSizeWrite=0
+    m_start_time=0
+    m_end_time=0
+    TREE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+    TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+    QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
+    BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
+}
+
+reset_benchmark_metrics() {
+    okPoint=0
+    okOperation=0
+    failPoint=0
+    failOperation=0
+    throughput=0
+    Latency=0
+    MIN=0
+    P10=0
+    P25=0
+    MEDIAN=0
+    P75=0
+    P90=0
+    P95=0
+    P99=0
+    P999=0
+    MAX=0
+}
+
+set_negative_benchmark_metrics() {
+    local value="$1"
+    okPoint="${value}"
+    okOperation="${value}"
+    failPoint="${value}"
+    failOperation="${value}"
+    throughput="${value}"
+    Latency="${value}"
+    MIN="${value}"
+    P10="${value}"
+    P25="${value}"
+    MEDIAN="${value}"
+    P75="${value}"
+    P90="${value}"
+    P95="${value}"
+    P99="${value}"
+    P999="${value}"
+    MAX="${value}"
+}
+
+check_pid_and_kill() {
+    local pname="$1"
+    local desc="$2"
+    local pids=""
+    local pid=""
+
+    pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
+    if [ -z "${pids}" ]; then
+        log "no ${desc} process detected."
+        return 0
+    fi
+
+    while IFS= read -r pid; do
+        [ -n "${pid}" ] || continue
+        kill -9 "${pid}"
+    done <<< "${pids}"
+    log "${desc} process stopped."
+}
+
+cleanup_processes() {
+    check_pid_and_kill "App" "Benchmark"
+    check_pid_and_kill "DataNode" "DataNode"
+    check_pid_and_kill "ConfigNode" "ConfigNode"
+    check_pid_and_kill "IoTDB" "IoTDB"
+}
+
+set_env() {
+    local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
+
+    [ -d "${source_path}" ] || die "missing tested IoTDB path: ${source_path}"
+    safe_rm "${TEST_IOTDB_PATH}"
+    mkdir -p "${TEST_IOTDB_PATH}/activation"
+    cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
+    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
+    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
+    mkdir -p "${IOTDB_HDD_DATA_DIR}" "${IOTDB_SSD_DATA_DIR}" "${IOTDB_CONF_DIR}"
+}
+
+modify_iotdb_config() {
+    local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
+    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+
+    [ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
+    [ -f "${properties_file}" ] || die "missing config file: ${properties_file}"
+    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="50G"/' "${datanode_env}"
+
+    cat >> "${properties_file}" <<EOF
+enable_seq_space_compaction=false
+enable_unseq_space_compaction=false
+enable_cross_space_compaction=false
+cluster_name=${TEST_TYPE}
+cn_system_dir=${IOTDB_CONF_DIR}/confignode/system
+cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus
+cn_pipe_receiver_file_dir=${IOTDB_CONF_DIR}/confignode/system/pipe/receiver
+dn_system_dir=${IOTDB_SSD_DATA_DIR}/datanode/system
+dn_data_dirs=${IOTDB_DATA_DIRS}
+dn_consensus_dir=${IOTDB_SSD_DATA_DIR}/datanode/consensus
+dn_wal_dirs=${IOTDB_SSD_DATA_DIR}/datanode/wal
+dn_tracing_dir=${IOTDB_SSD_DATA_DIR}/datanode/tracing
+dn_sync_dir=${IOTDB_SSD_DATA_DIR}/datanode/sync
+sort_tmp_dir=${IOTDB_SSD_DATA_DIR}/datanode/tmp
+dn_pipe_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/receiver
+iot_consensus_v2_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/receiver
+iot_consensus_v2_deletion_file_dir=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/deletion
+remote_tsfile_cache_dirs=${IOTDB_SSD_DATA_DIR}/datanode/data/cache
+cn_enable_metric=true
+cn_enable_performance_stat=true
+cn_metric_reporter_list=PROMETHEUS
+cn_metric_level=ALL
+cn_metric_prometheus_reporter_port=9081
+dn_enable_metric=true
+dn_enable_performance_stat=true
+dn_metric_reporter_list=PROMETHEUS
+dn_metric_level=ALL
+dn_metric_prometheus_reporter_port=9091
+EOF
+}
+
+set_protocol_class() {
+    local protocol_code="$1"
+    local config_node="${protocol_code:0:1}"
+    local schema_region="${protocol_code:1:1}"
+    local data_region="${protocol_code:2:1}"
+    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+
+    [ "${#protocol_code}" -eq 3 ] || return 1
+    [ -n "${PROTOCOL_CLASS[${config_node}]:-}" ] || return 1
+    [ -n "${PROTOCOL_CLASS[${schema_region}]:-}" ] || return 1
+    [ -n "${PROTOCOL_CLASS[${data_region}]:-}" ] || return 1
+
+    cat >> "${properties_file}" <<EOF
+config_node_consensus_protocol_class=${PROTOCOL_CLASS[${config_node}]}
+schema_region_consensus_protocol_class=${PROTOCOL_CLASS[${schema_region}]}
+data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
+EOF
+}
+
+start_iotdb() {
+    (
+        cd "${TEST_IOTDB_PATH}" || exit 1
+        ./sbin/start-confignode.sh >/dev/null 2>&1 &
+    )
+    sleep "${STARTUP_GRACE_SECONDS}"
+    (
+        cd "${TEST_IOTDB_PATH}" || exit 1
+        ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
+    )
+}
+
+stop_iotdb() {
+    if [ ! -d "${TEST_IOTDB_PATH}" ]; then
+        return 0
+    fi
+
+    (
+        cd "${TEST_IOTDB_PATH}" || exit 1
+        ./sbin/stop-datanode.sh >/dev/null 2>&1 &
+    )
+    sleep "${STARTUP_GRACE_SECONDS}"
+    (
+        cd "${TEST_IOTDB_PATH}" || exit 1
+        ./sbin/stop-confignode.sh >/dev/null 2>&1 &
+    )
+}
+
+wait_for_iotdb_ready() {
+    local attempt=0
+    local cli_password=""
+    local iotdb_state=""
+
+    for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
+        for cli_password in "" "root" "${IOTDB_PW}"; do
+            if [ -z "${cli_password}" ]; then
+                iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+            else
+                iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -pw "${cli_password}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+            fi
+            [ "${iotdb_state}" = "Total line number = 2" ] && return 0
+        done
+        sleep "${IOTDB_READY_INTERVAL_SECONDS}"
+    done
+
+    return 1
+}
+
+change_root_password() {
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+}
+
+longrun_start_time_log() {
+    local log_line=""
+
     log_line="$(date '+%Y-%m-%d %H:%M:%S') $*"
     mkdir -p "${TEST_IOTDB_PATH}/logs"
-    echo "${log_line}" >> "${LONGRUN_START_TIME_LOG}"
-    echo "${log_line}" >&2
+    printf '%s\n' "${log_line}" >> "${LONGRUN_START_TIME_LOG}"
+    printf '%s\n' "${log_line}" >&2
 }
 
-function check_benchmark_version() {
-    BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-    BM_NEW=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_REPOS_PATH}/git.properties)
-    BM_OLD=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_PATH}/git.properties 2>/dev/null)
-    if [ -n "${BM_OLD}" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-        rm -rf ${BM_PATH}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-        rm -rf ${BM_PATH_TREE}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE}
-		rm -rf ${BM_PATH_TABLE}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TABLE}
-        rm -rf ${BM_PATH_TREE_QUERY}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TREE_QUERY}
-		rm -rf ${BM_PATH_TABLE_QUERY}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH_TABLE_QUERY}
-    fi
-}
-
-function init_longrun_route() {
-    local local_ip
-    local_ip=$(
-        {
-            hostname -I 2>/dev/null
-            ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:"
-        } | tr ' ' '\n' | grep -v '^$'
-    )
-
-    if echo "${local_ip}" | grep -Fxq "${TIMECHO_LONGRUN_IP}"; then
-        AUTHOR_FILTER="author = 'Timecho'"
-        TABLENAME=${TABLENAME_T}
-    else
-        AUTHOR_FILTER="author != 'Timecho'"
-    fi
-    TEST_IP=${local_ip}
-}
-
-function init_items() {
-    # 定义监控采集项初始值
-    ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
-    throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
-    numOfSe0Level=0; start_time=0; end_time=0; cost_time=0; numOfUnse0Level=0; dataFileSize=0
-    maxNumofOpenFiles=0; maxNumofThread=0; errorLogSize=0; walFileSize=0; maxCPULoad=0; avgCPULoad=0
-    maxDiskIOOpsRead=0; maxDiskIOOpsWrite=0; maxDiskIOSizeRead=0; maxDiskIOSizeWrite=0
-    TREE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
-    TABLE_QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
-    QUERY_MAX_TIME=${DEFAULT_QUERY_MAX_TIME}
-    BENCHMARK_START_TIME=${DEFAULT_BENCHMARK_START_TIME}
-}
-
-function sendEmail() {
-    sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
-}
-
-function check_pid_and_kill() {
-    local pname=$1
-    local desc=$2
-    local pid=$(jps | grep "$pname" | awk '{print $1}')
-    if [ -n "$pid" ]; then
-        kill -9 $pid
-        echo "$desc 已停止！"
-    else
-        echo "未检测到$desc！"
-    fi
-}
-
-function check_benchmark_pid() { check_pid_and_kill "App" "BM程序"; }
-function check_iotdb_pid() {
-    check_pid_and_kill "DataNode" "DataNode程序"
-    check_pid_and_kill "ConfigNode" "ConfigNode程序"
-    check_pid_and_kill "IoTDB" "IoTDB程序"
-    echo "程序检测和清理操作已完成！"
-}
-
-function set_env() {
-    [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
-    mkdir -p ${TEST_IOTDB_PATH}/activation
-    cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
-    mkdir -p ${IOTDB_HDD_DATA_DIR} ${IOTDB_SSD_DATA_DIR} ${IOTDB_CONF_DIR}
-}
-
-function modify_iotdb_config() {
-    #修改IoTDB的配置
-    sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"50G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
-    #清空配置文件
-    # echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    #关闭影响写入性能的其他功能
-    echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    #修改集群名称
-    echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_system_dir=${IOTDB_CONF_DIR}/confignode/system" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_pipe_receiver_file_dir=${IOTDB_CONF_DIR}/confignode/system/pipe/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_system_dir=${IOTDB_SSD_DATA_DIR}/datanode/system" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_data_dirs=${IOTDB_DATA_DIRS}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_consensus_dir=${IOTDB_SSD_DATA_DIR}/datanode/consensus" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_wal_dirs=${IOTDB_SSD_DATA_DIR}/datanode/wal" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_tracing_dir=${IOTDB_SSD_DATA_DIR}/datanode/tracing" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_sync_dir=${IOTDB_SSD_DATA_DIR}/datanode/sync" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "sort_tmp_dir=${IOTDB_SSD_DATA_DIR}/datanode/tmp" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_pipe_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "iot_consensus_v2_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/receiver" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "iot_consensus_v2_deletion_file_dir=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/deletion" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "remote_tsfile_cache_dirs=${IOTDB_SSD_DATA_DIR}/datanode/data/cache" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    #添加启动监控功能
-    echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    #添加启动监控功能
-    echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-}
-
-function set_protocol_class() {
-    local config_node=$1; local schema_region=$2; local data_region=$3
-    echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-}
-
-function start_iotdb() {
-    cd ${TEST_IOTDB_PATH}
-    conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
-    sleep 10
-    data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
-    cd ~/
-}
-
-function stop_iotdb() {
-    cd ${TEST_IOTDB_PATH}
-    data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
-    sleep 10
-    conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
-    cd ~/
-}
-
-function get_benchmark_config_value() {
-    local config_file=$1
-    local config_key=$2
+get_benchmark_config_value() {
+    local config_file="$1"
+    local config_key="$2"
 
     awk -F= -v key="${config_key}" '
         /^[[:space:]]*#/ { next }
-        $1 == key {
-            print substr($0, index($0, "=") + 1)
+        {
+            current_key = $1
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", current_key)
+        }
+        current_key == key {
+            value = substr($0, index($0, "=") + 1)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            print value
             exit
         }
     ' "${config_file}"
 }
 
-function get_benchmark_config_value_or_default() {
-    local config_file=$1
-    local config_key=$2
-    local default_value=$3
-    local config_value
+get_benchmark_config_value_or_default() {
+    local config_file="$1"
+    local config_key="$2"
+    local default_value="$3"
+    local config_value=""
 
-    config_value=$(get_benchmark_config_value "${config_file}" "${config_key}")
+    config_value="$(get_benchmark_config_value "${config_file}" "${config_key}")"
     if [ -n "${config_value}" ]; then
-        echo "${config_value}"
+        printf '%s\n' "${config_value}"
     else
-        echo "${default_value}"
+        printf '%s\n' "${default_value}"
     fi
 }
 
-function get_iotdb_timestamp_precision() {
-    local properties_file=${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    local timestamp_precision
+get_iotdb_timestamp_precision() {
+    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+    local timestamp_precision=""
 
     if [ -f "${properties_file}" ]; then
-        timestamp_precision=$(awk -F= '
-            /^[[:space:]]*#/ { next }
-            $1 == "timestamp_precision" {
-                value = $2
-            }
-            END {
-                print value
-            }
-        ' "${properties_file}" | tr -d '[:space:]')
+        timestamp_precision="$(
+            awk -F= '
+                /^[[:space:]]*#/ { next }
+                {
+                    key = $1
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+                }
+                key == "timestamp_precision" {
+                    value = $2
+                }
+                END {
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                    print value
+                }
+            ' "${properties_file}"
+        )"
     fi
 
-    if [ -z "${timestamp_precision}" ]; then
-        timestamp_precision=ms
-    fi
-    echo "${timestamp_precision}"
+    [ -n "${timestamp_precision}" ] || timestamp_precision="ms"
+    printf '%s\n' "${timestamp_precision}"
 }
 
-function query_last_sensor_time() {
-    local config_file=$1
-    local db_name
-    local group_name_prefix
-    local device_name_prefix
-    local sensor_name_prefix
-    local sensor_name
-    local query_sql
-    local query_result
-    local cli_output
-    local cli_status
+query_last_sensor_time() {
+    local config_file="$1"
+    local db_name=""
+    local group_name_prefix=""
+    local device_name_prefix=""
+    local sensor_name_prefix=""
+    local sensor_name=""
+    local query_sql=""
+    local query_result=""
+    local cli_output=""
+    local cli_status=0
 
-    db_name=$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")
-    group_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")
-    device_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")
-    sensor_name_prefix=$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")
-    sensor_name=${sensor_name_prefix}0
-
+    db_name="$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")"
+    group_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")"
+    device_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")"
+    sensor_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")"
+    sensor_name="${sensor_name_prefix}0"
     query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
+
     longrun_start_time_log "query config=${config_file} db=${db_name} group_prefix=${group_name_prefix} device_prefix=${device_name_prefix} sensor=${sensor_name}"
     longrun_start_time_log "query sql=${query_sql}"
 
-    cli_output=$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IoTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)
+    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)"
     cli_status=$?
     longrun_start_time_log "query cli_status=${cli_status}"
     longrun_start_time_log "query raw_output_begin"
@@ -296,32 +665,33 @@ function query_last_sensor_time() {
     printf '%s\n' "${cli_output}" >&2
     longrun_start_time_log "query raw_output_end"
 
-    query_result=$(printf '%s\n' "${cli_output}" | awk -F'|' '
-        /^\+/ { next }
-        /Total line number/ { next }
-        NF >= 3 {
-            value = $2
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-            if (value == "" || value ~ /^max_time/) {
-                next
+    query_result="$(
+        printf '%s\n' "${cli_output}" | awk -F'|' '
+            /^\+/ { next }
+            /Total line number/ { next }
+            NF >= 3 {
+                value = $2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                if (value == "" || value ~ /^max_time/) {
+                    next
+                }
+                print value
+                exit
             }
-            print value
-            exit
-        }
-    ')
+        '
+    )"
     longrun_start_time_log "query parsed_last_sensor_time=${query_result}"
-
-    echo "${query_result}"
+    printf '%s\n' "${query_result}"
 }
 
-function format_iotdb_time() {
-    local raw_timestamp=$1
-    local timestamp_precision=$2
-    local offset_seconds=${3:-0}
-    local output_format=${4:-'+%Y-%m-%dT%H:%M:%S%:z'}
-    local target_epoch
+format_iotdb_time() {
+    local raw_timestamp="$1"
+    local timestamp_precision="$2"
+    local offset_seconds="${3:-0}"
+    local output_format="${4:-'+%Y-%m-%dT%H:%M:%S%:z'}"
+    local target_epoch=0
 
-    if echo "${raw_timestamp}" | grep -Eq '^[0-9]+$'; then
+    if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
         case "${timestamp_precision}" in
             ns) target_epoch=$((raw_timestamp / 1000000000 + offset_seconds)) ;;
             us) target_epoch=$((raw_timestamp / 1000000 + offset_seconds)) ;;
@@ -329,42 +699,37 @@ function format_iotdb_time() {
             ms|*) target_epoch=$((raw_timestamp / 1000 + offset_seconds)) ;;
         esac
     else
-        target_epoch=$(date -d "${raw_timestamp}" +%s 2>/dev/null) || return 1
+        target_epoch="$(date -d "${raw_timestamp}" +%s 2>/dev/null)" || return 1
         target_epoch=$((target_epoch + offset_seconds))
     fi
 
     date -d "@${target_epoch}" "${output_format}"
 }
 
-function set_result_max_time() {
-    local benchmark_path=$1
-    local formatted_max_time=$2
+set_result_max_time() {
+    local formatted_max_time="$1"
 
-    case "${benchmark_path}" in
-        "${BM_PATH_TREE}"|"${BM_PATH_TREE_QUERY}"|"${BM_PATH_TABLE}"|"${BM_PATH_TABLE_QUERY}")
-            TREE_QUERY_MAX_TIME=${formatted_max_time}
-            TABLE_QUERY_MAX_TIME=${formatted_max_time}
-            QUERY_MAX_TIME=${formatted_max_time}
-            ;;
-    esac
+    TREE_QUERY_MAX_TIME="${formatted_max_time}"
+    TABLE_QUERY_MAX_TIME="${formatted_max_time}"
+    QUERY_MAX_TIME="${formatted_max_time}"
 }
 
-function get_result_max_time() {
+get_result_max_time() {
     case "$1" in
-        table) echo "${TABLE_QUERY_MAX_TIME}" ;;
-        tree|*) echo "${TREE_QUERY_MAX_TIME}" ;;
+        table) printf '%s\n' "${TABLE_QUERY_MAX_TIME}" ;;
+        tree|*) printf '%s\n' "${TREE_QUERY_MAX_TIME}" ;;
     esac
 }
 
-function update_benchmark_start_time() {
-    local benchmark_path=$1
-    local config_file=${benchmark_path}/conf/config.properties
-    local benchmark_start_time
-    local last_sensor_time
-    local timestamp_precision
-    local formatted_max_time
-    local format_output
-    local format_status
+update_benchmark_start_time() {
+    local benchmark_path="$1"
+    local config_file="${benchmark_path}/conf/config.properties"
+    local benchmark_start_time=""
+    local last_sensor_time=""
+    local timestamp_precision=""
+    local formatted_max_time=""
+    local format_output=""
+    local format_status=0
 
     if [ ! -f "${config_file}" ]; then
         longrun_start_time_log "skip update start time: config file not found, config=${config_file}"
@@ -372,23 +737,23 @@ function update_benchmark_start_time() {
     fi
 
     longrun_start_time_log "update benchmark start time begin, benchmark_path=${benchmark_path}, config=${config_file}"
-    last_sensor_time=$(query_last_sensor_time "${config_file}")
-    timestamp_precision=$(get_iotdb_timestamp_precision)
+    last_sensor_time="$(query_last_sensor_time "${config_file}")"
+    timestamp_precision="$(get_iotdb_timestamp_precision)"
     longrun_start_time_log "timestamp_precision=${timestamp_precision} last_sensor_time=${last_sensor_time}"
 
     if [ -n "${last_sensor_time}" ]; then
-        format_output=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)
+        format_output="$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)"
         format_status=$?
-        if [ ${format_status} -eq 0 ] && [ -n "${format_output}" ]; then
-            formatted_max_time=${format_output}
+        if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
+            formatted_max_time="${format_output}"
         else
             longrun_start_time_log "format max time failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
         fi
 
-        format_output=$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>&1)
+        format_output="$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>&1)"
         format_status=$?
-        if [ ${format_status} -eq 0 ] && [ -n "${format_output}" ]; then
-            benchmark_start_time=${format_output}
+        if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
+            benchmark_start_time="${format_output}"
         else
             longrun_start_time_log "format benchmark start time failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
         fi
@@ -397,290 +762,531 @@ function update_benchmark_start_time() {
     fi
 
     if [ -z "${formatted_max_time}" ]; then
-        formatted_max_time=${DEFAULT_QUERY_MAX_TIME}
+        formatted_max_time="${DEFAULT_QUERY_MAX_TIME}"
         longrun_start_time_log "formatted_max_time fallback=${formatted_max_time}"
     fi
 
     if [ -z "${benchmark_start_time}" ]; then
-        benchmark_start_time=${DEFAULT_BENCHMARK_START_TIME}
+        benchmark_start_time="${DEFAULT_BENCHMARK_START_TIME}"
         longrun_start_time_log "benchmark_start_time fallback=${benchmark_start_time}"
-        echo "query last s_0 timestamp failed or returned invalid time for ${config_file}, fallback to ${benchmark_start_time}"
     fi
 
-    set_result_max_time "${benchmark_path}" "${formatted_max_time}"
-    BENCHMARK_START_TIME=${benchmark_start_time}
+    set_result_max_time "${formatted_max_time}"
+    BENCHMARK_START_TIME="${benchmark_start_time}"
     sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
     longrun_start_time_log "update benchmark start time end, BENCHMARK_START_TIME=${BENCHMARK_START_TIME}, QUERY_MAX_TIME=${formatted_max_time}"
 }
 
-function apply_benchmark_start_time() {
-    local benchmark_path=$1
-    local config_file=${benchmark_path}/conf/config.properties
+apply_benchmark_start_time() {
+    local benchmark_path="$1"
+    local config_file="${benchmark_path}/conf/config.properties"
 
-    if [ ! -f "${config_file}" ]; then
-        return
-    fi
-
+    [ -f "${config_file}" ] || return 0
     sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
 }
 
-function start_benchmark() {
-    cd ${BM_PATH_TREE}
-    [ -d "${BM_PATH_TREE}/logs" ] && rm -rf ${BM_PATH_TREE}/logs
-    [ -d "${BM_PATH_TREE}/data" ] && rm -rf ${BM_PATH_TREE}/data
-    update_benchmark_start_time ${BM_PATH_TREE}
-    ${BM_PATH_TREE}/benchmark.sh >/dev/null 2>&1 &
-    cd ~/
-    cd ${BM_PATH_TABLE}
-    [ -d "${BM_PATH_TABLE}/logs" ] && rm -rf ${BM_PATH_TABLE}/logs
-    [ -d "${BM_PATH_TABLE}/data" ] && rm -rf ${BM_PATH_TABLE}/data
-    apply_benchmark_start_time ${BM_PATH_TABLE}
-    ${BM_PATH_TABLE}/benchmark.sh >/dev/null 2>&1 &
-    cd ~/
-    cd ${BM_PATH_TREE_QUERY}
-    [ -d "${BM_PATH_TREE_QUERY}/logs" ] && rm -rf ${BM_PATH_TREE_QUERY}/logs
-    [ -d "${BM_PATH_TREE_QUERY}/data" ] && rm -rf ${BM_PATH_TREE_QUERY}/data
-    apply_benchmark_start_time ${BM_PATH_TREE_QUERY}
-    ${BM_PATH_TREE_QUERY}/benchmark.sh >/dev/null 2>&1 &
-    cd ~/
-    cd ${BM_PATH_TABLE_QUERY}
-    [ -d "${BM_PATH_TABLE_QUERY}/logs" ] && rm -rf ${BM_PATH_TABLE_QUERY}/logs
-    [ -d "${BM_PATH_TABLE_QUERY}/data" ] && rm -rf ${BM_PATH_TABLE_QUERY}/data
-    apply_benchmark_start_time ${BM_PATH_TABLE_QUERY}
-    ${BM_PATH_TABLE_QUERY}/benchmark.sh >/dev/null 2>&1 &
-    cd ~/
-}
-function monitor_test_status() {
-    local csvOutput_tree=${BM_PATH_TREE}/data/csvOutput
-    local csvOutput_table=${BM_PATH_TABLE}/data/csvOutput
-    local csvOutput_tree_query=${BM_PATH_TREE_QUERY}/data/csvOutput
-    local csvOutput_table_query=${BM_PATH_TABLE_QUERY}/data/csvOutput
+copy_benchmark_config() {
+    local source_config="$1"
+    local target_benchmark_path="$2"
+    local target_config="${target_benchmark_path}/conf/config.properties"
 
-    while true; do
-        if [ ! -d "$csvOutput_tree" ] || [ ! -d "$csvOutput_table" ] || [ ! -d "$csvOutput_tree_query" ] || [ ! -d "$csvOutput_table_query" ]; then
-            now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-            if [ $t_time -ge 72000 ]; then
-                echo "测试失败"
-                if [ ! -d "$csvOutput_tree" ]; then
-                    mkdir -p "$csvOutput_tree"
-                    cd "$csvOutput_tree"
-                    touch Stuck_result.csv
-                    for ((i=0;i<100;i++)); do
-                        echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
-                    done
-                fi
-                if [ ! -d "$csvOutput_table" ]; then
-                    mkdir -p "$csvOutput_table"
-                    cd "$csvOutput_table"
-                    touch Stuck_result.csv
-                    for ((i=0;i<100;i++)); do
-                        echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
-                    done
-                fi
-                cd ~
-                break
-            fi
-            continue
-        else
-            end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            echo "${ts_type}写入已完成！"
-            break
-        fi
+    [ -f "${source_config}" ] || die "missing benchmark config file: ${source_config}"
+    safe_rm "${target_config}"
+    cp -rf -- "${source_config}" "${target_config}"
+}
+
+prepare_benchmark_configs() {
+    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/aligned" "${BM_PATH_TREE}"
+    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode" "${BM_PATH_TABLE}"
+    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/aligned_query" "${BM_PATH_TREE_QUERY}"
+    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode_query" "${BM_PATH_TABLE_QUERY}"
+}
+
+clean_benchmark_runtime() {
+    local benchmark_path="$1"
+    safe_rm "${benchmark_path}/logs"
+    safe_rm "${benchmark_path}/data"
+}
+
+run_benchmark() {
+    local benchmark_path="$1"
+
+    (
+        cd "${benchmark_path}" || exit 1
+        ./benchmark.sh >/dev/null 2>&1 &
+    )
+}
+
+start_benchmarks() {
+    clean_benchmark_runtime "${BM_PATH_TREE}"
+    clean_benchmark_runtime "${BM_PATH_TABLE}"
+    clean_benchmark_runtime "${BM_PATH_TREE_QUERY}"
+    clean_benchmark_runtime "${BM_PATH_TABLE_QUERY}"
+
+    update_benchmark_start_time "${BM_PATH_TREE}"
+    apply_benchmark_start_time "${BM_PATH_TABLE}"
+    apply_benchmark_start_time "${BM_PATH_TREE_QUERY}"
+    apply_benchmark_start_time "${BM_PATH_TABLE_QUERY}"
+
+    run_benchmark "${BM_PATH_TREE}"
+    run_benchmark "${BM_PATH_TABLE}"
+    run_benchmark "${BM_PATH_TREE_QUERY}"
+    run_benchmark "${BM_PATH_TABLE_QUERY}"
+}
+
+create_stuck_result_csv() {
+    local csv_file="$1"
+    shift
+
+    local label=""
+    mkdir -p "${csv_file%/*}"
+    : > "${csv_file}"
+    for label in "$@"; do
+        echo "${label} ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> "${csv_file}"
+        echo "${label} ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> "${csv_file}"
     done
 }
 
-function get_single_index() {
-    local query=$1; local end=$2
-    local url="http://${metric_server}/api/v1/query"
-    local data_param="--data-urlencode query=$query --data-urlencode 'time=${end}'"
-    local index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]' | tr -d '"')
-    if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-        index_value=0
+ensure_output_or_stuck() {
+    local benchmark_path="$1"
+    local output_dir="${benchmark_path}/data/csvOutput"
+    shift
+
+    if [ ! -d "${output_dir}" ]; then
+        create_stuck_result_csv "${output_dir}/Stuck_result.csv" "$@"
     fi
-    echo $index_value
 }
 
-function collect_monitor_data() {
-    local ip=$1
-    dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" $m_end_time)
-    dataFileSize=$(awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/1048576/1024}')
-    numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" $m_end_time)
-    numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" $m_end_time)
-    maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
-    maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(awk 'BEGIN{printf "%.2f\n",'$walFileSize'/1048576/1024}')
-    maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsRead=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsWrite=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    D_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-    C_ErrorLogSize=$(du -sh ${TEST_IOTDB_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-    if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
+monitor_test_status() {
+    local output_tree="${BM_PATH_TREE}/data/csvOutput"
+    local output_table="${BM_PATH_TABLE}/data/csvOutput"
+    local output_tree_query="${BM_PATH_TREE_QUERY}/data/csvOutput"
+    local output_table_query="${BM_PATH_TABLE_QUERY}/data/csvOutput"
+    local now_epoch=0
+    local elapsed=0
+
+    while true; do
+        if [ -d "${output_tree}" ] && [ -d "${output_table}" ] && [ -d "${output_tree_query}" ] && [ -d "${output_table_query}" ]; then
+            end_time="$(current_datetime)"
+            log "longrun benchmark finished."
+            return 0
+        fi
+
+        now_epoch="$(date +%s)"
+        elapsed=$((now_epoch - m_start_time))
+        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+            end_time="$(current_datetime)"
+            log "longrun benchmark timed out, writing stuck results."
+            ensure_output_or_stuck "${BM_PATH_TREE}" INGESTION
+            ensure_output_or_stuck "${BM_PATH_TABLE}" INGESTION
+            ensure_output_or_stuck "${BM_PATH_TREE_QUERY}" "${OP_TYPE_LABELS[@]}"
+            ensure_output_or_stuck "${BM_PATH_TABLE_QUERY}" "${OP_TYPE_LABELS[@]}"
+            return 1
+        fi
+
+        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
+    done
+}
+
+get_single_index() {
+    local query="$1"
+    local end="$2"
+    local index_value=""
+
+    index_value="$(
+        curl -G -s "http://${METRIC_SERVER}/api/v1/query" \
+            --data-urlencode "query=${query}" \
+            --data-urlencode "time=${end}" \
+            | jq -r '.data.result[0].value[1] // 0'
+    )"
+
+    if [ "${index_value}" = "null" ] || [ -z "${index_value}" ]; then
+        index_value=0
+    fi
+
+    printf '%s\n' "${index_value}"
+}
+
+bytes_to_gib() {
+    awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
+}
+
+to_int() {
+    awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
+}
+
+file_size_bytes() {
+    local file="$1"
+    if [ -f "${file}" ]; then
+        du -sb "${file}" 2>/dev/null | awk '{print $1}'
+    else
+        printf '0\n'
+    fi
+}
+
+collect_monitor_data() {
+    local ip="$1"
+    local metric_window=$((m_end_time - m_start_time))
+    local maxNumofThread_C=0
+    local maxNumofThread_D=0
+    local datanode_error_log_size=0
+    local confignode_error_log_size=0
+
+    [ "${metric_window}" -gt 0 ] || metric_window=1
+
+    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")"
+    dataFileSize="$(bytes_to_gib "${dataFileSize}")"
+    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
+    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
+    maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${metric_window}s])" "${m_end_time}")"
+    maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
+    maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
+    maxNumofOpenFiles="$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" "${m_end_time}")"
+    walFileSize="$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${metric_window}s])" "${m_end_time}")"
+    walFileSize="$(bytes_to_gib "${walFileSize}")"
+    maxCPULoad="$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
+    avgCPULoad="$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
+    maxDiskIOOpsRead="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
+    maxDiskIOOpsWrite="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
+    maxDiskIOSizeRead="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
+    maxDiskIOSizeWrite="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
+
+    datanode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log")"
+    confignode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log")"
+    if [ "$((datanode_error_log_size + confignode_error_log_size))" -eq 0 ]; then
         errorLogSize=0
     else
         errorLogSize=1
     fi
 }
 
-function backup_test_data() {
-    local ts_type=$1
-    local backup_dir="${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class}"
-    sudo rm -rf $backup_dir
-    sudo mkdir -p $backup_dir
-    sudo mv ${TEST_IOTDB_PATH} $backup_dir
-    sudo cp -rf ${BM_PATH_TREE}/data/csvOutput $backup_dir
+find_result_csv() {
+    local benchmark_path="$1"
+    local had_nullglob=0
+    local files=()
+
+    if shopt -q nullglob; then
+        had_nullglob=1
+    else
+        shopt -s nullglob
+    fi
+
+    files=("${benchmark_path}/data/csvOutput/"*result.csv)
+
+    if [ "${had_nullglob}" -eq 0 ]; then
+        shopt -u nullglob
+    fi
+
+    if [ "${#files[@]}" -gt 0 ]; then
+        printf '%s\n' "${files[0]}"
+    fi
 }
 
-function mv_config_file() {
-    #local ts_type=$1
-    rm -rf ${BM_PATH_TREE}/conf/config.properties
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/aligned ${BM_PATH_TREE}/conf/config.properties
-	rm -rf ${BM_PATH_TABLE}/conf/config.properties
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/tablemode ${BM_PATH_TABLE}/conf/config.properties
-    rm -rf ${BM_PATH_TREE_QUERY}/conf/config.properties
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/aligned_query ${BM_PATH_TREE_QUERY}/conf/config.properties
-	rm -rf ${BM_PATH_TABLE_QUERY}/conf/config.properties
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/tablemode_query ${BM_PATH_TABLE_QUERY}/conf/config.properties
+parse_benchmark_result() {
+    local csv_file="$1"
+    local result_label="$2"
+    local throughput_line=""
+    local latency_line=""
+
+    [ -f "${csv_file}" ] || return 1
+
+    throughput_line="$(
+        awk -F, -v label="${result_label}" '
+            {
+                name = $1
+                gsub(/^[ \t]+|[ \t]+$/, "", name)
+            }
+            name == label {
+                for (i = 2; i <= 6; i++) {
+                    gsub(/^[ \t]+|[ \t]+$/, "", $i)
+                    printf "%s%s", $i, (i == 6 ? ORS : OFS)
+                }
+                exit
+            }
+        ' OFS=$'\t' "${csv_file}"
+    )"
+
+    latency_line="$(
+        awk -F, -v label="${result_label}" '
+            {
+                name = $1
+                gsub(/^[ \t]+|[ \t]+$/, "", name)
+            }
+            name == label {
+                count++
+                if (count == 2) {
+                    for (i = 2; i <= 12; i++) {
+                        gsub(/^[ \t]+|[ \t]+$/, "", $i)
+                        printf "%s%s", $i, (i == 12 ? ORS : OFS)
+                    }
+                    exit
+                }
+            }
+        ' OFS=$'\t' "${csv_file}"
+    )"
+
+    [ -n "${throughput_line}" ] || return 1
+    [ -n "${latency_line}" ] || return 1
+
+    IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
+    IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
-function test_operation() {
-    local protocol_class_input=$1
-    local ts_type='tree'
-	local data_type='unseq_rw'
-	local op_type='INGESTION'
-    #local insert_type=$3
-    echo "开始longrun测试时间序列！"
-    check_benchmark_pid
-    check_iotdb_pid
+insert_result_row() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_data_type="$3"
+    local current_op_type="$4"
+    local result_max_time="$5"
+    local insert_sql=""
+
+    insert_sql=$(cat <<EOF
+insert into ${result_table} (
+    commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,
+    Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,
+    numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,
+    maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol
+) values (
+    ${commit_date_time},
+    ${test_date_time},
+    $(sql_quote "${commit_id}"),
+    $(sql_quote "${author}"),
+    $(sql_quote "${current_ts_type}"),
+    $(sql_quote "${current_data_type}"),
+    $(sql_quote "${current_op_type}"),
+    ${okPoint},
+    ${okOperation},
+    ${failPoint},
+    ${failOperation},
+    ${throughput},
+    ${Latency},
+    ${MIN},
+    ${P10},
+    ${P25},
+    ${MEDIAN},
+    ${P75},
+    ${P90},
+    ${P95},
+    ${P99},
+    ${P999},
+    ${MAX},
+    ${numOfSe0Level},
+    $(sql_quote "${start_time}"),
+    $(sql_quote "${end_time}"),
+    $(sql_quote "${result_max_time}"),
+    ${cost_time},
+    ${numOfUnse0Level},
+    ${dataFileSize},
+    ${maxNumofOpenFiles},
+    ${maxNumofThread},
+    ${errorLogSize},
+    ${walFileSize},
+    ${avgCPULoad},
+    ${maxCPULoad},
+    ${maxDiskIOSizeRead},
+    ${maxDiskIOSizeWrite},
+    ${maxDiskIOOpsRead},
+    ${maxDiskIOOpsWrite},
+    ${protocol_code}
+)
+EOF
+)
+
+    mysql_exec "${insert_sql}"
+}
+
+insert_result_from_csv() {
+    local protocol_code="$1"
+    local benchmark_path="$2"
+    local current_ts_type="$3"
+    local current_data_type="$4"
+    local current_op_type="$5"
+    local result_label="$6"
+    local result_max_time=""
+    local csv_file=""
+
+    reset_benchmark_metrics
+    result_max_time="$(get_result_max_time "${current_ts_type}")"
+    csv_file="$(find_result_csv "${benchmark_path}" || true)"
+
+    if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
+        log "failed to parse ${result_label} from ${benchmark_path}, writing negative result."
+        set_negative_benchmark_metrics -2
+        insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
+        return 1
+    fi
+
+    insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
+}
+
+insert_all_results() {
+    local protocol_code="$1"
+    local failed=0
+    local index=0
+
+    insert_result_from_csv "${protocol_code}" "${BM_PATH_TREE}" "tree" "${DATA_TYPE}" "INGESTION" "INGESTION" || failed=1
+    insert_result_from_csv "${protocol_code}" "${BM_PATH_TABLE}" "table" "${DATA_TYPE}" "INGESTION" "INGESTION" || failed=1
+
+    for ((index = 0; index < ${#OP_TYPE_LABELS[@]}; index++)); do
+        insert_result_from_csv "${protocol_code}" "${BM_PATH_TREE_QUERY}" "tree" "${DATA_TYPE}" "${OP_TYPE_NAMES[${index}]}" "${OP_TYPE_LABELS[${index}]}" || failed=1
+    done
+
+    for ((index = 0; index < ${#OP_TYPE_LABELS[@]}; index++)); do
+        insert_result_from_csv "${protocol_code}" "${BM_PATH_TABLE_QUERY}" "table" "${DATA_TYPE}" "${OP_TYPE_NAMES[${index}]}" "${OP_TYPE_LABELS[${index}]}" || failed=1
+    done
+
+    return "${failed}"
+}
+
+backup_test_data() {
+    local protocol_code="$1"
+    local backup_dir="${BACKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_code}"
+    local name=""
+    local path=""
+
+    sudo_safe_rm "${backup_dir}"
+    path_is_safe "${backup_dir}" || die "refuse unexpected backup path: ${backup_dir}"
+    sudo mkdir -p -- "${backup_dir}/benchmark"
+
+    if [ -d "${TEST_IOTDB_PATH}" ]; then
+        path_is_safe "${TEST_IOTDB_PATH}" || die "refuse unexpected IoTDB path: ${TEST_IOTDB_PATH}"
+        sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}/"
+    fi
+
+    for name in tree table tree_query table_query; do
+        case "${name}" in
+            tree) path="${BM_PATH_TREE}" ;;
+            table) path="${BM_PATH_TABLE}" ;;
+            tree_query) path="${BM_PATH_TREE_QUERY}" ;;
+            table_query) path="${BM_PATH_TABLE_QUERY}" ;;
+        esac
+
+        if [ -d "${path}/data/csvOutput" ]; then
+            sudo cp -rf -- "${path}/data/csvOutput" "${backup_dir}/benchmark/${name}_csvOutput"
+        fi
+        if [ -d "${path}/logs" ]; then
+            sudo cp -rf -- "${path}/logs" "${backup_dir}/benchmark/${name}_logs"
+        fi
+    done
+}
+
+write_start_failure_result() {
+    local protocol_code="$1"
+    local failure_value="$2"
+    local result_max_time=""
+
+    set_negative_benchmark_metrics "${failure_value}"
+    result_max_time="$(get_result_max_time "tree")"
+    [ -n "${start_time}" ] || start_time="$(current_datetime)"
+    [ -n "${end_time}" ] || end_time="$(current_datetime)"
+    cost_time="${failure_value}"
+    insert_result_row "${protocol_code}" "tree" "${DATA_TYPE}" "INGESTION" "${result_max_time}"
+}
+
+test_operation() {
+    local protocol_code="$1"
+    local monitor_failed=0
+    local result_failed=0
+
+    log "start ${TEST_TYPE}: protocol=${protocol_code}"
+    init_items
+    cleanup_processes
     set_env
     modify_iotdb_config
-    case $protocol_class_input in
-        111) set_protocol_class 1 1 1 ;;
-        222) set_protocol_class 2 2 2 ;;
-        223) set_protocol_class 2 2 3 ;;
-        211) set_protocol_class 2 1 1 ;;
-        *) echo "协议设置错误！"; return ;;
-    esac
-    start_iotdb
-    sleep 10
-    for (( t_wait = 0; t_wait <= 10; t_wait++ )); do
-        iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-        if [ "${iotdb_state}" != "Total line number = 2" ]; then
-            iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -pw root -e "show cluster" | grep 'Total line number = 2')
-        fi
-        if [ "${iotdb_state}" != "Total line number = 2" ]; then
-            iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -pw TimechoDB@2021 -e "show cluster" | grep 'Total line number = 2')
-        fi
-        [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 5
-    done
-    if [ "${iotdb_state}" != "Total line number = 2" ]; then
-        echo "IoTDB未能正常启动，写入负值测试结果！"
-        cost_time=-3; throughput=-3
-        local result_max_time=$(get_result_max_time "${ts_type}")
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}','${result_max_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-        update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
-        return
+
+    if ! set_protocol_class "${protocol_code}"; then
+        log "invalid protocol code: ${protocol_code}"
+        return 1
     fi
-	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
-    mv_config_file
-    start_benchmark
-    start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-    m_start_time=$(date +%s)
-    sleep 60
-    monitor_test_status
-    m_end_time=$(date +%s)
-	pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h 127.0.0.1 -p 6667 -e "flush")
-    collect_monitor_data ${TEST_IP}
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	stop_iotdb
-	sleep 10
-	####收集树模型写入吞吐添加到数据库
-    csvOutputfile=${BM_PATH_TREE}/data/csvOutput/*result.csv
-	local ts_type='tree'
-    local result_max_time=$(get_result_max_time "${ts_type}")
-    read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-    read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-    local op_type='INGESTION'
-    insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}','${result_max_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-	####收集表模型写入吞吐添加到数据库
-    csvOutputfile=${BM_PATH_TABLE}/data/csvOutput/*result.csv
-	local ts_type='table'
-    local result_max_time=$(get_result_max_time "${ts_type}")
-    read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-    read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-    local op_type='INGESTION'
-    insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}','${result_max_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-    ####收集树模型查询吞吐添加到数据库
-    csvOutputfile=${BM_PATH_TREE_QUERY}/data/csvOutput/*result.csv
-	local ts_type='tree'
-    local result_max_time=$(get_result_max_time "${ts_type}")
-	for (( i = 0; i < ${#op_type_csv[*]}; i++ ))
-	do
-		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${op_type_csv[${i}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${op_type_csv[${i}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-		local op_type=${op_type_name[${i}]}
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}','${result_max_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-	done
-	####收集表模型查询吞吐添加到数据库
-    csvOutputfile=${BM_PATH_TABLE_QUERY}/data/csvOutput/*result.csv
-	local ts_type='table'
-    local result_max_time=$(get_result_max_time "${ts_type}")
-	for (( i = 0; i < ${#op_type_csv[*]}; i++ ))
-	do
-		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${op_type_csv[${i}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${op_type_csv[${i}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-		local op_type=${op_type_name[${i}]}
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,max_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}','${result_max_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-	done
-    sleep 30
-    check_benchmark_pid
-    check_iotdb_pid
-    backup_test_data ${ts_type}
+
+    start_iotdb
+    sleep "${STARTUP_GRACE_SECONDS}"
+    if ! wait_for_iotdb_ready; then
+        log "IoTDB failed to start, writing negative result."
+        write_start_failure_result "${protocol_code}" -3
+        cleanup_processes
+        return 1
+    fi
+
+    if ! change_root_password; then
+        log "failed to change root password, writing negative result."
+        write_start_failure_result "${protocol_code}" -4
+        cleanup_processes
+        return 1
+    fi
+
+    prepare_benchmark_configs
+    start_benchmarks
+    start_time="$(current_datetime)"
+    m_start_time="$(date +%s)"
+    sleep "${BENCHMARK_WARMUP_SECONDS}"
+
+    if ! monitor_test_status; then
+        monitor_failed=1
+    fi
+
+    m_end_time="$(date +%s)"
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
+    collect_monitor_data "${TEST_IP}"
+    [ -n "${end_time}" ] || end_time="$(current_datetime)"
+    cost_time=$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))
+
+    stop_iotdb
+    sleep "${STARTUP_GRACE_SECONDS}"
+
+    if ! insert_all_results "${protocol_code}"; then
+        result_failed=1
+    fi
+
+    sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
+    cleanup_processes
+    backup_test_data "${protocol_code}"
+
+    [ "${monitor_failed}" -eq 0 ] && [ "${result_failed}" -eq 0 ]
 }
 
-# -------------------- 主流程 --------------------
-check_password
-check_benchmark_version
-init_longrun_route
+mark_test_in_progress() {
+    printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
+}
 
-echo "ontesting" > ${INIT_PATH}/test_type_file
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' and ${AUTHOR_FILTER} ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-if [ -z "${commit_id}" ]; then
-    query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL and ${AUTHOR_FILTER} ORDER BY commit_date_time desc limit 1 "
-    result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-    commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-    commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-fi
-if [ -z "${commit_id}" ]; then
-    sleep 60s
-else
-    update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
-    echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-    init_items
-    test_date_time=$(date +%Y%m%d%H%M%S)
-	test_operation 223
-    echo "本轮测试${test_date_time}已结束."
-    update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
-    update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and ${AUTHOR_FILTER} and commit_date_time < '${commit_date_time}'"
-    result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
-fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+restore_test_type_file() {
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
+}
+
+main() {
+    local protocol=""
+    local task_failed=0
+
+    trap restore_test_type_file EXIT
+
+    ensure_runtime_dependencies
+    check_password
+    check_benchmark_version
+    init_longrun_route
+
+    mark_test_in_progress
+    if ! fetch_next_commit; then
+        sleep 60
+        return 0
+    fi
+
+    update_task_status "ontesting"
+    log "current commit ${commit_id} is pending, start test."
+
+    test_date_time="$(date +%Y%m%d%H%M%S)"
+    for protocol in "${PROTOCOL_LIST[@]}"; do
+        if ! test_operation "${protocol}"; then
+            task_failed=1
+        fi
+    done
+
+    log "test round ${test_date_time} finished."
+    if [ "${task_failed}" -eq 0 ]; then
+        update_task_status "done"
+        mark_older_commits_skip
+    else
+        update_task_status "RError"
+    fi
+}
+
+main "$@"
