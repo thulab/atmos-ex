@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# 查询类测试公共库。
+# 公共适用脚本：se_query.sh、unse_query.sh、se_query_test.sh。
+# 约定：
+# - 本文件中的“公共函数”由所有查询类脚本复用，入口脚本在 source 前设置 TEST_IP、TEST_TYPE、QUERY_DATA_TYPE。
+# - 本文件中的“预留配置/预留函数”主要面向 se_query_test.sh，用于缩小测试矩阵并创建 QA 查询用户。
+
 if [ -z "${BASH_VERSION:-}" ]; then
     echo "query_common.sh requires bash" >&2
     return 1 2>/dev/null || exit 1
@@ -11,6 +17,7 @@ fi
 
 : "${TEST_IP:?TEST_IP must be set before sourcing query_common.sh}"
 : "${TEST_TYPE:?TEST_TYPE must be set before sourcing query_common.sh}"
+# 公共必填配置：se_query.sh/se_query_test.sh 设置为 sequence，unse_query.sh 设置为 unsequence。
 : "${QUERY_DATA_TYPE:?QUERY_DATA_TYPE must be set before sourcing query_common.sh}"
 
 readonly IOTDB_PW="TimechoDB@2021"
@@ -33,17 +40,22 @@ readonly -a PROTOCOL_CLASS=(
     "org.apache.iotdb.consensus.iot.IoTConsensus"
     "org.apache.iotdb.consensus.iot.IoTConsensusV2"
 )
+# 公共可覆盖配置：入口脚本可在 source 本文件前预定义 PROTOCOL_LIST，限制需要测试的共识协议组合。
 if ! declare -p PROTOCOL_LIST >/dev/null 2>&1; then
     readonly -a PROTOCOL_LIST=(211)
 fi
+# 公共可覆盖配置：入口脚本可在 source 本文件前预定义 QUERY_TS_LIST，限制需要测试的序列类型/表模型类型。
+# se_query_test.sh 使用该配置只跑 tablemode 和 tempaligned。
 if ! declare -p QUERY_TS_LIST >/dev/null 2>&1; then
     readonly -a QUERY_TS_LIST=(tablemode common aligned tempaligned)
 fi
+# 特定脚本预留配置：se_query_test.sh 设置为 1 时，prepare_query_users 会创建 QA 查询用户。
 if ! declare -p QUERY_CREATE_QA_USER >/dev/null 2>&1; then
     readonly QUERY_CREATE_QA_USER=0
 else
     readonly QUERY_CREATE_QA_USER
 fi
+# 公共可覆盖配置：默认查询用例列表；未来新增专项查询脚本可在 source 前重定义。
 if ! declare -p QUERY_LIST >/dev/null 2>&1; then
     readonly -a QUERY_LIST=(
         Q1
@@ -73,6 +85,7 @@ if ! declare -p QUERY_LIST >/dev/null 2>&1; then
         Q10
     )
 fi
+# 公共可覆盖配置：QUERY_RESULT_LABELS 与 QUERY_LIST 一一对应，用于解析 benchmark CSV 中的结果行。
 if ! declare -p QUERY_RESULT_LABELS >/dev/null 2>&1; then
     readonly -a QUERY_RESULT_LABELS=(
         PRECISE_POINT
@@ -156,6 +169,8 @@ walFileSize=0
 m_start_time=0
 m_end_time=0
 
+# -------------------- 公共基础工具函数 --------------------
+# 这些函数不依赖具体查询类型，供所有查询类入口脚本和本文件内部流程复用。
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
 }
@@ -200,6 +215,8 @@ check_password() {
     [ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
 }
 
+# -------------------- 公共安全路径和文件操作函数 --------------------
+# 所有删除/移动前先通过 path_is_safe 做路径白名单校验，避免变量为空或拼接异常时误删宿主机目录。
 path_is_safe() {
     local path="$1"
     [ -n "${path}" ] || return 1
@@ -247,6 +264,8 @@ copy_if_exists() {
     cp -rf -- "${source}" "${target}"
 }
 
+# -------------------- 公共 MySQL 和任务队列函数 --------------------
+# 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
 mysql_exec() {
     local sql="$1"
     MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
@@ -295,6 +314,8 @@ fetch_next_commit() {
     [ -n "${commit_date_time}" ] || die "failed to parse commit_date_time."
 }
 
+# -------------------- 公共 Benchmark 版本同步函数 --------------------
+# git_commit_abbrev/check_benchmark_version 负责保持查询测试使用的 iot-benchmark 为最新版本。
 git_commit_abbrev() {
     awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
 }
@@ -318,6 +339,8 @@ check_benchmark_version() {
     fi
 }
 
+# -------------------- 公共测试指标初始化函数 --------------------
+# 每个协议或查询 case 开始前重置全局指标，避免上一次结果污染本次入库数据。
 init_items() {
     okPoint=0
     okOperation=0
@@ -388,6 +411,8 @@ set_negative_benchmark_metrics() {
     MAX="${value}"
 }
 
+# -------------------- 公共进程清理函数 --------------------
+# 统一清理 Benchmark 和 IoTDB 相关 Java 进程，供正常流程和异常流程复用。
 check_pid_and_kill() {
     local pname="$1"
     local desc="$2"
@@ -414,6 +439,8 @@ cleanup_processes() {
     check_pid_and_kill "IoTDB" "IoTDB"
 }
 
+# -------------------- 公共 IoTDB / Benchmark 生命周期函数 --------------------
+# 负责准备待测版本、修改基础配置、设置共识协议、启动/停止服务和等待可用。
 set_env() {
     local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
 
@@ -536,6 +563,8 @@ wait_for_iotdb_ready() {
     return 1
 }
 
+# -------------------- 特定脚本预留函数：se_query_test QA 用户准备 --------------------
+# 只有 se_query_test.sh 将 QUERY_CREATE_QA_USER 设为 1 时才会实际创建 qa_user。
 prepare_query_users() {
     if [ "${QUERY_CREATE_QA_USER}" != "1" ]; then
         return 0
@@ -546,6 +575,8 @@ prepare_query_users() {
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -sql_dialect table -e "GRANT ALL TO USER qa_user" >/dev/null 2>&1 || true
 }
 
+# -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
+# 启动查询 Benchmark，并通过输出 CSV 判断查询是否完成；超时时生成兜底结果。
 start_benchmark() {
     safe_rm "${BM_PATH}/logs"
     safe_rm "${BM_PATH}/data"
@@ -614,6 +645,8 @@ monitor_test_status() {
     done
 }
 
+# -------------------- 公共 Prometheus 指标采集函数 --------------------
+# 采集文件数、线程数、WAL、日志大小等通用性能指标，供结果入库使用。
 get_single_index() {
     local query="$1"
     local end="$2"
@@ -674,6 +707,8 @@ collect_monitor_data() {
     errorLogSize=$((datanode_error_log_size + confignode_error_log_size))
 }
 
+# -------------------- 公共查询配置、结果解析和入库函数 --------------------
+# configure_benchmark 按 ts_type/query_name 切换 Benchmark 配置；parse_benchmark_result 按 label 解析查询结果。
 configure_benchmark() {
     local current_ts_type="$1"
     local current_query_name="$2"
@@ -795,6 +830,8 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# -------------------- 公共数据集搬运和日志备份函数 --------------------
+# 查询类脚本复用预生成数据集，单个 ts_type 测完后再把 data 目录还原到数据集仓库。
 move_dataset_to_iotdb() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -869,6 +906,8 @@ backup_test_data() {
     fi
 }
 
+# -------------------- 公共查询 case 执行流程 --------------------
+# 单个 query case 流程：启动 IoTDB -> 准备用户 -> 运行 Benchmark -> 解析结果 -> 入库 -> 保存日志。
 run_query_case() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -932,6 +971,8 @@ run_query_case() {
     return "${case_failed}"
 }
 
+# -------------------- 公共序列类型执行流程 --------------------
+# 单个 ts_type 流程：准备 IoTDB 目录和数据集，然后遍历 QUERY_LIST 中的所有查询用例。
 run_ts_type() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -962,6 +1003,8 @@ run_ts_type() {
     return "${ts_failed}"
 }
 
+# -------------------- 公共协议执行流程 --------------------
+# 单个协议下遍历 QUERY_TS_LIST；se_query_test.sh 通过覆盖 QUERY_TS_LIST 缩小测试范围。
 test_operation() {
     local protocol_code="$1"
     local current_ts_type=""
@@ -976,6 +1019,8 @@ test_operation() {
     return "${task_failed}"
 }
 
+# -------------------- 公共调度状态函数 --------------------
+# 与外层调度器通过 test_type_file 协同当前测试状态。
 mark_test_in_progress() {
     printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 }
@@ -984,6 +1029,8 @@ restore_test_type_file() {
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
+# -------------------- 公共主流程入口 --------------------
+# 由各入口脚本在 source 后调用 main "$@"，统一完成依赖检查、取 commit、遍历协议并更新任务状态。
 main() {
     local protocol=""
     local task_failed=0
