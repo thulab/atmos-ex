@@ -16,6 +16,7 @@ readonly TEST_TYPE="longrun_test"
 readonly DATA_TYPE="unseq_rw"
 readonly DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
 readonly DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
+readonly LONGRUN_TTL_KEEP_DAYS="${LONGRUN_TTL_KEEP_DAYS:-40}"
 
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
@@ -140,6 +141,7 @@ TREE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
+LONGRUN_TTL_MS=0
 
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
@@ -376,6 +378,7 @@ init_items() {
     TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
     QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
     BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
+    LONGRUN_TTL_MS=0
 }
 
 reset_benchmark_metrics() {
@@ -688,6 +691,22 @@ query_last_sensor_time() {
     printf '%s\n' "${query_result}"
 }
 
+iotdb_time_to_epoch() {
+    local raw_timestamp="$1"
+    local timestamp_precision="$2"
+
+    if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
+        case "${timestamp_precision}" in
+            ns) printf '%s\n' $((raw_timestamp / 1000000000)) ;;
+            us) printf '%s\n' $((raw_timestamp / 1000000)) ;;
+            s) printf '%s\n' "${raw_timestamp}" ;;
+            ms|*) printf '%s\n' $((raw_timestamp / 1000)) ;;
+        esac
+    else
+        date -d "${raw_timestamp}" +%s
+    fi
+}
+
 format_iotdb_time() {
     local raw_timestamp="$1"
     local timestamp_precision="$2"
@@ -695,19 +714,28 @@ format_iotdb_time() {
     local output_format="${4:-+%Y-%m-%dT%H:%M:%S%:z}"
     local target_epoch=0
 
-    if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
-        case "${timestamp_precision}" in
-            ns) target_epoch=$((raw_timestamp / 1000000000 + offset_seconds)) ;;
-            us) target_epoch=$((raw_timestamp / 1000000 + offset_seconds)) ;;
-            s) target_epoch=$((raw_timestamp + offset_seconds)) ;;
-            ms|*) target_epoch=$((raw_timestamp / 1000 + offset_seconds)) ;;
-        esac
-    else
-        target_epoch="$(date -d "${raw_timestamp}" +%s 2>/dev/null)" || return 1
-        target_epoch=$((target_epoch + offset_seconds))
-    fi
+    target_epoch="$(iotdb_time_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
+    target_epoch=$((target_epoch + offset_seconds))
 
     date -d "@${target_epoch}" "${output_format}"
+}
+
+calculate_ttl_ms() {
+    local raw_timestamp="$1"
+    local timestamp_precision="$2"
+    local max_time_epoch=0
+    local now_epoch=0
+    local keep_seconds=0
+    local ttl_seconds=0
+
+    [[ "${LONGRUN_TTL_KEEP_DAYS}" =~ ^[0-9]+$ ]] || return 1
+    max_time_epoch="$(iotdb_time_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
+    now_epoch="$(date +%s)"
+    keep_seconds=$((LONGRUN_TTL_KEEP_DAYS * 24 * 60 * 60))
+    ttl_seconds=$((now_epoch - max_time_epoch + keep_seconds))
+    [ "${ttl_seconds}" -gt 0 ] || ttl_seconds="${keep_seconds}"
+
+    printf '%s\n' $((ttl_seconds * 1000))
 }
 
 set_result_max_time() {
@@ -746,6 +774,15 @@ update_benchmark_start_time() {
     longrun_start_time_log "timestamp_precision=${timestamp_precision} last_sensor_time=${last_sensor_time}"
 
     if [ -n "${last_sensor_time}" ]; then
+        format_output="$(calculate_ttl_ms "${last_sensor_time}" "${timestamp_precision}" 2>&1)"
+        format_status=$?
+        if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
+            LONGRUN_TTL_MS="${format_output}"
+            longrun_start_time_log "ttl calculated raw=${last_sensor_time} precision=${timestamp_precision} ttl_ms=${LONGRUN_TTL_MS} keep_days=${LONGRUN_TTL_KEEP_DAYS}"
+        else
+            longrun_start_time_log "calculate ttl failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
+        fi
+
         format_output="$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)"
         format_status=$?
         if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
@@ -789,6 +826,101 @@ apply_benchmark_start_time() {
     sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
 }
 
+run_iotdb_sql_for_ttl() {
+    local dialect="$1"
+    local sql="$2"
+    local cli_output=""
+    local cli_status=0
+
+    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -sql_dialect "${dialect}" -h 127.0.0.1 -p 6667 -e "${sql}" 2>&1)"
+    cli_status=$?
+    longrun_start_time_log "set ttl cli_status=${cli_status} dialect=${dialect} sql=${sql}"
+
+    if [ "${cli_status}" -eq 0 ] && ! printf '%s\n' "${cli_output}" | grep -Eiq 'error|exception|failed|fail|syntax|does not exist|cannot|invalid|illegal|semantic|analyze'; then
+        return 0
+    fi
+
+    if [ -n "${cli_output}" ]; then
+        longrun_start_time_log "set ttl output=${cli_output}"
+    fi
+
+    return 1
+}
+
+set_tree_ttl() {
+    local db_name="$1"
+    local ttl_ms="$2"
+    local ttl_path=""
+
+    if [[ "${db_name}" == root.* ]]; then
+        ttl_path="${db_name}"
+    else
+        ttl_path="root.${db_name}"
+    fi
+
+    run_iotdb_sql_for_ttl "tree" "SET TTL TO ${ttl_path} ${ttl_ms}"
+}
+
+set_table_ttl() {
+    local db_name="$1"
+    local ttl_ms="$2"
+    local -a ttl_sqls=()
+    local ttl_sql=""
+
+    if [[ "${db_name}" == root.* ]]; then
+        db_name="${db_name#root.}"
+    fi
+
+    ttl_sqls=(
+        "ALTER DATABASE ${db_name} SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER DATABASE ${db_name} SET PROPERTIES (TTL=${ttl_ms})"
+        "ALTER DATABASE ${db_name} WITH (TTL=${ttl_ms})"
+        "ALTER DATABASE ${db_name} SET TTL=${ttl_ms}"
+    )
+
+    for ttl_sql in "${ttl_sqls[@]}"; do
+        if run_iotdb_sql_for_ttl "table" "${ttl_sql}"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+set_longrun_ttl() {
+    local tree_config="${BM_PATH_TREE}/conf/config.properties"
+    local table_config="${BM_PATH_TABLE}/conf/config.properties"
+    local tree_db_name=""
+    local table_db_name=""
+    local ttl_ms="${LONGRUN_TTL_MS}"
+    local failed=0
+
+    if ! [[ "${ttl_ms}" =~ ^[0-9]+$ ]] || [ "${ttl_ms}" -le 0 ]; then
+        longrun_start_time_log "skip set ttl: ttl_ms=${ttl_ms}"
+        return 0
+    fi
+
+    tree_db_name="$(get_benchmark_config_value_or_default "${tree_config}" "DB_NAME" "tree")"
+    table_db_name="$(get_benchmark_config_value_or_default "${table_config}" "DB_NAME" "table")"
+    longrun_start_time_log "set ttl begin ttl_ms=${ttl_ms} tree_db=${tree_db_name} table_db=${table_db_name}"
+
+    if ! set_tree_ttl "${tree_db_name}" "${ttl_ms}"; then
+        failed=1
+    fi
+
+    if ! set_tree_ttl "${table_db_name}" "${ttl_ms}" && ! set_table_ttl "${table_db_name}" "${ttl_ms}"; then
+        failed=1
+    fi
+
+    if [ "${failed}" -eq 0 ]; then
+        longrun_start_time_log "set ttl end success ttl_ms=${ttl_ms}"
+    else
+        longrun_start_time_log "set ttl end failed ttl_ms=${ttl_ms}"
+    fi
+
+    return "${failed}"
+}
+
 copy_benchmark_config() {
     local source_config="$1"
     local target_benchmark_path="$2"
@@ -828,6 +960,7 @@ start_benchmarks() {
     clean_benchmark_runtime "${BM_PATH_TABLE_QUERY}"
 
     update_benchmark_start_time "${BM_PATH_TREE}"
+    set_longrun_ttl || log "failed to set TTL, continue benchmark."
     apply_benchmark_start_time "${BM_PATH_TABLE}"
     apply_benchmark_start_time "${BM_PATH_TREE_QUERY}"
     apply_benchmark_start_time "${BM_PATH_TABLE_QUERY}"
