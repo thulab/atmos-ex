@@ -1,133 +1,61 @@
 #!/usr/bin/env bash
-#登录用户名
-ACCOUNT=atmos
-IoTDB_PW=TimechoDB@2021
-test_type=count_ts
-#初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
-ATMOS_PATH=${INIT_PATH}/atmos-ex
-BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/count_ts
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=/data/atmos
-TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
-# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
-# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
-# 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223 222 211)
-ts_list=(common aligned template tempaligned)
-############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_count_ts" #数据库中表的名称
-TABLENAME_T="ex_count_ts_T" #企业版结果表名
-TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
 fi
-run_mysql() {
-	mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "$1"
-}
-git_commit_abbrev() {
-	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
-}
-dir_size_gb() {
-	local target_dir=$1
-	if [ ! -d "${target_dir}" ]; then
-		echo 0
-	else
-		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
-	fi
-}
-count_tsfiles() {
-	local target_dir=$1
-	if [ ! -d "${target_dir}" ]; then
-		echo 0
-	else
-		find "${target_dir}" -name "*.tsfile" | wc -l
-	fi
-}
-process_pids() {
-	jps | awk -v process_name="$1" '$0 ~ process_name {print $1}'
-}
-process_metrics() {
-	local process_name=$1
-	local pid open_files=0 threads=0
-	for pid in $(process_pids "${process_name}"); do
-		open_files=$((open_files + $(lsof -p "${pid}" 2>/dev/null | wc -l)))
-		threads=$((threads + $(pstree -p "${pid}" 2>/dev/null | wc -l)))
-	done
-	echo "${open_files} ${threads}"
-}
-collect_process_metrics() {
-	local process_name file_count thread_count total_files=0 total_threads=0
-	for process_name in DataNode ConfigNode IoTDB; do
-		read file_count thread_count <<<"$(process_metrics "${process_name}")"
-		total_files=$((total_files + file_count))
-		total_threads=$((total_threads + thread_count))
-	done
-	echo "${total_files} ${total_threads}"
-}
-refresh_max_process_metrics() {
-	local file_count thread_count
-	read file_count thread_count <<<"$(collect_process_metrics)"
-	if [ "${maxNumofOpenFiles}" -lt "${file_count}" ]; then
-		maxNumofOpenFiles=${file_count}
-	fi
-	if [ "${maxNumofThread}" -lt "${thread_count}" ]; then
-		maxNumofThread=${thread_count}
-	fi
-}
-schema_cost_from_csv() {
-	awk -F, '/^Schema/ {print $2; exit}' "${BM_PATH}"/data/csvOutput/*result.csv 2>/dev/null
-}
-run_iotdb_cli() {
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IoTDB_PW}" -h 127.0.0.1 -p 6667 "$@"
-}
-extract_elapsed_seconds() {
-	awk '/^It/ {gsub("s", "", $3); print $3; exit}' "$1" 2>/dev/null
-}
-run_count_cost() {
-	local cost_name=$1
-	local sql=$2
-	local log_file="${TEST_IOTDB_PATH}/countCost_${cost_name}.log"
-	rm -f "${log_file}"
-	echo "Start count timeseries: ${sql}" >&2
-	run_iotdb_cli -timeout 6000 -e "${sql}" >> "${log_file}"
-	extract_elapsed_seconds "${log_file}"
-}
-run_show_cost() {
-	local cost_name=$1
-	local sql=$2
-	local log_file="${TEST_IOTDB_PATH}/showCost_${cost_name}.log"
-	local start_epoch end_epoch
-	rm -f "${log_file}"
-	echo "Start show timeseries: ${sql}" >&2
-	start_epoch=$(date +%s)
-	run_iotdb_cli -timeout 20000 -e "${sql}" >> "${log_file}"
-	end_epoch=$(date +%s)
-	echo $((end_epoch - start_epoch))
-}
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
-BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
-if [ "${BM_NEW}" != "" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf "${BM_PATH}"
-	cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
+if shopt -oq posix; then
+	exec bash "${BASH_SOURCE[0]}" "$@"
 fi
-init_items() {
-############定义监控采集项初始值##########################
-test_date_time=0
-start_time=0
-end_time=0
+
+set -u
+set -o pipefail
+
+readonly ACCOUNT="atmos"
+readonly IOTDB_PW="TimechoDB@2021"
+readonly test_type="count_ts"
+
+readonly INIT_PATH="/data/atmos/zk_test"
+readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
+readonly BM_PATH="${INIT_PATH}/iot-benchmark"
+readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
+readonly BUCKUP_PATH="/nasdata/repository/count_ts"
+readonly REPOS_PATH="/nasdata/repository/master"
+
+readonly TEST_INIT_PATH="/data/atmos"
+readonly TEST_IOTDB_PATH="${TEST_INIT_PATH}/apache-iotdb"
+
+readonly -a protocol_class=(
+	""
+	"org.apache.iotdb.consensus.simple.SimpleConsensus"
+	"org.apache.iotdb.consensus.ratis.RatisConsensus"
+	"org.apache.iotdb.consensus.iot.IoTConsensus"
+)
+readonly -a protocol_list=(223)
+readonly -a ts_list=(common aligned template tempaligned)
+
+readonly MYSQLHOSTNAME="111.200.37.158"
+readonly PORT="13306"
+readonly USERNAME="iotdbatm"
+readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly DBNAME="QA_ATM"
+readonly TABLENAME="ex_count_ts"
+readonly TABLENAME_T="ex_count_ts_T"
+readonly TASK_TABLENAME="ex_commit_history"
+
+readonly MONITOR_TIMEOUT_SECONDS=7200
+readonly MONITOR_POLL_INTERVAL_SECONDS=10
+readonly IOTDB_READY_RETRIES=10
+readonly IOTDB_READY_INTERVAL_SECONDS=5
+readonly STARTUP_GRACE_SECONDS=10
+readonly BENCHMARK_WARMUP_SECONDS=60
+readonly STOP_WAIT_SECONDS=30
+
+result_table="${TABLENAME}"
+commit_id=""
+author=""
+commit_date_time=""
+test_date_time=""
+start_time=""
+end_time=""
 cost_time=0
 createCost_all=0
 createCost_common=0
@@ -150,329 +78,791 @@ dataFileSize=0
 maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
-############定义监控采集项初始值##########################
-}
-local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
-sendEmail() {
-"${TOOLS_PATH}/sendEmail.sh" "$1" >/dev/null 2>&1 &
-}
-check_benchmark_pid() { # 检查benchmark的pid，有就停止
-	monitor_pid=$(jps | grep App | awk '{print $1}')
-	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
-	else
-		kill -9 ${monitor_pid}
-		echo "BM程序已停止！"
-	fi
-}
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
-set_env() { # 拷贝编译好的iotdb到测试路径
-	rm -rf "${TEST_IOTDB_PATH}"
-	mkdir -p "${TEST_IOTDB_PATH}"
-	cp -rf "${REPOS_PATH}/${commit_id}/apache-iotdb/"* "${TEST_IOTDB_PATH}/"
-	mkdir -p "${TEST_IOTDB_PATH}/activation"
-	cp -rf "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/"
-}
-modify_iotdb_config() { # iotdb调整内存，关闭合并
-	#修改IoTDB的配置
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"6G\"/g" ${TEST_IOTDB_PATH}/conf/confignode-env.sh
-	#清空配置文件
-	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#设置元数据管理方式
-	echo "schema_engine_mode=PBTree" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#关闭影响写入性能的其他功能
-	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-}
-set_protocol_class() { 
-	config_node=$1
-	schema_region=$2
-	data_region=$3
-	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-}
-start_iotdb() { # 启动iotdb
-	cd "${TEST_IOTDB_PATH}" || return 1
-	./sbin/start-confignode.sh >/dev/null 2>&1 &
-	sleep 10
-	./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-	cd ~/
-}
-stop_iotdb() { # 停止iotdb
-	cd "${TEST_IOTDB_PATH}" || return 1
-	./sbin/stop-datanode.sh >/dev/null 2>&1 &
-	sleep 10
-	./sbin/stop-confignode.sh >/dev/null 2>&1 &
-	cd ~/
-}
-start_benchmark() { # 启动benchmark
-	cd "${BM_PATH}" || return 1
-	rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
-	"${BM_PATH}/benchmark.sh" >/dev/null 2>&1 &
-	cd ~/
-}
-monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	while true; do
-		#监控打开文件数量
-		refresh_max_process_metrics
-		#监控线程数
 
-		csvOutput=${BM_PATH}/data/csvOutput
-		if [ ! -d "$csvOutput" ]; then
-			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 7200 ]; then
-				echo "测试失败"
-				mkdir -p "${BM_PATH}/data/csvOutput"
-				cd "${BM_PATH}/data/csvOutput" || break
-				touch Stuck_result.csv
-				array1="Schema cost(s),-1"
-				for ((i=0;i<100;i++))
-				do
-					echo "$array1" >> Stuck_result.csv
-				done
-				cd ~
-				break
-			fi
-			sleep 10
-			continue
-		else
-			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			echo "写入已完成！"
-			break
-		fi
+log() {
+	printf '[%s] %s\n' "$(date '+%F %T')" "$*" >&2
+}
+
+die() {
+	log "ERROR: $*"
+	exit 1
+}
+
+trim() {
+	local value="${1:-}"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "${value}"
+}
+
+current_datetime() {
+	date '+%Y-%m-%d %H:%M:%S'
+}
+
+datetime_to_epoch() {
+	date -d "$1" +%s
+}
+
+normalize_datetime() {
+	printf '%s' "$1" | tr -cd '0-9'
+}
+
+require_command() {
+	command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+ensure_runtime_dependencies() {
+	local cmd=""
+
+	for cmd in awk cat cp date du find grep jps kill lsof mkdir mv mysql ps rm sed sudo tail tr wc; do
+		require_command "${cmd}"
 	done
 }
-collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
-	dataFileSize=$(dir_size_gb "${TEST_IOTDB_PATH}/data")
-	numOfSe0Level=$(count_tsfiles "${TEST_IOTDB_PATH}/data/datanode/data/sequence")
-	numOfUnse0Level=$(count_tsfiles "${TEST_IOTDB_PATH}/data/datanode/data/unsequence")
-	if [ -s "${TEST_IOTDB_PATH}/logs/log_datanode_error.log" ] || [ -s "${TEST_IOTDB_PATH}/logs/log_confignode_error.log" ]; then
+
+check_password() {
+	if [ -z "${PASSWORD}" ]; then
+		die "ATMOS_DB_PASSWORD is not set."
+	fi
+}
+
+mysql_exec() {
+	local sql="$1"
+	MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+}
+
+sql_quote() {
+	local value="${1:-}"
+	value="${value//\\/\\\\}"
+	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
+	printf "'%s'" "${value}"
+}
+
+update_task_status() {
+	local status="$1"
+	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+}
+
+mark_older_commits_skip() {
+	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+}
+
+query_next_commit() {
+	local status_filter="$1"
+
+	if [ "${status_filter}" = "retest" ]; then
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
+	else
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
+	fi
+}
+
+fetch_next_commit() {
+	local row=""
+	local raw_commit_date_time=""
+
+	row="$(query_next_commit "retest")"
+	if [ -z "${row}" ]; then
+		row="$(query_next_commit "pending")"
+	fi
+	[ -n "${row}" ] || return 1
+
+	IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
+	author="$(trim "${author}")"
+	commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
+	[ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
+}
+
+git_commit_abbrev() {
+	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
+}
+
+path_is_safe() {
+	local path="$1"
+
+	[ -n "${path}" ] || return 1
+	case "${path}" in
+		/|/data|/nasdata|.)
+			return 1
+			;;
+		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BUCKUP_PATH}"/*)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+safe_rm() {
+	local path="$1"
+
+	[ -e "${path}" ] || return 0
+	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
+	rm -rf -- "${path}"
+}
+
+sudo_safe_rm() {
+	local path="$1"
+
+	[ -e "${path}" ] || return 0
+	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
+	sudo rm -rf -- "${path}"
+}
+
+copy_if_exists() {
+	local source="$1"
+	local target="$2"
+	local label="${3:-$1}"
+
+	if [ ! -e "${source}" ]; then
+		log "skip copy, missing ${label}: ${source}"
+		return 0
+	fi
+
+	cp -rf -- "${source}" "${target}"
+}
+
+check_benchmark_version() {
+	local bm_new=""
+	local bm_old=""
+
+	if [ ! -f "${BM_REPOS_PATH}/git.properties" ]; then
+		log "skip benchmark sync, missing ${BM_REPOS_PATH}/git.properties"
+		return 0
+	fi
+
+	bm_new="$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")"
+	[ -n "${bm_new}" ] || return 0
+	if [ -f "${BM_PATH}/git.properties" ]; then
+		bm_old="$(git_commit_abbrev "${BM_PATH}/git.properties")"
+	fi
+
+	if [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; then
+		log "sync benchmark to ${bm_new}"
+		safe_rm "${BM_PATH}"
+		cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
+	fi
+}
+
+dir_size_gb() {
+	local target_dir="$1"
+
+	if [ ! -d "${target_dir}" ]; then
+		printf '0\n'
+	else
+		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
+	fi
+}
+
+count_tsfiles() {
+	local target_dir="$1"
+
+	if [ ! -d "${target_dir}" ]; then
+		printf '0\n'
+	else
+		find "${target_dir}" -name "*.tsfile" | wc -l | tr -d '[:space:]'
+	fi
+}
+
+init_items() {
+	start_time=""
+	end_time=""
+	cost_time=0
+	createCost_all=0
+	createCost_common=0
+	createCost_aligned=0
+	createCost_template=0
+	createCost_tempaligned=0
+	countCost_all=0
+	countCost_common=0
+	countCost_aligned=0
+	countCost_template=0
+	countCost_tempaligned=0
+	showCost_all=0
+	showCost_common=0
+	showCost_aligned=0
+	showCost_template=0
+	showCost_tempaligned=0
+	numOfSe0Level=0
+	numOfUnse0Level=0
+	dataFileSize=0
+	maxNumofOpenFiles=0
+	maxNumofThread=0
+	errorLogSize=0
+}
+
+check_pid_and_kill() {
+	local pname="$1"
+	local desc="$2"
+	local pids=""
+	local pid=""
+
+	pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
+	if [ -z "${pids}" ]; then
+		log "no ${desc} process found."
+		return 0
+	fi
+
+	while IFS= read -r pid; do
+		[ -n "${pid}" ] || continue
+		kill -9 "${pid}" 2>/dev/null || true
+	done <<< "${pids}"
+	log "${desc} stopped."
+}
+
+check_benchmark_pid() {
+	check_pid_and_kill "App" "benchmark"
+}
+
+check_iotdb_pid() {
+	check_pid_and_kill "DataNode" "DataNode"
+	check_pid_and_kill "ConfigNode" "ConfigNode"
+	check_pid_and_kill "IoTDB" "IoTDB"
+}
+
+cleanup_processes() {
+	check_benchmark_pid
+	check_iotdb_pid
+}
+
+set_iotdb_property() {
+	local key="$1"
+	local value="$2"
+	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+
+	[ -f "${conf_file}" ] || die "missing config file: ${conf_file}"
+	if grep -q "^[[:space:]]*${key}[[:space:]]*=" "${conf_file}"; then
+		sed -i "s|^[[:space:]]*${key}[[:space:]]*=.*$|${key}=${value}|g" "${conf_file}"
+	else
+		printf '%s=%s\n' "${key}" "${value}" >> "${conf_file}"
+	fi
+}
+
+set_env() {
+	local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
+
+	[ -d "${source_path}" ] || die "missing IoTDB build: ${source_path}"
+	safe_rm "${TEST_IOTDB_PATH}"
+	mkdir -p "${TEST_IOTDB_PATH}/activation"
+	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
+	copy_if_exists "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/" "license"
+}
+
+modify_iotdb_config() {
+	local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
+	local confignode_env="${TEST_IOTDB_PATH}/conf/confignode-env.sh"
+
+	[ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
+	sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="20G"/' "${datanode_env}"
+	if [ -f "${confignode_env}" ]; then
+		sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="6G"/' "${confignode_env}"
+	fi
+
+	set_iotdb_property "schema_engine_mode" "PBTree"
+	set_iotdb_property "enable_seq_space_compaction" "false"
+	set_iotdb_property "enable_unseq_space_compaction" "false"
+	set_iotdb_property "enable_cross_space_compaction" "false"
+	set_iotdb_property "cluster_name" "${test_type}"
+	set_iotdb_property "cn_enable_metric" "true"
+	set_iotdb_property "cn_enable_performance_stat" "true"
+	set_iotdb_property "cn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "cn_metric_level" "ALL"
+	set_iotdb_property "cn_metric_prometheus_reporter_port" "9081"
+	set_iotdb_property "dn_enable_metric" "true"
+	set_iotdb_property "dn_enable_performance_stat" "true"
+	set_iotdb_property "dn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "dn_metric_level" "ALL"
+	set_iotdb_property "dn_metric_prometheus_reporter_port" "9091"
+}
+
+set_protocol_class() {
+	local protocol_code="$1"
+	local config_node="${protocol_code:0:1}"
+	local schema_region="${protocol_code:1:1}"
+	local data_region="${protocol_code:2:1}"
+
+	[ "${#protocol_code}" -eq 3 ] || return 1
+	[ -n "${protocol_class[${config_node}]:-}" ] || return 1
+	[ -n "${protocol_class[${schema_region}]:-}" ] || return 1
+	[ -n "${protocol_class[${data_region}]:-}" ] || return 1
+
+	set_iotdb_property "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+	set_iotdb_property "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+	set_iotdb_property "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
+}
+
+start_iotdb() {
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/start-confignode.sh >/dev/null 2>&1 &
+	)
+	sleep "${STARTUP_GRACE_SECONDS}"
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
+	)
+}
+
+stop_iotdb() {
+	[ -d "${TEST_IOTDB_PATH}" ] || return 0
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/stop-datanode.sh >/dev/null 2>&1 &
+	)
+	sleep "${STARTUP_GRACE_SECONDS}"
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/stop-confignode.sh >/dev/null 2>&1 &
+	)
+}
+
+wait_for_iotdb_ready() {
+	local attempt=0
+	local iotdb_state=""
+
+	for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
+		iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+		if [ "${iotdb_state}" = "Total line number = 2" ]; then
+			return 0
+		fi
+		sleep "${IOTDB_READY_INTERVAL_SECONDS}"
+	done
+	return 1
+}
+
+change_root_password() {
+	if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -e "show cluster" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+}
+
+start_benchmark() {
+	safe_rm "${BM_PATH}/logs"
+	safe_rm "${BM_PATH}/data"
+	(
+		cd "${BM_PATH}" || exit 1
+		./benchmark.sh >/dev/null 2>&1 &
+	)
+}
+
+process_pids() {
+	local process_name="$1"
+	jps | awk -v process_name="${process_name}" '$2 == process_name {print $1}'
+}
+
+refresh_max_process_metrics() {
+	local process_name=""
+	local pid=""
+	local open_files=0
+	local threads=0
+	local total_open_files=0
+	local total_threads=0
+
+	for process_name in DataNode ConfigNode IoTDB; do
+		while IFS= read -r pid; do
+			[ -n "${pid}" ] || continue
+			open_files="$(lsof -p "${pid}" 2>/dev/null | wc -l | tr -d '[:space:]')"
+			threads="$(ps -o nlwp= -p "${pid}" 2>/dev/null | awk '{sum += $1} END {print sum + 0}')"
+			total_open_files=$((total_open_files + open_files))
+			total_threads=$((total_threads + threads))
+		done < <(process_pids "${process_name}")
+	done
+
+	if [ "${maxNumofOpenFiles}" -lt "${total_open_files}" ]; then
+		maxNumofOpenFiles="${total_open_files}"
+	fi
+	if [ "${maxNumofThread}" -lt "${total_threads}" ]; then
+		maxNumofThread="${total_threads}"
+	fi
+}
+
+find_result_csv() {
+	local had_nullglob=0
+	local files=()
+
+	if shopt -q nullglob; then
+		had_nullglob=1
+	else
+		shopt -s nullglob
+	fi
+
+	files=("${BM_PATH}/data/csvOutput/"*result.csv)
+	if [ "${had_nullglob}" -eq 0 ]; then
+		shopt -u nullglob
+	fi
+
+	if [ "${#files[@]}" -gt 0 ]; then
+		printf '%s\n' "${files[0]}"
+	fi
+}
+
+create_stuck_schema_csv() {
+	local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
+	local index=0
+
+	mkdir -p "${csv_file%/*}"
+	: > "${csv_file}"
+	for ((index = 0; index < 100; index++)); do
+		printf 'Schema cost(s),-1\n' >> "${csv_file}"
+	done
+}
+
+monitor_test_status() {
+	local csv_file=""
+	local monitor_start_epoch=0
+	local now_epoch=0
+	local elapsed=0
+
+	monitor_start_epoch="$(date +%s)"
+	while true; do
+		refresh_max_process_metrics
+		csv_file="$(find_result_csv || true)"
+		if [ -n "${csv_file}" ]; then
+			end_time="$(current_datetime)"
+			log "benchmark finished: ${csv_file}"
+			return 0
+		fi
+
+		now_epoch="$(date +%s)"
+		elapsed=$((now_epoch - monitor_start_epoch))
+		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+			end_time="$(current_datetime)"
+			log "benchmark timeout, create fallback result."
+			create_stuck_schema_csv
+			return 1
+		fi
+		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
+	done
+}
+
+schema_cost_from_csv() {
+	local csv_file=""
+	local schema_cost=""
+
+	csv_file="$(find_result_csv || true)"
+	if [ -z "${csv_file}" ]; then
+		printf '%s\n' "-1"
+		return 0
+	fi
+
+	schema_cost="$(awk -F, '
+		/^Schema/ {
+			value = $2
+			gsub(/^[ \t]+|[ \t]+$/, "", value)
+			print value
+			exit
+		}
+	' "${csv_file}")"
+	if [ -z "${schema_cost}" ]; then
+		schema_cost=-1
+	fi
+	printf '%s\n' "${schema_cost}"
+}
+
+run_iotdb_cli() {
+	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 "$@"
+}
+
+extract_elapsed_seconds() {
+	awk '
+		/^It/ {
+			value = $3
+			gsub(/[^0-9. -]/, "", value)
+			print value
+			exit
+		}
+	' "$1" 2>/dev/null
+}
+
+run_count_cost() {
+	local cost_name="$1"
+	local sql="$2"
+	local log_file="${TEST_IOTDB_PATH}/countCost_${cost_name}.log"
+	local elapsed=""
+
+	safe_rm "${log_file}"
+	log "count timeseries: ${sql}"
+	run_iotdb_cli -timeout 6000 -e "${sql}" >> "${log_file}" 2>&1 || true
+	elapsed="$(extract_elapsed_seconds "${log_file}")"
+	if [ -z "${elapsed}" ]; then
+		elapsed=-1
+	fi
+	printf '%s\n' "${elapsed}"
+}
+
+run_show_cost() {
+	local cost_name="$1"
+	local sql="$2"
+	local log_file="${TEST_IOTDB_PATH}/showCost_${cost_name}.log"
+	local start_epoch=0
+	local end_epoch=0
+
+	safe_rm "${log_file}"
+	log "show timeseries: ${sql}"
+	start_epoch="$(date +%s)"
+	run_iotdb_cli -timeout 20000 -e "${sql}" >> "${log_file}" 2>&1 || true
+	end_epoch="$(date +%s)"
+	printf '%s\n' "$((end_epoch - start_epoch))"
+}
+
+mv_config_file() {
+	local current_ts_type="$1"
+	local config_source="${ATMOS_PATH}/conf/${test_type}/${current_ts_type}"
+	local config_target="${BM_PATH}/conf/config.properties"
+
+	[ -f "${config_source}" ] || die "missing benchmark config: ${config_source}"
+	safe_rm "${config_target}"
+	cp -rf "${config_source}" "${config_target}"
+}
+
+collect_monitor_data() {
+	local datanode_error_log_file="${TEST_IOTDB_PATH}/logs/log_datanode_error.log"
+	local confignode_error_log_file="${TEST_IOTDB_PATH}/logs/log_confignode_error.log"
+
+	dataFileSize="$(dir_size_gb "${TEST_IOTDB_PATH}/data")"
+	numOfSe0Level="$(count_tsfiles "${TEST_IOTDB_PATH}/data/datanode/data/sequence")"
+	numOfUnse0Level="$(count_tsfiles "${TEST_IOTDB_PATH}/data/datanode/data/unsequence")"
+	if [ -s "${datanode_error_log_file}" ] || [ -s "${confignode_error_log_file}" ]; then
 		errorLogSize=1
 	else
 		errorLogSize=0
 	fi
 }
-backup_test_data() { # 备份测试数据
-	local protocol_id=$1
-	local backup_dir="${BUCKUP_PATH}/${protocol_id}/${commit_date_time}_${commit_id}_${protocol_id}"
-	sudo rm -rf "${backup_dir}"
-	sudo mkdir -p "${backup_dir}"
-	sudo rm -rf "${TEST_IOTDB_PATH}/data"
+
+insert_database() {
+	local protocol_code="$1"
+	local insert_sql=""
+
+	insert_sql=$(cat <<EOF
+insert into ${result_table} (
+	commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,
+	createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,
+	countCost_all,countCost_common,countCost_aligned,countCost_template,countCost_tempaligned,
+	showCost_all,showCost_common,showCost_aligned,showCost_template,showCost_tempaligned,
+	numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark
+) values (
+	${commit_date_time},
+	${test_date_time},
+	$(sql_quote "${commit_id}"),
+	$(sql_quote "${author}"),
+	$(sql_quote "${start_time}"),
+	$(sql_quote "${end_time}"),
+	${cost_time},
+	${createCost_all},
+	${createCost_common},
+	${createCost_aligned},
+	${createCost_template},
+	${createCost_tempaligned},
+	${countCost_all},
+	${countCost_common},
+	${countCost_aligned},
+	${countCost_template},
+	${countCost_tempaligned},
+	${showCost_all},
+	${showCost_common},
+	${showCost_aligned},
+	${showCost_template},
+	${showCost_tempaligned},
+	${numOfSe0Level},
+	${numOfUnse0Level},
+	$(sql_quote "${dataFileSize}"),
+	${maxNumofOpenFiles},
+	${maxNumofThread},
+	${errorLogSize},
+	$(sql_quote "${protocol_code}")
+)
+EOF
+)
+
+	mysql_exec "${insert_sql}"
+	log "${insert_sql}"
+}
+
+append_show_results() {
+	local cost_name=""
+	local log_file=""
+	local show_result="${TEST_IOTDB_PATH}/showResult.log"
+	local had_nullglob=0
+	local removable_logs=()
+
+	for cost_name in all common aligned template tempaligned; do
+		log_file="${TEST_IOTDB_PATH}/showCost_${cost_name}.log"
+		if [ -f "${log_file}" ]; then
+			tail -n 1 "${log_file}" >> "${show_result}"
+		fi
+	done
+
+	if shopt -q nullglob; then
+		had_nullglob=1
+	else
+		shopt -s nullglob
+	fi
+	removable_logs=("${TEST_IOTDB_PATH}"/showCost_*.log)
+	if [ "${had_nullglob}" -eq 0 ]; then
+		shopt -u nullglob
+	fi
+	for log_file in "${removable_logs[@]}"; do
+		safe_rm "${log_file}"
+	done
+}
+
+backup_test_data() {
+	local protocol_code="$1"
+	local backup_parent="${BUCKUP_PATH}/${protocol_code}"
+	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_code}"
+
+	sudo_safe_rm "${backup_dir}"
+	path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
+	sudo mkdir -p -- "${backup_dir}"
+	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
+	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-	sudo cp -rf "${BM_PATH}/data/csvOutput" "${backup_dir}"
+	if [ -d "${BM_PATH}/data/csvOutput" ]; then
+		sudo cp -rf "${BM_PATH}/data/csvOutput" "${backup_dir}/"
+	fi
 }
-mv_config_file() { # 移动配置文件
-	rm -rf "${BM_PATH}/conf/config.properties"
-	cp -rf "${ATMOS_PATH}/conf/${test_type}/$1" "${BM_PATH}/conf/config.properties"
+
+run_schema_benchmark() {
+	local current_ts_type="$1"
+
+	mv_config_file "${current_ts_type}"
+	log "create ${current_ts_type} timeseries"
+	start_benchmark
+	sleep "${BENCHMARK_WARMUP_SECONDS}"
+	monitor_test_status
+	schema_cost_from_csv
 }
-clear_expired_file() { # 清理超过七天的文件
-	find "$1" -mtime +7 -type d -name "*" -exec rm -rf {} \;
+
+write_startup_error_result() {
+	local protocol_code="$1"
+	local startup_cost="$2"
+
+	end_time="$(current_datetime)"
+	cost_time="${startup_cost}"
+	insert_database "${protocol_code}"
+	update_task_status "RError"
 }
+
 test_operation() {
-	local protocol_id=$1
-	#清理环境，确保无就程序影响
-	check_benchmark_pid
-	check_iotdb_pid
-	#复制当前程序到执行位置
-	set_env
-	#修改IoTDB的配置
-	modify_iotdb_config
-	if [ "${protocol_id}" = "111" ]; then
-		set_protocol_class 1 1 1
-	elif [ "${protocol_id}" = "222" ]; then
-		set_protocol_class 2 2 2
-	elif [ "${protocol_id}" = "223" ]; then
-		set_protocol_class 2 2 3
-	elif [ "${protocol_id}" = "211" ]; then
-		set_protocol_class 2 1 1
-	else
-		echo "协议设置错误！"
-		return
-	fi
-	#启动iotdb和monitor监控
-	start_iotdb
-	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	sleep 10
-	####判断IoTDB是否正常启动
-	for (( t_wait = 0; t_wait <= 10; t_wait++ ))
-	do
-	  iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-	  if [ "${iotdb_state}" = "Total line number = 2" ]; then
-		break
-	  else
-		sleep 5
-		continue
-	  fi
-	done
-	if [ "${iotdb_state}" = "Total line number = 2" ]; then
-		echo "IoTDB正常启动，准备开始测试"
-		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
-	else
-		echo "IoTDB未能正常启动，写入负值测试结果！"
-		cost_time=-3
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_template,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_template,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_template},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_template},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_id})"
-		run_mysql "${insert_sql}"
-		update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
-		result_string=$(run_mysql "${update_sql}")
-		return
-	fi
-	#收集启动后默认状态线程数量
-	refresh_max_process_metrics
-	#启动写入程序
-	schemaCost=(0 0 0 0)
-	for (( j = 0; j < ${#ts_list[*]}; j++ ))
-	do
-		mv_config_file ${ts_list[${j}]}
-		echo "开始创建${ts_list[${j}]}时间序列！"
-		start_benchmark
-		#等待1分钟
-		sleep 60
-		monitor_test_status
-		#测试结果收集写入数据库
-		schemaCost[${j}]=$(schema_cost_from_csv)
-	done
-	createCost_common=${schemaCost[0]}
-	createCost_aligned=${schemaCost[1]}
-	createCost_template=${schemaCost[2]}
-	createCost_tempaligned=${schemaCost[3]}
-	#刷一下准备开始采集
-	run_iotdb_cli -e "flush" >/dev/null
-	#统计总体时间序列耗时
-	echo "开始测试统计全部时间序列耗时！"
-	countCost_all=$(run_count_cost "all" "count timeseries root.**")
-	#统计common时间序列耗时
-	echo "开始测试统计普通时间序列耗时！"
-	countCost_common=$(run_count_cost "common" "count timeseries root.test.common_0.**")
-	#统计aligned时间序列耗时
-	echo "开始测试统计对齐时间序列耗时！"
-	countCost_aligned=$(run_count_cost "aligned" "count timeseries root.test.aligned_0.**")
-	#统计template时间序列耗时
-	echo "开始测试统计模板时间序列耗时！"
-	countCost_template=$(run_count_cost "template" "count timeseries root.test.temp_0.**")
-	#统计tempaligned时间序列耗时
-	echo "开始测试统计对齐模板时间序列耗时！"
-	countCost_tempaligned=$(run_count_cost "tempaligned" "count timeseries root.test.tempaligned_0.**")
-	
-	#统计查询总体时间序列耗时
-	echo "开始测试查询全部时间序列耗时！"
-	showCost_all=$(run_show_cost "all" "show timeseries root.**")
-	#统计查询common时间序列耗时
-	echo "开始测试查询普通时间序列耗时！"
-	showCost_common=$(run_show_cost "common" "show timeseries root.test.common_0.**")
-	#统计查询aligned时间序列耗时
-	echo "开始测试查询对齐时间序列耗时！"
-	showCost_aligned=$(run_show_cost "aligned" "show timeseries root.test.aligned_0.**")
-	#统计查询template时间序列耗时
-	echo "开始测试查询模板时间序列耗时！"
-	showCost_template=$(run_show_cost "template" "show timeseries root.test.temp_0.**")
-	#统计查询tempaligned时间序列耗时
-	echo "开始测试查询对齐模板时间序列耗时！"
-	showCost_tempaligned=$(run_show_cost "tempaligned" "show timeseries root.test.tempaligned_0.**")
-		
-	#停止IoTDB程序和监控程序
-	stop_iotdb
-	sleep 30
-	check_benchmark_pid
-	check_iotdb_pid
-	collect_monitor_data
-	end_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,start_time,end_time,cost_time,createCost_all,createCost_common,createCost_aligned,createCost_template,createCost_tempaligned,countCost_all,countCost_common,countCost_aligned,countCost_template,countCost_tempaligned,showCost_all,showCost_common,showCost_aligned,showCost_template,showCost_tempaligned,numOfSe0Level,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark)	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${start_time}','${end_time}',${cost_time},${createCost_all},${createCost_common},${createCost_aligned},${createCost_template},${createCost_tempaligned},${countCost_all},${countCost_common},${countCost_aligned},${countCost_template},${countCost_tempaligned},${showCost_all},${showCost_common},${showCost_aligned},${showCost_template},${showCost_tempaligned},${numOfSe0Level},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${protocol_id})"
-	run_mysql "${insert_sql}"
-	echo "${insert_sql}"
-	#备份本次测试
-	tail -n 1 ${TEST_IOTDB_PATH}/showCost_all.log >> ${TEST_IOTDB_PATH}/showResult.log
-	tail -n 1 ${TEST_IOTDB_PATH}/showCost_common.log >> ${TEST_IOTDB_PATH}/showResult.log
-	tail -n 1 ${TEST_IOTDB_PATH}/showCost_aligned.log >> ${TEST_IOTDB_PATH}/showResult.log
-	tail -n 1 ${TEST_IOTDB_PATH}/showCost_template.log >> ${TEST_IOTDB_PATH}/showResult.log
-	tail -n 1 ${TEST_IOTDB_PATH}/showCost_tempaligned.log >> ${TEST_IOTDB_PATH}/showResult.log
-	rm -rf ${TEST_IOTDB_PATH}/showCost_*.log
-	backup_test_data "${protocol_id}"
-}
-##准备开始测试
-echo "ontesting" > ${INIT_PATH}/test_type_file
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(run_mysql "${query_sql}")
-commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-##查询是否有复测任务
-if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(run_mysql "${query_sql}")
-	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-fi
-if [ "${commit_id}" = "" ]; then
-	sleep 60s
-else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(run_mysql "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-	if [ "${author}" != "Timecho" ]; then
-		TABLENAME=${TABLENAME}
-	else
-		TABLENAME=${TABLENAME_T}
-	fi
+	local protocol_code="$1"
+	local monitor_failed=0
+	local -a schema_costs=(0 0 0 0)
+	local index=0
+
+	log "start count_ts protocol ${protocol_code}"
 	init_items
-	test_date_time=`date +%Y%m%d%H%M%S`
-	p_index=$(($RANDOM % ${#protocol_list[*]}))
-	t_index=$(($RANDOM % ${#ts_list[*]}))	
-	#echo "开始测试${protocol_list[$p_index]}协议下的${ts_list[$t_index]}时间序列！"
-	#test_operation ${protocol_list[$p_index]} ${ts_list[$t_index]}
-	###############################SESSION_BY_TABLET###############################
-	echo "开始测试时间序列的创建和查询耗时！"
-	test_operation 223
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(run_mysql "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
-	if [ "${author}" != "Timecho" ]; then
-		result_string=$(run_mysql "${update_sql02}")
+	cleanup_processes
+	set_env
+	modify_iotdb_config
+	if ! set_protocol_class "${protocol_code}"; then
+		log "invalid protocol: ${protocol_code}"
+		return 1
 	fi
-fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+
+	start_iotdb
+	start_time="$(current_datetime)"
+	sleep "${STARTUP_GRACE_SECONDS}"
+	if ! wait_for_iotdb_ready; then
+		log "IoTDB startup failed."
+		cost_time=-3
+		write_startup_error_result "${protocol_code}" "-3"
+		cleanup_processes
+		return 1
+	fi
+
+	if ! change_root_password; then
+		log "root password change failed."
+		cost_time=-4
+		write_startup_error_result "${protocol_code}" "-4"
+		cleanup_processes
+		return 1
+	fi
+
+	refresh_max_process_metrics
+	for index in "${!ts_list[@]}"; do
+		schema_costs[${index}]="$(run_schema_benchmark "${ts_list[${index}]}")" || monitor_failed=1
+	done
+
+	createCost_common="${schema_costs[0]:--1}"
+	createCost_aligned="${schema_costs[1]:--1}"
+	createCost_template="${schema_costs[2]:--1}"
+	createCost_tempaligned="${schema_costs[3]:--1}"
+
+	run_iotdb_cli -e "flush" >/dev/null 2>&1 || true
+	countCost_all="$(run_count_cost "all" "count timeseries root.**")"
+	countCost_common="$(run_count_cost "common" "count timeseries root.test.common_0.**")"
+	countCost_aligned="$(run_count_cost "aligned" "count timeseries root.test.aligned_0.**")"
+	countCost_template="$(run_count_cost "template" "count timeseries root.test.temp_0.**")"
+	countCost_tempaligned="$(run_count_cost "tempaligned" "count timeseries root.test.tempaligned_0.**")"
+
+	showCost_all="$(run_show_cost "all" "show timeseries root.**")"
+	showCost_common="$(run_show_cost "common" "show timeseries root.test.common_0.**")"
+	showCost_aligned="$(run_show_cost "aligned" "show timeseries root.test.aligned_0.**")"
+	showCost_template="$(run_show_cost "template" "show timeseries root.test.temp_0.**")"
+	showCost_tempaligned="$(run_show_cost "tempaligned" "show timeseries root.test.tempaligned_0.**")"
+
+	stop_iotdb
+	sleep "${STOP_WAIT_SECONDS}"
+	cleanup_processes
+	collect_monitor_data
+	end_time="$(current_datetime)"
+	cost_time=$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))
+	insert_database "${protocol_code}"
+	append_show_results
+	backup_test_data "${protocol_code}"
+
+	return "${monitor_failed}"
+}
+
+mark_test_in_progress() {
+	printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
+}
+
+restore_test_type_file() {
+	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main() {
+	local protocol=""
+	local task_failed=0
+
+	trap restore_test_type_file EXIT
+	ensure_runtime_dependencies
+	check_password
+	check_benchmark_version
+	mark_test_in_progress
+
+	if ! fetch_next_commit; then
+		sleep 60
+		return 0
+	fi
+
+	update_task_status "ontesting"
+	log "current commit ${commit_id} starts ${test_type}"
+	if [ "${author}" = "Timecho" ]; then
+		result_table="${TABLENAME_T}"
+	else
+		result_table="${TABLENAME}"
+	fi
+
+	test_date_time="$(date +%Y%m%d%H%M%S)"
+	for protocol in "${protocol_list[@]}"; do
+		if ! test_operation "${protocol}"; then
+			task_failed=1
+		fi
+	done
+
+	log "test round ${test_date_time} finished"
+	if [ "${task_failed}" -eq 0 ]; then
+		update_task_status "done"
+		if [ "${author}" != "Timecho" ]; then
+			mark_older_commits_skip
+		fi
+	else
+		update_task_status "RError"
+	fi
+}
+
+main "$@"
