@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+	exec bash "${BASH_SOURCE[0]}" "$@"
+fi
+
+set -u
+set -o pipefail
+
 #登录用户名
 test_type=restart_db
 #初始环境存放路径
@@ -15,17 +25,73 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
+PASSWORD=${ATMOS_DB_PASSWORD:-}
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_restart_db" #数据库中表的名称
 TABLENAME_T="ex_restart_db_T" #企业版结果表名
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
-fi
+log() {
+	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+die() {
+	log "ERROR: $*"
+	exit 1
+}
+trim() {
+	local value="${1:-}"
+	value="${value#"${value%%[![:space:]]*}"}"
+	value="${value%"${value##*[![:space:]]}"}"
+	printf '%s' "${value}"
+}
+normalize_datetime() {
+	printf '%s' "$1" | tr -cd '0-9'
+}
+check_password() {
+	if [ -z "${PASSWORD}" ]; then
+		die "ATMOS_DB_PASSWORD 未设置，无法连接 MySQL。"
+	fi
+}
+mysql_exec() {
+	local sql=$1
+	MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+}
 run_mysql() {
-	mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "$1"
+	mysql_exec "$1"
+}
+sql_quote() {
+	local value="${1:-}"
+	value="${value//\\/\\\\}"
+	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
+	printf "'%s'" "${value}"
+}
+update_task_status() {
+	local status=$1
+	run_mysql "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+}
+mark_older_commits_skip() {
+	run_mysql "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+}
+query_next_commit() {
+	local status_filter=$1
+	if [ "${status_filter}" = "retest" ]; then
+		run_mysql "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
+	else
+		run_mysql "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
+	fi
+}
+fetch_next_commit() {
+	local row=""
+	local raw_commit_date_time=""
+	row="$(query_next_commit "retest")"
+	if [ -z "${row}" ]; then
+		row="$(query_next_commit "pending")"
+	fi
+	[ -n "${row}" ] || return 1
+	IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
+	author="$(trim "${author}")"
+	commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
+	[ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
 }
 dir_size_gb() {
 	local target_dir=$1
@@ -52,6 +118,33 @@ grep_count() {
 		grep -E -c "${pattern}" "${log_file}" 2>/dev/null
 	fi
 }
+path_is_safe() {
+	local path=$1
+	[ -n "${path}" ] || return 1
+	case "${path}" in
+		/|/data|/nasdata|.)
+			return 1
+			;;
+		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BUCKUP_PATH}"/*)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+safe_rm() {
+	local path=$1
+	[ -e "${path}" ] || return 0
+	path_is_safe "${path}" || die "拒绝删除非预期路径: ${path}"
+	rm -rf -- "${path}"
+}
+sudo_safe_rm() {
+	local path=$1
+	[ -e "${path}" ] || return 0
+	path_is_safe "${path}" || die "拒绝删除非预期路径: ${path}"
+	sudo rm -rf -- "${path}"
+}
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -74,39 +167,35 @@ errorLogSize=0
 ############定义监控采集项初始值##########################
 }
 check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "DataNode程序已停止！"
+	check_pid_and_kill "DataNode" "DataNode程序"
+	check_pid_and_kill "ConfigNode" "ConfigNode程序"
+	check_pid_and_kill "IoTDB" "IoTDB程序"
+}
+check_pid_and_kill() {
+	local pname=$1
+	local desc=$2
+	local pids=""
+	local pid=""
+	pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
+	if [ -z "${pids}" ]; then
+		log "未检测到${desc}。"
+		return 0
 	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
+	while IFS= read -r pid; do
+		[ -n "${pid}" ] || continue
+		kill -9 "${pid}"
+	done <<< "${pids}"
+	log "${desc} 已停止。"
 }
 set_env() { # 拷贝编译好的iotdb到测试路径
-	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
-		mkdir -p ${TEST_IOTDB_PATH}
-	else
-		rm -rf ${TEST_IOTDB_PATH}
-		mkdir -p ${TEST_IOTDB_PATH}
+	local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
+	[ -d "${source_path}" ] || die "缺少待测版本目录: ${source_path}"
+	safe_rm "${TEST_IOTDB_PATH}"
+	mkdir -p "${TEST_IOTDB_PATH}/activation"
+	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
+	if [ -e "${ATMOS_PATH}/conf/${test_type}/license" ]; then
+		cp -rf "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/"
 	fi
-	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
@@ -129,18 +218,27 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	done
 }
 start_iotdb() { # 启动iotdb
-	cd ${TEST_IOTDB_PATH}
-	./sbin/start-confignode.sh >/dev/null 2>&1 &
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/start-confignode.sh >/dev/null 2>&1 &
+	)
 	sleep 10
-	./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &
-	cd ~/
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
+	)
 }
 stop_iotdb() { # 停止iotdb
-	cd ${TEST_IOTDB_PATH}
-	./sbin/stop-datanode.sh >/dev/null 2>&1 &
+	[ -d "${TEST_IOTDB_PATH}" ] || return 0
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/stop-datanode.sh >/dev/null 2>&1 &
+	)
 	sleep 10
-	./sbin/stop-confignode.sh >/dev/null 2>&1 &
-	cd ~/
+	(
+		cd "${TEST_IOTDB_PATH}" || exit 1
+		./sbin/stop-confignode.sh >/dev/null 2>&1 &
+	)
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -240,17 +338,18 @@ insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
 	insert_sql="insert into ${TABLENAME}\
 	(commit_date_time,test_date_time,commit_id,author,ts_type,data_type,cost_time,numOfSe0Level_before,numOfSe0Level_after,\
 	numOfUnse0Level_before,numOfUnse0Level_after,start_time,end_time,dataFileSize_before,dataFileSize_after,WALSize_before,WALSize_after,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) \
-	values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}',${cost_time},${numOfSe0Level_before},${numOfSe0Level_after},\
-	${numOfUnse0Level_before},${numOfUnse0Level_after},'${start_time}','${end_time}','${dataFileSize_before}','${dataFileSize_after}','${WALSize_before}','${WALSize_after}',${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${remark_value}')"
+	values(${commit_date_time},${test_date_time},$(sql_quote "${commit_id}"),$(sql_quote "${author}"),$(sql_quote "${ts_type}"),$(sql_quote "${data_type}"),${cost_time},${numOfSe0Level_before},${numOfSe0Level_after},\
+	${numOfUnse0Level_before},${numOfUnse0Level_after},$(sql_quote "${start_time}"),$(sql_quote "${end_time}"),$(sql_quote "${dataFileSize_before}"),$(sql_quote "${dataFileSize_after}"),$(sql_quote "${WALSize_before}"),$(sql_quote "${WALSize_after}"),${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},$(sql_quote "${remark_value}"))"
 	echo ${ts_type}时间序列 ${data_type} 操作耗时为：${cost_time} 秒
 	run_mysql "${insert_sql}"
 	echo ${insert_sql}
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}
-	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}
-    sudo rm -rf ${TEST_IOTDB_PATH}/data
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}
+	local backup_dir="${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}"
+	sudo_safe_rm "${backup_dir}"
+	sudo mkdir -p "${backup_dir}"
+	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
+	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
 }
 run_restart_case() {
 	local remark_value=$1
@@ -289,25 +388,12 @@ test_operation() {
 }
 
 ##准备开始测试
-echo "ontesting" > ${INIT_PATH}/test_type_file
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(run_mysql "${query_sql}")
-commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-##查询是否有复测任务
-if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(run_mysql "${query_sql}")
-	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-fi
-if [ "${commit_id}" = "" ]; then
+check_password
+echo "ontesting" > "${INIT_PATH}/test_type_file"
+if ! fetch_next_commit; then
 	sleep 60s
 else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(run_mysql "${update_sql}")
+	update_task_status "ontesting"
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
@@ -319,11 +405,9 @@ else
 	test_operation 211 common sequence
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(run_mysql "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
+	update_task_status "done"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(run_mysql "${update_sql02}")
+		mark_older_commits_skip
 	fi
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+echo "${test_type}" > "${INIT_PATH}/test_type_file"
