@@ -9,117 +9,154 @@ fi
 set -u
 set -o pipefail
 
-#登录用户名
-test_type=restart_db
-#初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
-ATMOS_PATH=${INIT_PATH}/atmos-ex
-DATA_PATH=/data/atmos/DataSet
-BUCKUP_PATH=/nasdata/repository/restart_db
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=/data/atmos
-TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
+readonly test_type="restart_db"
 
-############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD:-}
-DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_restart_db" #数据库中表的名称
-TABLENAME_T="ex_restart_db_T" #企业版结果表名
-TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
-############公用函数##########################
+readonly INIT_PATH="/data/atmos/zk_test"
+readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
+readonly DATA_PATH="/data/atmos/DataSet"
+readonly BUCKUP_PATH="/nasdata/repository/restart_db"
+readonly REPOS_PATH="/nasdata/repository/master"
+
+readonly TEST_INIT_PATH="/data/atmos"
+readonly TEST_IOTDB_PATH="${TEST_INIT_PATH}/apache-iotdb"
+
+readonly MYSQLHOSTNAME="111.200.37.158"
+readonly PORT="13306"
+readonly USERNAME="iotdbatm"
+readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly DBNAME="QA_ATM"
+readonly TABLENAME="ex_restart_db"
+readonly TABLENAME_T="ex_restart_db_T"
+readonly TASK_TABLENAME="ex_commit_history"
+
+readonly MONITOR_TIMEOUT_SECONDS=7200
+readonly MONITOR_POLL_INTERVAL_SECONDS=10
+readonly STARTUP_GRACE_SECONDS=10
+readonly STOP_WAIT_SECONDS=10
+
+readonly -a protocol_list=(211)
+readonly -a ts_list=(common)
+readonly -a data_type_list=(sequence)
+
+result_table="${TABLENAME}"
+commit_id=""
+author=""
+commit_date_time=""
+test_date_time=""
+protocol_id=""
+ts_type=""
+data_type=""
+cost_time=0
+numOfSe0Level_before=0
+numOfSe0Level_after=0
+numOfUnse0Level_before=0
+numOfUnse0Level_after=0
+start_time=""
+end_time=""
+dataFileSize_before=0
+dataFileSize_after=0
+WALSize_before=0
+WALSize_after=0
+maxNumofOpenFiles=0
+maxNumofThread=0
+errorLogSize=0
+
 log() {
-	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+	printf '[%s] %s\n' "$(date '+%F %T')" "$*" >&2
 }
+
 die() {
 	log "ERROR: $*"
 	exit 1
 }
+
 trim() {
 	local value="${1:-}"
 	value="${value#"${value%%[![:space:]]*}"}"
 	value="${value%"${value##*[![:space:]]}"}"
 	printf '%s' "${value}"
 }
+
+current_datetime() {
+	date '+%Y-%m-%d %H:%M:%S'
+}
+
+datetime_to_epoch() {
+	date -d "$1" +%s
+}
+
 normalize_datetime() {
 	printf '%s' "$1" | tr -cd '0-9'
 }
+
+require_command() {
+	command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+ensure_runtime_dependencies() {
+	local cmd=""
+
+	for cmd in awk cat cp cut date du find grep jps kill lsof mkdir mv mysql ps rm sed sudo tr wc; do
+		require_command "${cmd}"
+	done
+}
+
 check_password() {
 	if [ -z "${PASSWORD}" ]; then
-		die "ATMOS_DB_PASSWORD 未设置，无法连接 MySQL。"
+		die "ATMOS_DB_PASSWORD is not set."
 	fi
 }
+
 mysql_exec() {
-	local sql=$1
+	local sql="$1"
 	MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
 }
-run_mysql() {
-	mysql_exec "$1"
-}
+
 sql_quote() {
 	local value="${1:-}"
 	value="${value//\\/\\\\}"
 	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
 	printf "'%s'" "${value}"
 }
+
 update_task_status() {
-	local status=$1
-	run_mysql "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+	local status="$1"
+	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
 }
+
 mark_older_commits_skip() {
-	run_mysql "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
 }
+
 query_next_commit() {
-	local status_filter=$1
+	local status_filter="$1"
+
 	if [ "${status_filter}" = "retest" ]; then
-		run_mysql "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
 	else
-		run_mysql "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
 	fi
 }
+
 fetch_next_commit() {
 	local row=""
 	local raw_commit_date_time=""
+
 	row="$(query_next_commit "retest")"
 	if [ -z "${row}" ]; then
 		row="$(query_next_commit "pending")"
 	fi
 	[ -n "${row}" ] || return 1
+
 	IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
 	author="$(trim "${author}")"
 	commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
 	[ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
 }
-dir_size_gb() {
-	local target_dir=$1
-	if [ ! -d "${target_dir}" ]; then
-		echo 0
-	else
-		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
-	fi
-}
-count_tsfiles() {
-	local target_dir=$1
-	if [ ! -d "${target_dir}" ]; then
-		echo 0
-	else
-		find "${target_dir}" -name "*.tsfile" | wc -l
-	fi
-}
-grep_count() {
-	local log_file=$1
-	local pattern=$2
-	if [ ! -f "${log_file}" ]; then
-		echo 0
-	else
-		grep -E -c "${pattern}" "${log_file}" 2>/dev/null
-	fi
-}
+
 path_is_safe() {
-	local path=$1
+	local path="$1"
+
 	[ -n "${path}" ] || return 1
 	case "${path}" in
 		/|/data|/nasdata|.)
@@ -133,281 +170,476 @@ path_is_safe() {
 			;;
 	esac
 }
+
 safe_rm() {
-	local path=$1
+	local path="$1"
+
 	[ -e "${path}" ] || return 0
-	path_is_safe "${path}" || die "拒绝删除非预期路径: ${path}"
+	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
 	rm -rf -- "${path}"
 }
+
 sudo_safe_rm() {
-	local path=$1
+	local path="$1"
+
 	[ -e "${path}" ] || return 0
-	path_is_safe "${path}" || die "拒绝删除非预期路径: ${path}"
+	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
 	sudo rm -rf -- "${path}"
 }
-init_items() {
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-data_type=0
-cost_time=0
-numOfSe0Level_before=0
-numOfSe0Level_after=0
-numOfUnse0Level_before=0
-numOfUnse0Level_after=0
-start_time=0
-end_time=0
-dataFileSize_before=0
-dataFileSize_after=0
-WALSize_before=0
-WALSize_after=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-############定义监控采集项初始值##########################
-}
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	check_pid_and_kill "DataNode" "DataNode程序"
-	check_pid_and_kill "ConfigNode" "ConfigNode程序"
-	check_pid_and_kill "IoTDB" "IoTDB程序"
-}
-check_pid_and_kill() {
-	local pname=$1
-	local desc=$2
-	local pids=""
-	local pid=""
-	pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
-	if [ -z "${pids}" ]; then
-		log "未检测到${desc}。"
+
+copy_if_exists() {
+	local source="$1"
+	local target="$2"
+	local label="${3:-$1}"
+
+	if [ ! -e "${source}" ]; then
+		log "skip copy, missing ${label}: ${source}"
 		return 0
 	fi
+
+	cp -rf -- "${source}" "${target}"
+}
+
+dir_size_gb() {
+	local target_dir="$1"
+
+	if [ ! -d "${target_dir}" ]; then
+		printf '0\n'
+	else
+		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
+	fi
+}
+
+count_tsfiles() {
+	local target_dir="$1"
+
+	if [ ! -d "${target_dir}" ]; then
+		printf '0\n'
+	else
+		find "${target_dir}" -name "*.tsfile" | wc -l | tr -d '[:space:]'
+	fi
+}
+
+init_items() {
+	cost_time=0
+	numOfSe0Level_before=0
+	numOfSe0Level_after=0
+	numOfUnse0Level_before=0
+	numOfUnse0Level_after=0
+	start_time=""
+	end_time=""
+	dataFileSize_before=0
+	dataFileSize_after=0
+	WALSize_before=0
+	WALSize_after=0
+	maxNumofOpenFiles=0
+	maxNumofThread=0
+	errorLogSize=0
+}
+
+check_pid_and_kill() {
+	local pname="$1"
+	local desc="$2"
+	local pids=""
+	local pid=""
+
+	pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
+	if [ -z "${pids}" ]; then
+		log "no ${desc} process found."
+		return 0
+	fi
+
 	while IFS= read -r pid; do
 		[ -n "${pid}" ] || continue
-		kill -9 "${pid}"
+		kill -9 "${pid}" 2>/dev/null || true
 	done <<< "${pids}"
-	log "${desc} 已停止。"
+	log "${desc} stopped."
 }
-set_env() { # 拷贝编译好的iotdb到测试路径
+
+check_iotdb_pid() {
+	check_pid_and_kill "DataNode" "DataNode"
+	check_pid_and_kill "ConfigNode" "ConfigNode"
+	check_pid_and_kill "IoTDB" "IoTDB"
+}
+
+process_pids() {
+	local process_name="$1"
+	jps | awk -v process_name="${process_name}" '$2 == process_name {print $1}'
+}
+
+refresh_max_process_metrics() {
+	local process_name=""
+	local pid=""
+	local open_files=0
+	local threads=0
+	local total_open_files=0
+	local total_threads=0
+
+	for process_name in DataNode ConfigNode IoTDB; do
+		while IFS= read -r pid; do
+			[ -n "${pid}" ] || continue
+			open_files="$(lsof -p "${pid}" 2>/dev/null | wc -l | tr -d '[:space:]')"
+			threads="$(ps -o nlwp= -p "${pid}" 2>/dev/null | awk '{sum += $1} END {print sum + 0}')"
+			total_open_files=$((total_open_files + open_files))
+			total_threads=$((total_threads + threads))
+		done < <(process_pids "${process_name}")
+	done
+
+	if [ "${maxNumofOpenFiles}" -lt "${total_open_files}" ]; then
+		maxNumofOpenFiles="${total_open_files}"
+	fi
+	if [ "${maxNumofThread}" -lt "${total_threads}" ]; then
+		maxNumofThread="${total_threads}"
+	fi
+}
+
+set_iotdb_property() {
+	local key="$1"
+	local value="$2"
+	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+
+	[ -f "${conf_file}" ] || die "missing config file: ${conf_file}"
+	if grep -q "^[[:space:]]*${key}[[:space:]]*=" "${conf_file}"; then
+		sed -i "s|^[[:space:]]*${key}[[:space:]]*=.*$|${key}=${value}|g" "${conf_file}"
+	else
+		printf '%s=%s\n' "${key}" "${value}" >> "${conf_file}"
+	fi
+}
+
+set_env() {
 	local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-	[ -d "${source_path}" ] || die "缺少待测版本目录: ${source_path}"
+
+	[ -d "${source_path}" ] || die "missing IoTDB build: ${source_path}"
 	safe_rm "${TEST_IOTDB_PATH}"
 	mkdir -p "${TEST_IOTDB_PATH}/activation"
 	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-	if [ -e "${ATMOS_PATH}/conf/${test_type}/license" ]; then
-		cp -rf "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/"
-	fi
+	copy_if_exists "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/" "license"
 }
-modify_iotdb_config() { # iotdb调整内存，关闭合并
-	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	local property
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-	for property in \
-		"cluster_name=${test_type}" \
-		"cn_enable_metric=true" \
-		"cn_enable_performance_stat=true" \
-		"cn_metric_reporter_list=PROMETHEUS" \
-		"cn_metric_level=ALL" \
-		"cn_metric_prometheus_reporter_port=9081" \
-		"dn_enable_metric=true" \
-		"dn_enable_performance_stat=true" \
-		"dn_metric_reporter_list=PROMETHEUS" \
-		"dn_metric_level=ALL" \
-		"dn_metric_prometheus_reporter_port=9091"
-	do
-		echo "${property}" >> "${conf_file}"
-	done
+
+modify_iotdb_config() {
+	local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
+
+	[ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
+	sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="20G"/' "${datanode_env}"
+
+	set_iotdb_property "cluster_name" "${test_type}"
+	set_iotdb_property "cn_enable_metric" "true"
+	set_iotdb_property "cn_enable_performance_stat" "true"
+	set_iotdb_property "cn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "cn_metric_level" "ALL"
+	set_iotdb_property "cn_metric_prometheus_reporter_port" "9081"
+	set_iotdb_property "dn_enable_metric" "true"
+	set_iotdb_property "dn_enable_performance_stat" "true"
+	set_iotdb_property "dn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "dn_metric_level" "ALL"
+	set_iotdb_property "dn_metric_prometheus_reporter_port" "9091"
 }
-start_iotdb() { # 启动iotdb
+
+start_iotdb() {
 	(
 		cd "${TEST_IOTDB_PATH}" || exit 1
 		./sbin/start-confignode.sh >/dev/null 2>&1 &
 	)
-	sleep 10
+	sleep "${STARTUP_GRACE_SECONDS}"
 	(
 		cd "${TEST_IOTDB_PATH}" || exit 1
 		./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
 	)
 }
-stop_iotdb() { # 停止iotdb
+
+stop_iotdb() {
 	[ -d "${TEST_IOTDB_PATH}" ] || return 0
 	(
 		cd "${TEST_IOTDB_PATH}" || exit 1
 		./sbin/stop-datanode.sh >/dev/null 2>&1 &
 	)
-	sleep 10
+	sleep "${STARTUP_GRACE_SECONDS}"
 	(
 		cd "${TEST_IOTDB_PATH}" || exit 1
 		./sbin/stop-confignode.sh >/dev/null 2>&1 &
 	)
 }
-monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
-	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+
+extract_log_timestamp() {
+	local log_file="$1"
+	local pattern="${2:-}"
+	local timestamp=""
+
+	if [ ! -f "${log_file}" ]; then
+		return 1
+	fi
+
+	if [ -n "${pattern}" ]; then
+		timestamp="$(awk -v pattern="${pattern}" '$0 ~ pattern {print $1, $2; exit}' "${log_file}" | cut -c 1-19)"
+	else
+		timestamp="$(awk 'NR == 1 {print $1, $2; exit}' "${log_file}" | cut -c 1-19)"
+	fi
+
+	[ -n "${timestamp}" ] || return 1
+	printf '%s\n' "${timestamp}"
+}
+
+calculate_startup_cost() {
+	if [ -z "${start_time}" ] || [ -z "${end_time}" ] || [ "${end_time}" = "-1" ]; then
+		printf '%s\n' "-100"
+		return 0
+	fi
+
+	if ! datetime_to_epoch "${start_time}" >/dev/null 2>&1 || ! datetime_to_epoch "${end_time}" >/dev/null 2>&1; then
+		printf '%s\n' "-100"
+		return 0
+	fi
+
+	printf '%s\n' "$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))"
+}
+
+can_query_iotdb_after_startup() {
+	local iotdb_state=""
+
+	iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+	[ "${iotdb_state}" = "Total line number = 2" ]
+}
+
+monitor_test_status() {
+	local monitor_start_epoch=0
+	local elapsed=0
+	local setup_count=0
+	local now_epoch=0
+	local datanode_log="${TEST_IOTDB_PATH}/logs/log_datanode_all.log"
+
+	monitor_start_epoch="$(date +%s)"
 	maxNumofOpenFiles=0
 	maxNumofThread=0
-	for (( t_wait = 0; t_wait <= 20; ))
-	do
-		#监控打开文件数量
-		pid=$(jps | grep DataNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_d=0
-			temp_thread_num_d=0
+
+	while true; do
+		refresh_max_process_metrics
+		if [ -f "${datanode_log}" ]; then
+			setup_count="$(grep -E -c 'IoTDB DataNode is set up successfully. Now, enjoy yourself!?' "${datanode_log}" 2>/dev/null || true)"
 		else
-			temp_file_num_d=$(jps | grep DataNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_d=$(pstree -p $(ps aux | grep -v grep | grep DataNode | awk '{print $2}') | wc -l)
+			setup_count=0
 		fi
-		pid=$(jps | grep ConfigNode | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_c=0
-			temp_thread_num_c=0
-		else
-			temp_file_num_c=$(jps | grep ConfigNode | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_c=$(pstree -p $(ps aux | grep -v grep | grep ConfigNode | awk '{print $2}') | wc -l)
-		fi
-		pid=$(jps | grep IoTDB | awk '{print $1}')
-		if [ "${pid}" = "" ]; then
-			temp_file_num_i=0
-			temp_thread_num_i=0
-		else
-			temp_file_num_i=$(jps | grep IoTDB | awk '{print $1}' | xargs lsof -p | wc -l)
-			temp_thread_num_i=$(pstree -p $(ps aux | grep -v grep | grep IoTDB| awk '{print $2}') | wc -l)
-		fi
-		let temp_file_num=${temp_file_num_d}+${temp_file_num_c}+${temp_file_num_i}
-		if [ ${maxNumofOpenFiles} -lt ${temp_file_num} ]; then
-			maxNumofOpenFiles=${temp_file_num}
-		fi
-		#监控线程数
-		let temp_thread_num=${temp_thread_num_d}+${temp_thread_num_c}+${temp_thread_num_i}
-		if [ ${maxNumofThread} -lt ${temp_thread_num} ]; then
-			maxNumofThread=${temp_thread_num}
-		fi
-		#监控执行情况  
-		ts_status=$(grep_count "${TEST_IOTDB_PATH}/logs/log_datanode_all.log" 'IoTDB DataNode is set up successfully. Now, enjoy yourself!')
-		if [ ${ts_status} -le 0 ]; then
-			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 7200 ]; then
-				echo "测试失败"  #倒序输入形成负数结果
-				end_time=-1
-				cost_time=-100
-				break
-			fi
-			sleep 10
-			continue
-		else
-			echo "${data_type}已完成"
-			cd ${TEST_IOTDB_PATH}/logs/
-			#start_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB-DataNode environment variables" | awk '{print $1 FS $2}')
-			start_time=$(find ./* -name log_datanode_all.log | xargs sed -n '1p' | awk '{print $1 FS $2}')
-			end_time=$(find ./* -name log_datanode_all.log | xargs grep "IoTDB DataNode is set up successfully. Now, enjoy yourself" | awk '{print $1 FS $2}')
-			#新增判断是否可以cli登录查询
-			iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw root -e "show cluster" | grep 'Total line number = 2')
-			if [ "${iotdb_state}" = "Total line number = 2" ]; then
-				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			else
-				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+
+		if [ "${setup_count}" -gt 0 ]; then
+			start_time="$(extract_log_timestamp "${datanode_log}" || current_datetime)"
+			end_time="$(extract_log_timestamp "${datanode_log}" "IoTDB DataNode is set up successfully" || current_datetime)"
+			cost_time="$(calculate_startup_cost)"
+			if ! can_query_iotdb_after_startup; then
 				cost_time=-50
-				echo "启动后无法登陆和查询"
+				log "IoTDB started but CLI query failed."
+				return 1
 			fi
-			break
+			log "${data_type} restart finished, cost ${cost_time}s."
+			return 0
 		fi
+
+		now_epoch="$(date +%s)"
+		elapsed=$((now_epoch - monitor_start_epoch))
+		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+			end_time=-1
+			cost_time=-100
+			log "${data_type} restart timeout."
+			return 1
+		fi
+
+		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
 	done
 }
-collect_data_before() { # 收集iotdb数据大小，顺、乱序文件数量
-	COLLECT_PATH=$1
-	dataFileSize_before=$(dir_size_gb "${COLLECT_PATH}/data/datanode/data")
-	numOfSe0Level_before=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/sequence")
-	numOfUnse0Level_before=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/unsequence")
-	WALSize_before=$(dir_size_gb "${COLLECT_PATH}/data/datanode/wal")
+
+collect_data_before() {
+	local collect_path="${1%/}"
+
+	dataFileSize_before="$(dir_size_gb "${collect_path}/data/datanode/data")"
+	numOfSe0Level_before="$(count_tsfiles "${collect_path}/data/datanode/data/sequence")"
+	numOfUnse0Level_before="$(count_tsfiles "${collect_path}/data/datanode/data/unsequence")"
+	WALSize_before="$(dir_size_gb "${collect_path}/data/datanode/wal")"
 }
-collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
-	#收集启动后基础监控数据
-	COLLECT_PATH=$1
-	dataFileSize_after=$(dir_size_gb "${COLLECT_PATH}/data/datanode/data")
-	numOfSe0Level_after=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/sequence")
-	numOfUnse0Level_after=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/unsequence")
-	WALSize_after=$(dir_size_gb "${COLLECT_PATH}/data/datanode/wal")
-	if [ -s "${COLLECT_PATH}/logs/log_datanode_error.log" ] || [ -s "${COLLECT_PATH}/logs/log_confignode_error.log" ]; then
+
+collect_data_after() {
+	local collect_path="${1%/}"
+
+	dataFileSize_after="$(dir_size_gb "${collect_path}/data/datanode/data")"
+	numOfSe0Level_after="$(count_tsfiles "${collect_path}/data/datanode/data/sequence")"
+	numOfUnse0Level_after="$(count_tsfiles "${collect_path}/data/datanode/data/unsequence")"
+	WALSize_after="$(dir_size_gb "${collect_path}/data/datanode/wal")"
+
+	if [ -s "${collect_path}/logs/log_datanode_error.log" ] || [ -s "${collect_path}/logs/log_confignode_error.log" ]; then
 		errorLogSize=1
 	else
 		errorLogSize=0
 	fi
 }
-insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
-	#收集启动后基础监控数据
-	remark_value=$1
-	insert_sql="insert into ${TABLENAME}\
-	(commit_date_time,test_date_time,commit_id,author,ts_type,data_type,cost_time,numOfSe0Level_before,numOfSe0Level_after,\
-	numOfUnse0Level_before,numOfUnse0Level_after,start_time,end_time,dataFileSize_before,dataFileSize_after,WALSize_before,WALSize_after,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) \
-	values(${commit_date_time},${test_date_time},$(sql_quote "${commit_id}"),$(sql_quote "${author}"),$(sql_quote "${ts_type}"),$(sql_quote "${data_type}"),${cost_time},${numOfSe0Level_before},${numOfSe0Level_after},\
-	${numOfUnse0Level_before},${numOfUnse0Level_after},$(sql_quote "${start_time}"),$(sql_quote "${end_time}"),$(sql_quote "${dataFileSize_before}"),$(sql_quote "${dataFileSize_after}"),$(sql_quote "${WALSize_before}"),$(sql_quote "${WALSize_after}"),${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},$(sql_quote "${remark_value}"))"
-	echo ${ts_type}时间序列 ${data_type} 操作耗时为：${cost_time} 秒
-	run_mysql "${insert_sql}"
-	echo ${insert_sql}
+
+insert_database() {
+	local remark_value="$1"
+	local insert_sql=""
+
+	insert_sql=$(cat <<EOF
+insert into ${result_table} (
+	commit_date_time,test_date_time,commit_id,author,ts_type,data_type,cost_time,
+	numOfSe0Level_before,numOfSe0Level_after,numOfUnse0Level_before,numOfUnse0Level_after,
+	start_time,end_time,dataFileSize_before,dataFileSize_after,WALSize_before,WALSize_after,
+	maxNumofOpenFiles,maxNumofThread,errorLogSize,remark
+) values (
+	${commit_date_time},
+	${test_date_time},
+	$(sql_quote "${commit_id}"),
+	$(sql_quote "${author}"),
+	$(sql_quote "${ts_type}"),
+	$(sql_quote "${data_type}"),
+	${cost_time},
+	${numOfSe0Level_before},
+	${numOfSe0Level_after},
+	${numOfUnse0Level_before},
+	${numOfUnse0Level_after},
+	$(sql_quote "${start_time}"),
+	$(sql_quote "${end_time}"),
+	$(sql_quote "${dataFileSize_before}"),
+	$(sql_quote "${dataFileSize_after}"),
+	$(sql_quote "${WALSize_before}"),
+	$(sql_quote "${WALSize_after}"),
+	${maxNumofOpenFiles},
+	${maxNumofThread},
+	${errorLogSize},
+	$(sql_quote "${remark_value}")
+)
+EOF
+)
+
+	log "${ts_type} ${data_type} restart cost: ${cost_time}s"
+	mysql_exec "${insert_sql}"
+	log "${insert_sql}"
 }
-backup_test_data() { # 备份测试数据
-	local backup_dir="${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}"
+
+archive_logs() {
+	local archive_dir_name="$1"
+	local archive_dir="${TEST_IOTDB_PATH}/${archive_dir_name}"
+
+	if [ -z "${archive_dir_name}" ] || [ ! -d "${TEST_IOTDB_PATH}/logs" ]; then
+		return 0
+	fi
+
+	mkdir -p "${archive_dir}"
+	mv "${TEST_IOTDB_PATH}/logs" "${archive_dir}/"
+}
+
+backup_test_data() {
+	local current_ts_type="$1"
+	local backup_parent="${BUCKUP_PATH}/${current_ts_type}"
+	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
+
 	sudo_safe_rm "${backup_dir}"
-	sudo mkdir -p "${backup_dir}"
+	path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
+	sudo mkdir -p -- "${backup_dir}"
 	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
+	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
 }
+
 run_restart_case() {
-	local remark_value=$1
-	local archive_dir=$2
-	collect_data_before "${TEST_IOTDB_PATH}/"
+	local remark_value="$1"
+	local archive_dir="$2"
+	local case_failed=0
+
+	init_items
+	collect_data_before "${TEST_IOTDB_PATH}"
 	start_iotdb
-	sleep 10
-	monitor_test_status
-	sleep 10
+	sleep "${STARTUP_GRACE_SECONDS}"
+	if ! monitor_test_status; then
+		case_failed=1
+	fi
+	sleep "${STOP_WAIT_SECONDS}"
 	stop_iotdb
-	sleep 10
+	sleep "${STOP_WAIT_SECONDS}"
 	check_iotdb_pid
 	collect_data_after "${TEST_IOTDB_PATH}"
 	insert_database "${remark_value}"
-	if [ "${archive_dir}" != "" ] && [ -d "${TEST_IOTDB_PATH}/logs" ]; then
-		mv "${TEST_IOTDB_PATH}/logs" "${TEST_IOTDB_PATH}/${archive_dir}"
-	fi
-}
-test_operation() {
-	protocol_id=$1
-	ts_type=$2
-	data_type=$3
-	echo "开始测试${ts_type}时间序列！${data_type}"
-	#清理环境，确保无就程序影响
-	check_iotdb_pid
-	#复制当前程序到执行位置
-	set_env
-	modify_iotdb_config
-	#############################导入#############################
-	cp -rf ${DATA_PATH}/data ${TEST_IOTDB_PATH}/
-	run_restart_case restart_db R1
-	#增加异地关机优化检测
-	run_restart_case restart_db_2 ""
-	#备份本次测试
-	backup_test_data common	
+	archive_logs "${archive_dir}"
+
+	return "${case_failed}"
 }
 
-##准备开始测试
-check_password
-echo "ontesting" > "${INIT_PATH}/test_type_file"
-if ! fetch_next_commit; then
-	sleep 60s
-else
+prepare_test_data() {
+	local source_data="${DATA_PATH}/data"
+
+	[ -d "${source_data}" ] || die "missing restart data: ${source_data}"
+	cp -rf "${source_data}" "${TEST_IOTDB_PATH}/"
+}
+
+test_operation() {
+	protocol_id="$1"
+	ts_type="$2"
+	data_type="$3"
+	local task_failed=0
+
+	log "start ${test_type}: protocol=${protocol_id}, ts=${ts_type}, data=${data_type}"
+	check_iotdb_pid
+	set_env
+	modify_iotdb_config
+	prepare_test_data
+
+	if ! run_restart_case "restart_db" "R1"; then
+		task_failed=1
+	fi
+	if ! run_restart_case "restart_db_2" ""; then
+		task_failed=1
+	fi
+
+	backup_test_data "${ts_type}"
+	return "${task_failed}"
+}
+
+mark_test_in_progress() {
+	printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
+}
+
+restore_test_type_file() {
+	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main() {
+	local protocol=""
+	local ts=""
+	local current_data_type=""
+	local task_failed=0
+
+	trap restore_test_type_file EXIT
+	ensure_runtime_dependencies
+	check_password
+	mark_test_in_progress
+
+	if ! fetch_next_commit; then
+		sleep 60
+		return 0
+	fi
+
 	update_task_status "ontesting"
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-	if [ "${author}" != "Timecho" ]; then
-		TABLENAME=${TABLENAME}
+	log "current commit ${commit_id} starts ${test_type}"
+	if [ "${author}" = "Timecho" ]; then
+		result_table="${TABLENAME_T}"
 	else
-		TABLENAME=${TABLENAME_T}
+		result_table="${TABLENAME}"
 	fi
-	init_items
-	test_date_time=`date +%Y%m%d%H%M%S`
-	test_operation 211 common sequence
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-	update_task_status "done"
-	if [ "${author}" != "Timecho" ]; then
-		mark_older_commits_skip
+
+	test_date_time="$(date +%Y%m%d%H%M%S)"
+	for protocol in "${protocol_list[@]}"; do
+		for ts in "${ts_list[@]}"; do
+			for current_data_type in "${data_type_list[@]}"; do
+				if ! test_operation "${protocol}" "${ts}" "${current_data_type}"; then
+					task_failed=1
+				fi
+			done
+		done
+	done
+
+	log "test round ${test_date_time} finished"
+	if [ "${task_failed}" -eq 0 ]; then
+		update_task_status "done"
+		if [ "${author}" != "Timecho" ]; then
+			mark_older_commits_skip
+		fi
+	else
+		update_task_status "RError"
 	fi
-fi
-echo "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"
