@@ -1,25 +1,15 @@
 #!/usr/bin/env bash
 #登录用户名
-ACCOUNT=atmos
-IoTDB_PW=TimechoDB@2021
 test_type=restart_db
 #初始环境存放路径
 INIT_PATH=/data/atmos/zk_test
 ATMOS_PATH=${INIT_PATH}/atmos-ex
-BM_PATH=${INIT_PATH}/iot-benchmark
 DATA_PATH=/data/atmos/DataSet
 BUCKUP_PATH=/nasdata/repository/restart_db
 REPOS_PATH=/nasdata/repository/master
 #测试数据运行路径
 TEST_INIT_PATH=/data/atmos
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
-# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
-# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
-# 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus)
-protocol_list=(111 223 222 211)
-data_type=(sequence unsequence)
-ts_list=(common aligned template tempaligned)
 
 ############mysql信息##########################
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
@@ -36,9 +26,6 @@ echo "需要关注密码设置！"
 fi
 run_mysql() {
 	mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "$1"
-}
-git_commit_abbrev() {
-	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
 }
 dir_size_gb() {
 	local target_dir=$1
@@ -65,15 +52,6 @@ grep_count() {
 		grep -E -c "${pattern}" "${log_file}" 2>/dev/null
 	fi
 }
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
-BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
-if [ "${BM_NEW}" != "" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf "${BM_PATH}"
-	cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-fi
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -94,19 +72,6 @@ maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
 ############定义监控采集项初始值##########################
-}
-local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
-sendEmail() {
-"${TOOLS_PATH}/sendEmail.sh" "$1" >/dev/null 2>&1 &
-}
-check_benchmark_pid() { # 检查benchmark-moitor的pid，有就停止
-	monitor_pid=$(jps | grep App | awk '{print $1}')
-	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
-	else
-		kill -9 ${monitor_pid}
-		echo "BM程序已停止！"
-	fi
 }
 check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
@@ -144,37 +109,24 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
-	#修改IoTDB的配置
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
-	#清空配置文件
-	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#关闭影响写入性能的其他功能
-	#echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-}
-set_protocol_class() { 
-	config_node=$1
-	schema_region=$2
-	data_region=$3
-	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+	local property
+	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
+	for property in \
+		"cluster_name=${test_type}" \
+		"cn_enable_metric=true" \
+		"cn_enable_performance_stat=true" \
+		"cn_metric_reporter_list=PROMETHEUS" \
+		"cn_metric_level=ALL" \
+		"cn_metric_prometheus_reporter_port=9081" \
+		"dn_enable_metric=true" \
+		"dn_enable_performance_stat=true" \
+		"dn_metric_reporter_list=PROMETHEUS" \
+		"dn_metric_level=ALL" \
+		"dn_metric_prometheus_reporter_port=9091"
+	do
+		echo "${property}" >> "${conf_file}"
+	done
 }
 start_iotdb() { # 启动iotdb
 	cd ${TEST_IOTDB_PATH}
@@ -188,19 +140,6 @@ stop_iotdb() { # 停止iotdb
 	./sbin/stop-datanode.sh >/dev/null 2>&1 &
 	sleep 10
 	./sbin/stop-confignode.sh >/dev/null 2>&1 &
-	cd ~/
-}
-start_benchmark() { # 启动benchmark
-	cd ${BM_PATH}
-	if [ -d "${BM_PATH}/logs" ]; then
-		rm -rf ${BM_PATH}/logs
-	fi
-	if [ ! -d "${BM_PATH}/data" ]; then
-		${BM_PATH}/benchmark.sh >/dev/null 2>&1 &
-	else
-		rm -rf ${BM_PATH}/data
-		${BM_PATH}/benchmark.sh >/dev/null 2>&1 &
-	fi
 	cd ~/
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
@@ -281,31 +220,6 @@ collect_data_before() { # 收集iotdb数据大小，顺、乱序文件数量
 	numOfSe0Level_before=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/sequence")
 	numOfUnse0Level_before=$(count_tsfiles "${COLLECT_PATH}/data/datanode/data/unsequence")
 	WALSize_before=$(dir_size_gb "${COLLECT_PATH}/data/datanode/wal")
-	return
-	dataFileSize_before=$(du -h -d0 ${COLLECT_PATH}/data/datanode/data | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${COLLECT_PATH}/data/datanode/data | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		dataFileSize_before=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize_before'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		dataFileSize_before=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize_before'/'1048576'}'`
-	else
-		dataFileSize_before=${dataFileSize_before}
-	fi
-	numOfSe0Level_before=$(find ${COLLECT_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l)
-	if [ ! -d "${COLLECT_PATH}/data/datanode/data/unsequence" ]; then
-		numOfUnse0Level_before=0
-	else
-		numOfUnse0Level_before=$(find ${COLLECT_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l)
-	fi
-	WALSize_before=$(du -h -d0 ${COLLECT_PATH}/data/datanode/wal | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${COLLECT_PATH}/data/datanode/wal | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		WALSize_before=`awk 'BEGIN{printf "%.2f\n",'$WALSize_before'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		WALSize_before=`awk 'BEGIN{printf "%.2f\n",'$WALSize_before'/'1048576'}'`
-	else
-		WALSize_before=${WALSize_before}
-	fi
 }
 collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 	#收集启动后基础监控数据
@@ -318,38 +232,6 @@ collect_data_after() { # 收集iotdb数据大小，顺、乱序文件数量
 		errorLogSize=1
 	else
 		errorLogSize=0
-	fi
-	return
-	dataFileSize_after=$(du -h -d0 ${COLLECT_PATH}/data/datanode/data | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${COLLECT_PATH}/data/datanode/data | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		dataFileSize_after=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize_after'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		dataFileSize_after=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize_after'/'1048576'}'`
-	else
-		dataFileSize_after=${dataFileSize_after}
-	fi
-	numOfSe0Level_after=$(find ${COLLECT_PATH}/data/datanode/data/sequence -name "*.tsfile" | wc -l)
-	if [ ! -d "${COLLECT_PATH}/data/datanode/data/unsequence" ]; then
-		numOfUnse0Level_after=0
-	else
-		numOfUnse0Level_after=$(find ${COLLECT_PATH}/data/datanode/data/unsequence -name "*.tsfile" | wc -l)
-	fi
-	WALSize_after=$(du -h -d0 ${COLLECT_PATH}/data/datanode/wal | awk {'print $1'} | awk '{sub(/.$/,"")}1')
-	UNIT=$(du -h -d0 ${COLLECT_PATH}/data/datanode/wal | awk {'print $1'} | awk -F '' '$0=$NF')
-	if [ "$UNIT" = "M" ]; then
-		WALSize_after=`awk 'BEGIN{printf "%.2f\n",'$WALSize_after'/'1024'}'`
-	elif [ "$UNIT" = "K" ]; then
-		WALSize_after=`awk 'BEGIN{printf "%.2f\n",'$WALSize_after'/'1048576'}'`
-	else
-		WALSize_after=${WALSize_after}
-	fi
-	D_ErrorLogSize=$(du -sh ${COLLECT_PATH}/logs/log_datanode_error.log | awk {'print $1'})
-	C_ErrorLogSize=$(du -sh ${COLLECT_PATH}/logs/log_confignode_error.log | awk {'print $1'})
-	if [ "${D_ErrorLogSize}" = "0" ] && [ "${C_ErrorLogSize}" = "0" ]; then
-		errorLogSize=0
-	else
-		errorLogSize=1
 	fi
 }
 insert_database() { # 收集iotdb数据大小，顺、乱序文件数量
@@ -370,8 +252,22 @@ backup_test_data() { # 备份测试数据
     sudo rm -rf ${TEST_IOTDB_PATH}/data
 	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_id}
 }
-clear_expired_file() { # 清理超过七天的文件
-	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
+run_restart_case() {
+	local remark_value=$1
+	local archive_dir=$2
+	collect_data_before "${TEST_IOTDB_PATH}/"
+	start_iotdb
+	sleep 10
+	monitor_test_status
+	sleep 10
+	stop_iotdb
+	sleep 10
+	check_iotdb_pid
+	collect_data_after "${TEST_IOTDB_PATH}"
+	insert_database "${remark_value}"
+	if [ "${archive_dir}" != "" ] && [ -d "${TEST_IOTDB_PATH}/logs" ]; then
+		mv "${TEST_IOTDB_PATH}/logs" "${TEST_IOTDB_PATH}/${archive_dir}"
+	fi
 }
 test_operation() {
 	protocol_id=$1
@@ -383,51 +279,11 @@ test_operation() {
 	#复制当前程序到执行位置
 	set_env
 	modify_iotdb_config
-	#if [ "${protocol_class}" = "111" ]; then
-	#	set_protocol_class 1 1 1
-	#elif [ "${protocol_class}" = "222" ]; then
-	#	set_protocol_class 2 2 2
-	#elif [ "${protocol_class}" = "223" ]; then
-	#	set_protocol_class 2 2 3
-	#elif [ "${protocol_class}" = "211" ]; then
-	#	set_protocol_class 2 1 1
-	#else
-	#	echo "协议设置错误！"
-	#	return
-	#fi
 	#############################导入#############################
-	#收集启动前基础监控数据
 	cp -rf ${DATA_PATH}/data ${TEST_IOTDB_PATH}/
-	collect_data_before ${TEST_IOTDB_PATH}/
-	#启动iotdb
-	start_iotdb
-	sleep 10	
-	monitor_test_status
-	sleep 10
-	stop_iotdb
-	sleep 10
-	check_iotdb_pid
-	#收集启动后基础监控数据，并写入数据库
-	collect_data_after ${TEST_IOTDB_PATH}
-	insert_database restart_db
-	
-	#备份日志文件夹
-	mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/R1
-	
+	run_restart_case restart_db R1
 	#增加异地关机优化检测
-	collect_data_before ${TEST_IOTDB_PATH}/
-	#启动iotdb
-	start_iotdb
-	sleep 10	
-	monitor_test_status
-	sleep 10
-	stop_iotdb
-	sleep 10
-	check_iotdb_pid
-	#收集启动后基础监控数据，并写入数据库
-	collect_data_after ${TEST_IOTDB_PATH}
-	insert_database restart_db_2
-	
+	run_restart_case restart_db_2 ""
 	#备份本次测试
 	backup_test_data common	
 }
@@ -460,8 +316,6 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	p_index=$(($RANDOM % ${#protocol_list[*]}))
-	t_index=$(($RANDOM % ${#ts_list[*]}))		
 	test_operation 211 common sequence
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
