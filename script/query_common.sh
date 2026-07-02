@@ -20,18 +20,18 @@ fi
 # 公共必填配置：se_query.sh/se_query_test.sh 设置为 sequence，unse_query.sh 设置为 unsequence。
 : "${QUERY_DATA_TYPE:?QUERY_DATA_TYPE must be set before sourcing query_common.sh}"
 
-readonly IOTDB_PW="TimechoDB@2021"
+readonly IOTDB_PW="${IOTDB_PW:-TimechoDB@2021}"
 
-readonly INIT_PATH="/data/atmos/zk_test"
-readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
-readonly BM_PATH="${INIT_PATH}/iot-benchmark"
-readonly DATA_PATH="/data/atmos/DataSet"
-readonly BACKUP_PATH="/nasdata/repository/${TEST_TYPE}"
-readonly REPOS_PATH="/nasdata/repository/master"
-readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
+readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
+readonly ATMOS_PATH="${ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
+readonly BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
+readonly DATA_PATH="${DATA_PATH:-/data/atmos/DataSet}"
+readonly BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/${TEST_TYPE}}"
+readonly REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
+readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 
-readonly TEST_INIT_PATH="/data/atmos"
-readonly TEST_IOTDB_PATH="${TEST_INIT_PATH}/apache-iotdb"
+readonly TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
+readonly TEST_IOTDB_PATH="${TEST_IOTDB_PATH:-${TEST_INIT_PATH}/apache-iotdb}"
 
 readonly -a PROTOCOL_CLASS=(
     ""
@@ -116,23 +116,25 @@ if ! declare -p QUERY_RESULT_LABELS >/dev/null 2>&1; then
     )
 fi
 
-readonly MYSQLHOSTNAME="111.200.37.158"
-readonly PORT="13306"
-readonly USERNAME="iotdbatm"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
-readonly DBNAME="QA_ATM"
-readonly TABLENAME="ex_${TEST_TYPE}"
-readonly TABLENAME_T="ex_${TEST_TYPE}_T"
-readonly TASK_TABLENAME="ex_commit_history"
+readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+readonly PORT="${PORT:-13306}"
+readonly USERNAME="${USERNAME:-iotdbatm}"
+readonly PASSWORD="${PASSWORD:-${ATMOS_DB_PASSWORD:-}}"
+readonly DBNAME="${DBNAME:-QA_ATM}"
+readonly TABLENAME="${TABLENAME:-ex_${TEST_TYPE}}"
+readonly TABLENAME_T="${TABLENAME_T:-ex_${TEST_TYPE}_T}"
+readonly TASK_TABLENAME="${TASK_TABLENAME:-ex_commit_history}"
 
-readonly METRIC_SERVER="111.200.37.158:19090"
-readonly MONITOR_TIMEOUT_SECONDS=7200
-readonly MONITOR_POLL_INTERVAL_SECONDS=10
-readonly IOTDB_READY_RETRIES=10
-readonly IOTDB_READY_INTERVAL_SECONDS=5
-readonly STARTUP_GRACE_SECONDS=10
-readonly BENCHMARK_RESULT_WAIT_SECONDS=2
-readonly BENCHMARK_STOP_WAIT_SECONDS=30
+readonly METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
+readonly MONITOR_TIMEOUT_SECONDS="${MONITOR_TIMEOUT_SECONDS:-7200}"
+readonly MONITOR_POLL_INTERVAL_SECONDS="${MONITOR_POLL_INTERVAL_SECONDS:-10}"
+readonly IOTDB_READY_RETRIES="${IOTDB_READY_RETRIES:-10}"
+readonly IOTDB_READY_INTERVAL_SECONDS="${IOTDB_READY_INTERVAL_SECONDS:-5}"
+readonly IOTDB_READY_USER="${IOTDB_READY_USER:-root}"
+readonly IOTDB_READY_PASSWORD="${IOTDB_READY_PASSWORD:-root}"
+readonly STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-10}"
+readonly BENCHMARK_RESULT_WAIT_SECONDS="${BENCHMARK_RESULT_WAIT_SECONDS:-2}"
+readonly BENCHMARK_STOP_WAIT_SECONDS="${BENCHMARK_STOP_WAIT_SECONDS:-30}"
 
 result_table="${TABLENAME}"
 commit_id=""
@@ -551,9 +553,21 @@ stop_iotdb() {
 wait_for_iotdb_ready() {
     local attempt=0
     local iotdb_state=""
+    local -a cli_args=()
+
+    if [ -n "${IOTDB_READY_USER}" ]; then
+        cli_args+=(-u "${IOTDB_READY_USER}")
+    fi
+    if [ -n "${IOTDB_READY_PASSWORD}" ]; then
+        cli_args+=(-pw "${IOTDB_READY_PASSWORD}")
+    fi
 
     for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+        if [ "${#cli_args[@]}" -gt 0 ]; then
+            iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${cli_args[@]}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+        else
+            iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+        fi
         if [ "${iotdb_state}" = "Total line number = 2" ]; then
             return 0
         fi
@@ -1022,10 +1036,12 @@ test_operation() {
 # -------------------- 公共调度状态函数 --------------------
 # 与外层调度器通过 test_type_file 协同当前测试状态。
 mark_test_in_progress() {
+    mkdir -p "${INIT_PATH}"
     printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 }
 
 restore_test_type_file() {
+    mkdir -p "${INIT_PATH}"
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
