@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+	exec bash "${BASH_SOURCE[0]}" "$@"
+fi
 #登录用户名
 ACCOUNT=Administrator
 IoTDB_PW=TimechoDB@2021
@@ -32,19 +38,131 @@ TABLENAME_T="ex_windows_test_T" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 metric_server="111.200.37.158:19090"
+MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
+MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 ############公用函数##########################
 if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
 fi
+
+current_datetime() {
+	date +"%Y-%m-%d %H:%M:%S"
+}
+
+datetime_to_epoch() {
+	date -d "$1" +%s
+}
+
+git_commit_abbrev() {
+	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
+}
+
+check_benchmark_version() {
+	local bm_repos_path=/nasdata/repository/iot-benchmark
+	local bm_new=""
+	local bm_old=""
+
+	bm_new=$(git_commit_abbrev "${bm_repos_path}/git.properties")
+	bm_old=$(git_commit_abbrev "${BM_PATH}/git.properties")
+	if [ -n "${bm_new}" ] && { [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; }; then
+		rm -rf "${BM_PATH}"
+		cp -rf "${bm_repos_path}" "${BM_PATH}"
+	fi
+}
+
+find_result_csv() {
+	find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
+}
+
+create_stuck_result_csv() {
+	local result_label="${1:-INGESTION}"
+	local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
+	local index=0
+
+	result_label="${result_label%,}"
+	mkdir -p "${csv_file%/*}"
+	: > "${csv_file}"
+	for ((index = 0; index < 100; index++)); do
+		echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
+	done
+}
+
+bytes_to_gib() {
+	awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
+}
+
+to_int() {
+	awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
+}
+
+set_negative_benchmark_metrics() {
+	local value=$1
+	okPoint=${value}
+	okOperation=${value}
+	failPoint=${value}
+	failOperation=${value}
+	throughput=${value}
+	Latency=${value}
+	MIN=${value}
+	P10=${value}
+	P25=${value}
+	MEDIAN=${value}
+	P75=${value}
+	P90=${value}
+	P95=${value}
+	P99=${value}
+	P999=${value}
+	MAX=${value}
+}
+
+parse_benchmark_result() {
+	local csv_file=$1
+	local result_label="${2:-INGESTION}"
+	local throughput_line=""
+	local latency_line=""
+
+	[ -f "${csv_file}" ] || return 1
+	result_label="${result_label%,}"
+	throughput_line=$(awk -F, -v label="${result_label}" '
+		{
+			name = $1
+			gsub(/^[ \t]+|[ \t]+$/, "", name)
+		}
+		name == label {
+			for (i = 2; i <= 6; i++) {
+				gsub(/^[ \t]+|[ \t]+$/, "", $i)
+				printf "%s%s", $i, (i == 6 ? ORS : OFS)
+			}
+			exit
+		}
+	' OFS=$'\t' "${csv_file}")
+
+	latency_line=$(awk -F, -v label="${result_label}" '
+		{
+			name = $1
+			gsub(/^[ \t]+|[ \t]+$/, "", name)
+		}
+		name == label {
+			count++
+			if (count == 2) {
+				for (i = 2; i <= 12; i++) {
+					gsub(/^[ \t]+|[ \t]+$/, "", $i)
+					printf "%s%s", $i, (i == 12 ? ORS : OFS)
+				}
+				exit
+			}
+		}
+	' OFS=$'\t' "${csv_file}")
+
+	[ -n "${throughput_line}" ] || return 1
+	[ -n "${latency_line}" ] || return 1
+	IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
+	IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
+}
+
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-fi
+check_benchmark_version
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -80,7 +198,7 @@ walFileSize=0
 ############定义监控采集项初始值##########################
 }
 check_benchmark_pid() { # 检查benchmark的pid，有就停止
-	monitor_pid=$(jps | grep App | awk '{print $1}')
+	monitor_pid=$(jps | awk '$2 == "App" {print $1}')
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到监控程序！"
 	else
@@ -149,10 +267,12 @@ setup_env() {
 	ssh ${ACCOUNT}@${TEST_IP} "shutdown /f /r /t 0"
 	sleep 120
 	rflag=0
+	boot_ready=0
 	while true; do
 		echo "当前连接：${ACCOUNT}@${TEST_IP}"
 		ssh ${ACCOUNT}@${TEST_IP} "dir D:" >/dev/null 2>&1
 		if [ $? -eq 0 ];then
+			boot_ready=1
 			echo "${TEST_IP}已启动"
 			break
 		else
@@ -161,11 +281,15 @@ setup_env() {
 				break
 			else
 				ssh ${ACCOUNT}@${TEST_IP} "shutdown /f /r /t 0"
-				rflag=$[${rflag}+1]
+				rflag=$((rflag+1))
 			fi
 			sleep 180
 		fi
 	done
+	if [ "${boot_ready}" != "1" ]; then
+	  echo "${TEST_IP} boot check failed!"
+	  exit -1
+	fi
 	echo "setting env to ${TEST_IP} ..."
 	#删除原有路径下所有
 	ssh ${ACCOUNT}@${TEST_IP} "rmdir /s /q ${TEST_IOTDB_PATH_W}"
@@ -176,6 +300,7 @@ setup_env() {
 	echo "starting IoTDB on ${TEST_IP} ..."
 	pid3=$(ssh ${ACCOUNT}@${TEST_IP} "schtasks /Run /TN  run_iotdb")
 	sleep 10
+	flag=0
 	for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 	do
 	  str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "show cluster" | grep 'Total line number = 2')
@@ -195,79 +320,69 @@ setup_env() {
 	fi
 }
 start_benchmark() { # 启动benchmark
-	cd ${BM_PATH}
-	if [ -d "${BM_PATH}/logs" ]; then
-		rm -rf ${BM_PATH}/logs
-	fi
-	if [ ! -d "${BM_PATH}/data" ]; then
-		bm_start=$(${BM_PATH}/benchmark.sh >/dev/null 2>&1 &)
-	else
-		rm -rf ${BM_PATH}/data
-		bm_start=$(${BM_PATH}/benchmark.sh >/dev/null 2>&1 &)
-	fi
-	cd ~/
+	rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
+	(cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
 }
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	local result_label="${1:-INGESTION}"
+	local csv_file=""
+	local now_epoch=0
+	local elapsed=0
+
 	while true; do
-		#确认是否测试已结束
-		csvOutput=${BM_PATH}/data/csvOutput
-		if [ ! -d "$csvOutput" ]; then
-			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 7200 ]; then
-				echo "测试失败"
-				mkdir -p ${BM_PATH}/data/csvOutput
-				cd ${BM_PATH}/data/csvOutput
-				touch Stuck_result.csv
-				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
-				for ((i=0;i<100;i++))
-				do
-					echo $array1 >> Stuck_result.csv
-				done
-				cd ~
-				break
-			fi
-			continue
-		else
-			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			echo "${ts_type}写入已完成！"
-			break
+		csv_file=$(find_result_csv || true)
+		if [ -n "${csv_file}" ]; then
+			end_time=$(current_datetime)
+			echo "${ts_type} benchmark completed."
+			return 0
 		fi
+
+		now_epoch=$(date +%s)
+		elapsed=$((now_epoch - m_start_time))
+		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+			end_time=$(current_datetime)
+			echo "${ts_type} benchmark timed out."
+			create_stuck_result_csv "${result_label}"
+			return 1
+		fi
+
+		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
 	done
 }
 function get_single_index() {
     # 获取 prometheus 单个指标的值
+    local query=$1
     local end=$2
-    local url="http://${metric_server}/api/v1/query"
-    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
-    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
+    index_value=$(curl -G -s "http://${metric_server}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
 	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
 		index_value=0
 	fi
-	echo ${index_value}
+	echo "${index_value}"
 }
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
+	local metric_window=0
+	local maxNumofThread_C=0
+	local maxNumofThread_D=0
+
 	dataFileSize=0
 	walFileSize=0
 	numOfSe0Level=0
 	numOfUnse0Level=0
 	maxNumofOpenFiles=0
-	maxNumofThread_C=0
-	maxNumofThread_D=0
 	maxNumofThread=0
+	metric_window=$((m_end_time-m_start_time))
+	[ "${metric_window}" -gt 0 ] || metric_window=1
 	#调用监控获取数值
 	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${IoTDB_IP}:9091\"})" $m_end_time)
-	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1048576'}'`
-	dataFileSize=`awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/'1024'}'`
+	dataFileSize=$(bytes_to_gib "${dataFileSize}")
 	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${IoTDB_IP}:9091\",name=\"seq\"})" $m_end_time)
 	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${IoTDB_IP}:9091\",name=\"unseq\"})" $m_end_time)
-	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-	let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
-	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${IoTDB_IP}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${IoTDB_IP}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1048576'}'`
-	walFileSize=`awk 'BEGIN{printf "%.2f\n",'$walFileSize'/'1024'}'`
+	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9081\"}[${metric_window}s])" $m_end_time)
+	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9091\"}[${metric_window}s])" $m_end_time)
+	maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
+	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${IoTDB_IP}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" $m_end_time)
+	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${IoTDB_IP}:9091\",name=~\"wal\"}[${metric_window}s])" $m_end_time)
+	walFileSize=$(bytes_to_gib "${walFileSize}")
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${BM_PATH}/conf/config.properties
@@ -300,21 +415,22 @@ test_operation() {
 		setup_env ${TEST_IP}
 		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
 		echo "写入测试开始！"
-		start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+		start_time=$(current_datetime)
 		m_start_time=$(date +%s)
 		mv_config_file ${data_type}
 		start_benchmark 
 		#等待1分钟
 		sleep 60
-		monitor_test_status ${TEST_IP}
+		monitor_test_status "INGESTION"
 		m_end_time=$(date +%s)
 		collect_monitor_data
 		#测试结果收集写入数据库
-		csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
-		read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-		read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
+		csvOutputfile=$(find_result_csv || true)
+		if ! parse_benchmark_result "${csvOutputfile}" "INGESTION"; then
+			set_negative_benchmark_metrics -2
+		fi
 
-		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},'${protocol_class}')"
 		echo ${insert_sql}
 		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
@@ -334,13 +450,15 @@ test_operation() {
 					check_benchmark_pid
 					sleep 3
 					start_benchmark
-					start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
+					m_start_time=$(date +%s)
+					start_time=$(current_datetime)
 					#等待1分钟
 					sleep 3
-					monitor_test_status
+					monitor_test_status "${query_type[${j}]}"
+					m_end_time=$(date +%s)
 					#测试结果收集写入数据库
 					#csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
-					csvOutputfile=$(find ${BM_PATH}/data/csvOutput/ -type f -name "*.csv")
+					csvOutputfile=$(find_result_csv || true)
 					if [ ! -f "$csvOutputfile" ]; then
 						echo "未找到CSV文件"
 						sleep 60
@@ -348,9 +466,10 @@ test_operation() {
 						echo "$csvOutputfile"
 						sleep 10
 					fi
-					read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-					read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type[${j}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-					cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+					if ! parse_benchmark_result "${csvOutputfile}" "${query_type[${j}]}"; then
+						set_negative_benchmark_metrics -2
+					fi
+					cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 					insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
 					echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 					mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"

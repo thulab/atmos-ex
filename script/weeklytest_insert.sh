@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+    exec bash "${BASH_SOURCE[0]}" "$@"
+fi
 # ----------------------------------------------------------------------------
 # IoTDB WeeklyTest Insert Script (Based on se_insert.sh)
 # ----------------------------------------------------------------------------
@@ -43,6 +49,8 @@ TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
 # -------------------- Prometheus 配置信息 --------------------
 metric_server="111.200.37.158:19090"
+MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
+MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
 function check_password() {
@@ -51,13 +59,115 @@ function check_password() {
     fi
 }
 
+function current_datetime() {
+    date +"%Y-%m-%d %H:%M:%S"
+}
+
+function datetime_to_epoch() {
+    date -d "$1" +%s
+}
+
+function git_commit_abbrev() {
+    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
+}
+
+function find_result_csv() {
+    find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
+}
+
+function create_stuck_result_csv() {
+    local result_label="${1:-INGESTION}"
+    local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
+    local index=0
+
+    result_label="${result_label%,}"
+    mkdir -p "${csv_file%/*}"
+    : > "${csv_file}"
+    for ((index = 0; index < 100; index++)); do
+        echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
+    done
+}
+
+function bytes_to_gib() {
+    awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
+}
+
+function to_int() {
+    awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
+}
+
+function set_negative_benchmark_metrics() {
+    local value=$1
+    okPoint=${value}
+    okOperation=${value}
+    failPoint=${value}
+    failOperation=${value}
+    throughput=${value}
+    Latency=${value}
+    MIN=${value}
+    P10=${value}
+    P25=${value}
+    MEDIAN=${value}
+    P75=${value}
+    P90=${value}
+    P95=${value}
+    P99=${value}
+    P999=${value}
+    MAX=${value}
+}
+
+function parse_benchmark_result() {
+    local csv_file=$1
+    local result_label="${2:-INGESTION}"
+    local throughput_line=""
+    local latency_line=""
+
+    [ -f "${csv_file}" ] || return 1
+    result_label="${result_label%,}"
+    throughput_line=$(awk -F, -v label="${result_label}" '
+        {
+            name = $1
+            gsub(/^[ \t]+|[ \t]+$/, "", name)
+        }
+        name == label {
+            for (i = 2; i <= 6; i++) {
+                gsub(/^[ \t]+|[ \t]+$/, "", $i)
+                printf "%s%s", $i, (i == 6 ? ORS : OFS)
+            }
+            exit
+        }
+    ' OFS=$'\t' "${csv_file}")
+
+    latency_line=$(awk -F, -v label="${result_label}" '
+        {
+            name = $1
+            gsub(/^[ \t]+|[ \t]+$/, "", name)
+        }
+        name == label {
+            count++
+            if (count == 2) {
+                for (i = 2; i <= 12; i++) {
+                    gsub(/^[ \t]+|[ \t]+$/, "", $i)
+                    printf "%s%s", $i, (i == 12 ? ORS : OFS)
+                }
+                exit
+            }
+        }
+    ' OFS=$'\t' "${csv_file}")
+
+    [ -n "${throughput_line}" ] || return 1
+    [ -n "${latency_line}" ] || return 1
+    IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
+    IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
+}
+
 function check_benchmark_version() {
     BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-    BM_NEW=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_REPOS_PATH}/git.properties)
-    BM_OLD=$(awk -F= '/git.commit.id.abbrev/ {print $2}' ${BM_PATH}/git.properties 2>/dev/null)
-    if [ -n "${BM_OLD}" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-        rm -rf ${BM_PATH}
-        cp -rf ${BM_REPOS_PATH} ${BM_PATH}
+    BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
+    BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
+    if [ -n "${BM_NEW}" ] && { [ ! -d "${BM_PATH}" ] || [ "${BM_OLD}" != "${BM_NEW}" ]; }; then
+        rm -rf "${BM_PATH}"
+        cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
     fi
 }
 
@@ -77,7 +187,7 @@ function sendEmail() {
 function check_pid_and_kill() {
     local pname=$1
     local desc=$2
-    local pid=$(jps | grep "$pname" | awk '{print $1}')
+    local pid=$(jps | awk -v pname="$pname" '$2 == pname {print $1}')
     if [ -n "$pid" ]; then
         kill -9 $pid
         echo "$desc 已停止！"
@@ -135,84 +245,81 @@ function set_protocol_class() {
 }
 
 function start_iotdb() {
-    cd ${TEST_IOTDB_PATH}
-    conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
+    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
     sleep 10
-    data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
-    cd ~/
+    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
 }
 
 function stop_iotdb() {
-    cd ${TEST_IOTDB_PATH}
-    data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
+    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
     sleep 10
-    conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
-    cd ~/
+    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 }
 
 function start_benchmark() {
-    cd ${BM_PATH}
-    [ -d "${BM_PATH}/logs" ] && rm -rf ${BM_PATH}/logs
-    [ -d "${BM_PATH}/data" ] && rm -rf ${BM_PATH}/data
-    ${BM_PATH}/benchmark.sh >/dev/null 2>&1 &
-    cd ~/
+    rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
+    (cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
 }
 
 function monitor_test_status() {
+    local result_label="${1:-INGESTION}"
+    local csv_file=""
+    local now_epoch=0
+    local elapsed=0
+
     while true; do
-        csvOutput=${BM_PATH}/data/csvOutput
-        if [ ! -d "$csvOutput" ]; then
-            now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-            if [ $t_time -ge 7200 ]; then
-                echo "测试失败"
-                mkdir -p ${BM_PATH}/data/csvOutput
-                cd ${BM_PATH}/data/csvOutput
-                touch Stuck_result.csv
-                for ((i=0;i<100;i++)); do
-                    echo "INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> Stuck_result.csv
-                done
-                cd ~
-                break
-            fi
-            continue
-        else
-            end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            echo "${ts_type}写入已完成！"
-            break
+        csv_file=$(find_result_csv || true)
+        if [ -n "${csv_file}" ]; then
+            end_time=$(current_datetime)
+            echo "${ts_type} benchmark completed."
+            return 0
         fi
+
+        now_epoch=$(date +%s)
+        elapsed=$((now_epoch - m_start_time))
+        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+            end_time=$(current_datetime)
+            echo "${ts_type} benchmark timed out."
+            create_stuck_result_csv "${result_label}"
+            return 1
+        fi
+
+        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
     done
 }
 
 function get_single_index() {
     local query=$1; local end=$2
-    local url="http://${metric_server}/api/v1/query"
-    local data_param="--data-urlencode query=$query --data-urlencode 'time=${end}'"
-    local index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]' | tr -d '"')
+    local index_value=$(curl -G -s "http://${metric_server}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
     if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
         index_value=0
     fi
-    echo $index_value
+    echo "$index_value"
 }
 
 function collect_monitor_data() {
     local ip=$1
+    local metric_window=$((m_end_time-m_start_time))
+    local maxNumofThread_C=0
+    local maxNumofThread_D=0
+
+    [ "${metric_window}" -gt 0 ] || metric_window=1
     dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" $m_end_time)
-    dataFileSize=$(awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/1048576/1024}')
+    dataFileSize=$(bytes_to_gib "${dataFileSize}")
     numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" $m_end_time)
     numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" $m_end_time)
-    maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
-    maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(awk 'BEGIN{printf "%.2f\n",'$walFileSize'/1048576/1024}')
-    maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsRead=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsWrite=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+    maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${metric_window}s])" $m_end_time)
+    maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${metric_window}s])" $m_end_time)
+    maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
+    maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" $m_end_time)
+    walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${metric_window}s])" $m_end_time)
+    walFileSize=$(bytes_to_gib "${walFileSize}")
+    maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" $m_end_time)
+    avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" $m_end_time)
+    maxDiskIOOpsRead=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[${metric_window}s])" $m_end_time)
+    maxDiskIOOpsWrite=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${metric_window}s])" $m_end_time)
+    maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[${metric_window}s])" $m_end_time)
+    maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${metric_window}s])" $m_end_time)
 }
 
 function backup_test_data() {
@@ -265,17 +372,18 @@ function test_operation() {
 	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
     mv_config_file ${ts_type}
     start_benchmark
-    start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+    start_time=$(current_datetime)
     m_start_time=$(date +%s)
     sleep 60
-    monitor_test_status
+    monitor_test_status "INGESTION"
     m_end_time=$(date +%s)
     pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h 127.0.0.1 -p 6667 -e "flush")
     collect_monitor_data ${TEST_IP}
-    csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
-    read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-    read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-    cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+    csvOutputfile=$(find_result_csv || true)
+    if ! parse_benchmark_result "${csvOutputfile}" "INGESTION"; then
+        set_negative_benchmark_metrics -2
+    fi
+    cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
     mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
     stop_iotdb
