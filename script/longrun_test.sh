@@ -467,9 +467,9 @@ modify_iotdb_config() {
     sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="50G"/' "${datanode_env}"
 
     cat >> "${properties_file}" <<EOF
-enable_seq_space_compaction=false
-enable_unseq_space_compaction=false
-enable_cross_space_compaction=false
+enable_seq_space_compaction=true
+enable_unseq_space_compaction=true
+enable_cross_space_compaction=true
 cluster_name=${TEST_TYPE}
 cn_system_dir=${IOTDB_CONF_DIR}/confignode/system
 cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus
