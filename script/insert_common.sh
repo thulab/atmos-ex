@@ -491,6 +491,10 @@ check_benchmark_version() {
 # -------------------- 公共告警通知函数 --------------------
 # 默认供吞吐监控使用，入口脚本通常不直接调用。
 sendMsg() {
+    # Atmos性能测试告警功能已按要求注释掉；保留函数壳避免历史调用报错。
+    return 0
+
+    : <<'ATMOS_PERF_ALERT_DISABLED'
     local error_type="$1"
     local date_time
     local test_type="${test_type:-性能测试}"  # 默认值
@@ -540,6 +544,7 @@ EOF
     
     log "已发送钉钉告警通知: ${headline}"
     return 0
+ATMOS_PERF_ALERT_DISABLED
 }
 # -------------------- 监控控制函数 --------------------
 # -------------------- 公共吞吐监控函数 --------------------
@@ -612,7 +617,8 @@ check_throughput_monitor() {
         if awk -v throughput="${throughput}" -v ucl="${ucl}" 'BEGIN { exit !((throughput + 0) > (ucl + 0)) }' || \
            awk -v throughput="${throughput}" -v lcl="${lcl}" 'BEGIN { exit !((throughput + 0) < (lcl + 0) && (lcl + 0) > 0) }'; then
             log "监控警报: 吞吐量 $throughput 超出控制限 [$lcl, $ucl] (均值: $mean, 标准差: $std)"
-			sendMsg 1 "${throughput}" "${ucl}" "${lcl}" "${mean}"
+            # Atmos性能测试告警功能已注释掉，不再发送通知。
+            # sendMsg 1 "${throughput}" "${ucl}" "${lcl}" "${mean}"
             return 1
         else
             log "监控正常: 吞吐量 $throughput 在控制限内 [$lcl, $ucl]"

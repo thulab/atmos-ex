@@ -259,7 +259,8 @@ check_custom_throughput_monitor() {
     if awk -v throughput="${throughput}" -v ucl="${ucl}" 'BEGIN { exit !((throughput + 0) > (ucl + 0)) }' || \
        awk -v throughput="${throughput}" -v lcl="${lcl}" 'BEGIN { exit !((throughput + 0) < (lcl + 0) && (lcl + 0) > 0) }'; then
         log "monitor alert: config_insert throughput ${throughput} is outside [${lcl}, ${ucl}]"
-        sendMsg 1 "${throughput}" "${ucl}" "${lcl}" "${mean}"
+        # Atmos性能测试告警功能已注释掉，不再发送通知。
+        # sendMsg 1 "${throughput}" "${ucl}" "${lcl}" "${mean}"
         return 1
     fi
 
