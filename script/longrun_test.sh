@@ -464,7 +464,7 @@ modify_iotdb_config() {
 
     [ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
     [ -f "${properties_file}" ] || die "missing config file: ${properties_file}"
-    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="50G"/' "${datanode_env}"
+    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="40G"/' "${datanode_env}"
 
     cat >> "${properties_file}" <<EOF
 enable_seq_space_compaction=true
