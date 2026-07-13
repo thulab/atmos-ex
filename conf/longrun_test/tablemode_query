@@ -54,7 +54,7 @@ IS_DELETE_DATA=false
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=1000
+LOOP=7200
 
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
@@ -388,7 +388,7 @@ OP_MIN_INTERVAL=60000
 # Q10 倒序带值过滤的范围查询 select v1... from data where time > ? and time < ? and v1 > ? and device in ? order by time desc
 # Q11 分组聚合查询，倒序；目前仅支持iotdb、tdengine-3.0、influxdb v1
 # Q12 集合操作查询，目前仅支持iotdb-2.0, 且仅支持表模型，集合操作中的每一个子集合都是范围查询 select v1... from data where time > ? and time < ? and device in ? union select v1... from data where time > ? and time < ?
-OPERATION_PROPORTION=0:1:1:1:1:1:1:1:1:1:1:1:1
+OPERATION_PROPORTION=0:10:10:10:10:1:10:10:10:10:10:10:0
 
 # 最长等待写时间，单位毫秒，即如果整个写操作在指定时间内没有返回，则终止此操作
 # WRITE_OPERATION_TIMEOUT_MS=120000
