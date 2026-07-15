@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+	exec bash "${BASH_SOURCE[0]}" "$@"
+fi
+
+set -o pipefail
 #登录用户名
 TEST_IP="11.101.17.226"
 readonly TIMECHO_ROUTINE_IP="11.101.17.226"
@@ -24,7 +32,7 @@ ts_list=(SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_routine_test" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
@@ -38,15 +46,33 @@ insert_list=(seq_w unseq_w seq_rw unseq_rw)
 query_data_type=(seq unseq)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9 Q10)
 query_type=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
+
+log() {
+	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+
+die() {
+	log "ERROR: $*"
+	exit 1
+}
+
+require_command() {
+	command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+ensure_runtime_dependencies() {
+	local cmd
+	for cmd in awk cp curl cut date find grep hostname jps jq kill mkdir mv mysql rm sed sleep sudo touch tr; do
+		require_command "${cmd}"
+	done
+}
 ############公用函数##########################
 check_password() {
-	if [ -z "${PASSWORD}" ]; then
-		echo "需要关注密码设置！"
-	fi
+	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
 }
 
 run_mysql() {
-	mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "$1"
+	MYSQL_PWD="${PASSWORD}" mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "$1"
 }
 
 detect_local_ips() {
@@ -108,13 +134,12 @@ check_benchmark_version() {
 	BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
 	BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
 	if [ -n "${BM_NEW}" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-		rm -rf "${BM_PATH}"
-		cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
+		log "sync benchmark ${BM_OLD:-missing} -> ${BM_NEW}"
+		rm -rf -- "${BM_PATH}"
+		cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
 	fi
 }
 
-check_password
-check_benchmark_version
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -284,17 +309,15 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-function get_single_index() {
+get_single_index() {
     # 获取 prometheus 单个指标的值
-    local query=$1
-    local end=$2
+    local query="$1"
+    local end="$2"
     local url="http://${metric_server}/api/v1/query"
     local index_value
-    index_value=$(curl -G -s "${url}" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq '.data.result[0].value[1]' | tr -d '"')
-	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-		index_value=0
-	fi
-	echo "${index_value}"
+    index_value=$(curl -GfsS "${url}" --data-urlencode "query=${query}" --data-urlencode "time=${end}" |
+        jq -r '.data.result[0].value[1] // 0') || index_value=0
+	printf '%s\n' "${index_value}"
 }
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	local ip="${1:-${TEST_IP}}"
@@ -487,7 +510,17 @@ test_operation() {
 	done
 }
 ##准备开始测试
-echo "ontesting" > "${INIT_PATH}/test_type_file"
+restore_test_type_file() {
+	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main() {
+	ensure_runtime_dependencies
+	check_password
+	check_benchmark_version
+	mkdir -p "${INIT_PATH}"
+	trap restore_test_type_file EXIT
+	echo "ontesting" > "${INIT_PATH}/test_type_file"
 init_routine_route
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc limit 1 "
 result_string=$(run_mysql "${query_sql}")
@@ -525,4 +558,6 @@ else
 	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < '${commit_date_time}'"
 	run_mysql "${update_sql02}"
 fi
-echo "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"
