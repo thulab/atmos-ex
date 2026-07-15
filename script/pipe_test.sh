@@ -1,4 +1,12 @@
-#!/bin/sh
+#!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+	exec bash "$0" "$@"
+fi
+if shopt -oq posix; then
+	exec bash "${BASH_SOURCE[0]}" "$@"
+fi
+
+set -o pipefail
 #登录用户名
 ACCOUNT=root
 IoTDB_PW=TimechoDB@2021
@@ -29,7 +37,7 @@ data_node_config_nodes=(0 11.101.17.144:10710 11.101.17.146:10710)
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_pipe_test" #数据库中表的名称
 TABLENAME_T="ex_pipe_test_T" #企业版结果表名
@@ -43,12 +51,59 @@ fi
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
 BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-fi
+log() {
+	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+
+die() {
+	log "ERROR: $*"
+	exit 1
+}
+
+require_command() {
+	command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+ensure_runtime_dependencies() {
+	local cmd
+	for cmd in awk curl date find grep jq mysql scp sed ssh; do
+		require_command "${cmd}"
+	done
+}
+
+check_password() {
+	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+}
+
+mysql_exec() {
+	local sql="$1"
+	MYSQL_PWD="${PASSWORD}" mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+}
+
+sql_quote() {
+	local value="${1:-}"
+	value="${value//\\/\\\\}"
+	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
+	printf "'%s'" "${value}"
+}
+
+git_commit_abbrev() {
+	local properties="$1/git.properties"
+	[ -f "${properties}" ] || return 0
+	awk -F= '$1 == "git.commit.id.abbrev" { print $2; exit }' "${properties}"
+}
+
+sync_benchmark_path() {
+	local new_commit old_commit
+	new_commit="$(git_commit_abbrev "${BM_REPOS_PATH}")"
+	old_commit="$(git_commit_abbrev "${BM_PATH}")"
+	[ -n "${new_commit}" ] || die "benchmark repository is invalid: ${BM_REPOS_PATH}"
+	if [ "${old_commit}" != "${new_commit}" ]; then
+		log "sync benchmark ${old_commit:-missing} -> ${new_commit}"
+		rm -rf -- "${BM_PATH}"
+		cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
+	fi
+}
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -389,14 +444,15 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 }
 function get_single_index() {
     # 获取 prometheus 单个指标的值
-    local end=$2
-    local url="http://${metric_server}/api/v1/query"
-    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
-    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
-	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-		index_value=0
-	fi
-	echo ${index_value}
+	local query="$1"
+	local end="$2"
+	local url="http://${metric_server}/api/v1/query"
+	local index_value
+	index_value=$(curl -GfsS "${url}" \
+		--data-urlencode "query=${query}" \
+		--data-urlencode "time=${end}" |
+		jq -r '.data.result[0].value[1] // 0') || index_value=0
+	printf '%s\n' "${index_value}"
 }
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	dataFileSizeA=0
@@ -562,7 +618,7 @@ test_operation() {
 	#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 	insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,start_time,end_time,cost_time,wait_time,failPointA,throughputA,LatencyA,numOfSe0LevelA,numOfUnse0LevelA,dataFileSizeA,maxNumofOpenFilesA,maxNumofThreadA,walFileSizeA,avgCPULoadA,maxCPULoadA,maxDiskIOSizeReadA,maxDiskIOSizeWriteA,maxDiskIOOpsReadA,maxDiskIOOpsWriteA,errorLogSizeA,failPointB,throughputB,LatencyB,numOfSe0LevelB,numOfUnse0LevelB,dataFileSizeB,maxNumofOpenFilesB,maxNumofThreadB,walFileSizeB,avgCPULoadB,maxCPULoadB,maxDiskIOSizeReadB,maxDiskIOSizeWriteB,maxDiskIOOpsReadB,maxDiskIOOpsWriteB,errorLogSizeB,minPointNum,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${start_time}','${end_time}',${cost_time},${wait_time},${failPointA},${throughputA},${LatencyA},${numOfSe0LevelA},${numOfUnse0LevelA},${dataFileSizeA},${maxNumofOpenFilesA},${maxNumofThreadA},${walFileSizeA},${avgCPULoadA},${maxCPULoadA},${maxDiskIOSizeReadA},${maxDiskIOSizeWriteA},${maxDiskIOOpsReadA},${maxDiskIOOpsWriteA},${errorLogSizeA},${failPointB},${throughputB},${LatencyB},${numOfSe0LevelB},${numOfUnse0LevelB},${dataFileSizeB},${maxNumofOpenFilesB},${maxNumofThreadB},${walFileSizeB},${avgCPULoadB},${maxCPULoadB},${maxDiskIOSizeReadB},${maxDiskIOSizeWriteB},${maxDiskIOOpsReadB},${maxDiskIOOpsWriteB},${errorLogSizeB},${minPointNum},${protocol_class})"
 
-	mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+	mysql_exec "${insert_sql}"
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		TEST_IP=${IP_list[$i]}
@@ -572,16 +628,21 @@ test_operation() {
 	backup_test_data ${ts_type}
 }
 ##准备开始测试
-echo "ontesting" > ${INIT_PATH}/test_type_file
+main() {
+	ensure_runtime_dependencies
+	check_password
+	sync_benchmark_path
+	mkdir -p "${INIT_PATH}"
+	echo "ontesting" > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+result_string=$(mysql_exec "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
 	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+	result_string=$(mysql_exec "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -590,7 +651,7 @@ if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	result_string=$(mysql_exec "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
@@ -610,10 +671,13 @@ else
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
+		result_string=$(mysql_exec "${update_sql02}")
 	fi
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+	echo "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"
