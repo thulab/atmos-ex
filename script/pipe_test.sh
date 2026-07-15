@@ -89,7 +89,7 @@ maxDiskIOOpsReadB=0
 maxDiskIOOpsWriteB=0
 maxDiskIOSizeReadB=0
 maxDiskIOSizeWriteB=0
-minPointNum=1000000
+minPointNum=222222
 ############定义监控采集项初始值##########################
 pipflag=0
 }
@@ -369,7 +369,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 				echo "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				cost_time=$(($(date +%s -d "${last_update_time}") - $(date +%s -d "${start_time}")))
-				minPointNum=1000000
+				minPointNum=222222
 				for (( device = 0; device < 50; device++ ))
 				do
 					if [ $minPointNum -ge ${numOfPointsA[${device}]} ]; then
