@@ -339,9 +339,7 @@ set_protocol_class() {
 
 pipe_is_ready() {
 	local output="$1"
-	grep -Eq '(^|[|[:space:]])test([|[:space:]]|$)' <<<"${output}" &&
-		grep -q 'RUNNING' <<<"${output}" &&
-		! grep -Eq 'ERROR|STOPPED' <<<"${output}"
+	grep -Eq '^[[:space:]]*Total line number = (1|2)[[:space:]]*$' <<<"${output}"
 }
 
 setup_env() {
