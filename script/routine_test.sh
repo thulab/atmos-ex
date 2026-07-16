@@ -8,8 +8,8 @@ fi
 
 set -o pipefail
 #登录用户名
-TEST_IP="11.101.17.226"
-readonly TIMECHO_ROUTINE_IP="11.101.17.226"
+TEST_IP="11.101.17.156"
+readonly TIMECHO_ROUTINE_IP="11.101.17.156"
 ACCOUNT=atmos
 IoTDB_PW=TimechoDB@2021
 test_type=routine_test
