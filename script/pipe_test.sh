@@ -208,6 +208,7 @@ setup_env() {
 		rm -rf ${TEST_INIT_PATH}/apache-iotdb/activation
 		mkdir -p ${TEST_INIT_PATH}/apache-iotdb/activation
 		cp -rf ${ATMOS_PATH}/conf/${test_type}/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/activation/license
+		cp -rf ${ATMOS_PATH}/conf/${test_type}/env_${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/.env
 		#复制三项到客户机
 		scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/
 		#scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/  > /dev/null 2>&1 &
