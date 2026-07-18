@@ -54,7 +54,7 @@ IS_DELETE_DATA=false
 
 ################## Benchmark配置 #######################
 # 总操作次数：具体每种类型操作会按OPERATION_PROPORTION定义的比例划分，例如OPERATION_PROPORTION=1:1:1:1:1:1:1:1:1:1:1
-LOOP=17280000
+LOOP=259200
 
 # 目前Benchmark支持多种运行模式，支持模式如下
 # testWithDefaultPath   常规测试模式，支持多种读和写操作的混合负载
@@ -67,7 +67,7 @@ LOOP=17280000
 # 对数据写入，最大误差约为WRITE_OPERATION_TIMEOUT_MS
 # 对数据查询，最大误差约为READ_OPERATION_TIMEOUT_MS
 # 此参数不限制预先注册元数据的耗时
-# TEST_MAX_TIME=21600000
+# TEST_MAX_TIME=0
 
 # 是否启动Benchmark统计模块
 # USE_MEASUREMENT=true
@@ -268,7 +268,7 @@ POINT_STEP=50
 #   │ 写 D0 → 写 D1 → ... → 写 D(N/M-1)    │→ 等待至 OP_MIN_INTERVAL
 #   └───────────────────────────────────────┘
 #
-# OP_MIN_INTERVAL=0
+OP_MIN_INTERVAL=250
 
 # 是否随机选取操作最小执行间隔：
 # 如果为true，每次操作最小执行间隔的取值为 [0,OP_MIN_INTERVAL)
