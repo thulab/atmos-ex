@@ -326,7 +326,7 @@ test_operation() {
     fi
     m_end_time="$(date +%s)"
 
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
     collect_monitor_data "${TEST_IP}"
 
     csv_file="$(find_query_result_csv || true)"

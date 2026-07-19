@@ -32,7 +32,6 @@ set_iotdb_property() {
 #登录用户名
 ACCOUNT=root
 TEST_TYPE="${TEST_TYPE:-python_api}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/root/zk_test}"
 IOTDB_PATH=${INIT_PATH}/iotdb
@@ -47,14 +46,14 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="python_api" #数据库中表的名称
 ############公用函数##########################
-if [ -z "${PASSWORD}" ]; then
+if [ -z "${MYSQL_PASSWORD}" ]; then
     printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
     exit 1
 fi
@@ -103,7 +102,7 @@ set_env() {
 	fi
 	cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${TEST_IOTDB_PATH}/
 	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
 }
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
 	#修改IoTDB的配置
@@ -192,7 +191,7 @@ while true; do
 			InsertRecords=-1
 			InsertTablet=-1
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 			sleep 600
 			continue
 		fi
@@ -250,7 +249,7 @@ while true; do
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
 			echo ${insert_sql}
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 		else
 			#收集测试结果
 			cd "${TEST_TOOL_PATH}" || return 1
@@ -261,14 +260,14 @@ while true; do
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
 			#echo "${insert_sql}"
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 		fi
 		#备份本次测试
 		#backup_test_data
 		###############################测试完成###############################
 		echo "本轮测试${test_date_time}已结束."
 		#清理过期文件 - 当前策略保留4天
-		#find ${BUCKUP_PATH}/ -mtime +4 -type d -name "*" -exec rm -rf {} \;
+		#find ${BACKUP_PATH}/ -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	fi
 done
 }

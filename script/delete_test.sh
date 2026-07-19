@@ -43,7 +43,7 @@ readonly STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-10}"
 readonly BENCHMARK_WARMUP_SECONDS="${BENCHMARK_WARMUP_SECONDS:-60}"
 readonly BENCHMARK_STOP_WAIT_SECONDS="${BENCHMARK_STOP_WAIT_SECONDS:-30}"
 
-readonly MYSQLHOSTNAME="${DELETE_TEST_MYSQL_HOSTNAME:-111.200.37.158}"
+readonly MYSQL_HOST="${DELETE_TEST_MYSQL_HOST:-111.200.37.158}"
 readonly MYSQL_PORT="${DELETE_TEST_MYSQL_PORT:-13306}"
 readonly MYSQL_USERNAME="${DELETE_TEST_MYSQL_USERNAME:-iotdbatm}"
 readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
@@ -52,7 +52,7 @@ readonly TASK_TABLENAME="${DELETE_TEST_TASK_TABLENAME:-ex_commit_history}"
 
 readonly TABLENAME="${DELETE_TEST_RESULT_TABLE:-ex_${TEST_TYPE}}"
 readonly TABLENAME_T="${DELETE_TEST_RESULT_TABLE_T:-ex_${TEST_TYPE}_T}"
-readonly IOTDB_PW="TimechoDB@2021"
+readonly IOTDB_PASSWORD="TimechoDB@2021"
 readonly DEFAULT_DISK_ID="${DELETE_TEST_DEFAULT_DISK_ID:-sdb}"
 
 result_table="${TABLENAME}"
@@ -262,7 +262,7 @@ copy_if_exists() {
 mysql_exec() {
     local sql="$1"
 
-    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
+    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -953,11 +953,11 @@ restore_test_type_file() {
 }
 
 change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -e "show cluster" >/dev/null 2>&1; then
+    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0
     fi
 
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
 parse_benchmark_result() {
@@ -1106,7 +1106,7 @@ run_iotdb_sql() {
     local sql="$1"
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" \
         -u root \
-        -pw "${IOTDB_PW}" \
+        -pw "${IOTDB_PASSWORD}" \
         -h "${CLI_HOST}" \
         -p "${CLI_PORT}" \
         -e "${sql}" 2>&1
@@ -1261,7 +1261,7 @@ wait_for_iotdb_ready_with_auth() {
         iotdb_state="$(
             "${TEST_IOTDB_PATH}/sbin/start-cli.sh" \
                 -u root \
-                -pw "${IOTDB_PW}" \
+                -pw "${IOTDB_PASSWORD}" \
                 -h "${CLI_HOST}" \
                 -p "${CLI_PORT}" \
                 -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true

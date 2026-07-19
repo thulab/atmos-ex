@@ -38,16 +38,13 @@ set_iotdb_property() {
 }
 #登录用户名
 ACCOUNT=Administrator
-IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
-IoTDB_PW="${IOTDB_PW}"
+IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-pipe_test_win}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/root/zk_test_win}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/pipe_test_win}"
-BUCKUP_PATH="${BACKUP_PATH}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_PATH=${INIT_PATH}/first-rest-test
 TEST_IOTDB_PATH=${TEST_PATH}/apache-iotdb
@@ -68,19 +65,18 @@ Control=11.101.17.120
 config_node_config_nodes=(0 11.101.17.126:10710 11.101.17.127:10710)
 data_node_config_nodes=(0 11.101.17.126:10710 11.101.17.127:10710)
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_pipe_test_win" #数据库中表的名称
 TABLENAME_T="ex_pipe_test_win_T" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
-metric_server="${METRIC_SERVER}"
 ############公用函数##########################
-if [ -z "${PASSWORD}" ]; then
+if [ -z "${MYSQL_PASSWORD}" ]; then
     printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
     exit 1
 fi
@@ -115,12 +111,12 @@ ensure_runtime_dependencies() {
 }
 
 check_password() {
-	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+	[ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
 }
 
 mysql_exec() {
 	local sql="$1"
-	MYSQL_PWD="${PASSWORD}" mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -215,7 +211,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
 	#修改集群名称
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
 	#开启自动创建
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_auto_create_schema" "true"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "default_storage_group_level" "2"
@@ -290,8 +286,8 @@ setup_env() {
 		sed -i "s/^HOST=.*$/HOST=${TEST_IP}/g" ${TEST_BM_PATH}/conf/config.properties
 		rm -rf -- "${TEST_IOTDB_PATH}/activation"
 		mkdir -p ${TEST_IOTDB_PATH}/activation
-		cp -rf ${ATMOS_PATH}/conf/${test_type}/license/${TEST_IP} ${TEST_IOTDB_PATH}/activation/license
-		cp -rf ${ATMOS_PATH}/conf/${test_type}/env/${TEST_IP} ${TEST_IOTDB_PATH}/.env
+		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license/${TEST_IP} ${TEST_IOTDB_PATH}/activation/license
+		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env/${TEST_IP} ${TEST_IOTDB_PATH}/.env
 		#复制三项到客户机
 		scp -r ${TEST_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}
 	done	
@@ -308,8 +304,8 @@ setup_env() {
 		  if [ "$str1" = "Total line number = 2" ]; then
 			echo "All Nodes is ready"
 			flag=1
-			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IoTDB_PW}';")
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show cluster" | grep 'Total line number = 2')
+			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}';")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show cluster" | grep 'Total line number = 2')
 			if [ "$str1" = "Total line number = 2" ]; then
 				echo "密码修改已生效"
 			else
@@ -332,13 +328,13 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IoTDB_PW}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
 			echo $str1
 			sleep 3
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "start pipe test;")
 			echo $str1
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
-			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 1')
+			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 2')
 			echo $str1
 			echo $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
@@ -350,13 +346,13 @@ setup_env() {
 		for (( i = 1; i < ${#IP_list[*]}; i++ ))
 		do
 			TEST_IP=${IP_list[$i]}
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IoTDB_PW}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
 			echo $str1
 			sleep 3
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "start pipe test;")
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "start pipe test;")
 			echo $str1
-			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 1')
-			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IoTDB_PW} -e "show pipes;" | grep 'Total line number = 2')
+			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 1')
+			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 2')
 			echo $str1
 			echo $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
@@ -411,11 +407,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		done
 		if [ $flagBM -ge 2 ]; then
 			if [ "${ts_type}" = "tablemode" ]; then
-				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
-				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
+				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "flush;")
+				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "flush;")
 			else
-				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
-				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "flush;")
+				fstr1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "flush;")
+				fstr2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "flush;")
 			fi
 			#BM写入结束前不进行判定
 			#确认是否测试已结束
@@ -424,14 +420,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			for (( device = 0; device < 50; device++ ))
 			do
 				if [ "${ts_type}" = "tablemode" ]; then
-					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[1]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${IP_list[2]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}';" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
@@ -439,14 +435,14 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				else
-					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[1]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IoTDB_PW} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
+					str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${IP_list[2]} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "select count(s_0) from root.test.g_0.d_${device};" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' )
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
@@ -482,7 +478,7 @@ get_single_index() {
     # 获取 prometheus 单个指标的值
 	local query="$1"
 	local end="$2"
-	local url="http://${metric_server}/api/v1/query"
+	local url="http://${METRIC_SERVER}/api/v1/query"
 	local index_value
 	index_value=$(curl -GfsS "${url}" \
 		--data-urlencode "query=${query}" \
@@ -562,21 +558,21 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	done
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
+	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
+		sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
 		#str1=$(ssh ${ACCOUNT}@${TEST_IP} "rmdir /s /q ${TEST_IOTDB_PATH_W}/apache-iotdb/data" 2>/dev/null)
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/log* ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/iot-benchmark/data ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
+		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/log* ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
+		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/iot-benchmark/data ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
 	done
-	#sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	#sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 }
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${TEST_BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
 }
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -671,18 +667,18 @@ main() {
 	sync_benchmark_path
 	mkdir -p "${INIT_PATH}"
 restore_test_type_file() {
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
 result_string=$(mysql_exec "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
+	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc limit 1 "
 	result_string=$(mysql_exec "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -691,7 +687,7 @@ fi
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
@@ -711,14 +707,14 @@ else
 	test_operation 224 aligned
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
+	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
 		result_string=$(mysql_exec "${update_sql02}")
 	fi
 fi
-	echo "${test_type}" > "${INIT_PATH}/test_type_file"
+	echo "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main "$@"

@@ -11,7 +11,7 @@ set -o pipefail
 
 TEST_IP="11.101.17.112"
 readonly TIMECHO_LONGRUN_IP="11.101.17.112"
-readonly IOTDB_PW="TimechoDB@2021"
+readonly IOTDB_PASSWORD="TimechoDB@2021"
 readonly TEST_TYPE="longrun_test"
 readonly DATA_TYPE="unseq_rw"
 readonly DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
@@ -77,10 +77,10 @@ readonly -a OP_TYPE_NAMES=(
     SET_OPERATION
 )
 
-readonly MYSQLHOSTNAME="111.200.37.158"
-readonly PORT="13306"
-readonly USERNAME="iotdbatm"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly MYSQL_HOST="111.200.37.158"
+readonly MYSQL_PORT="13306"
+readonly MYSQL_USERNAME="iotdbatm"
+readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="QA_ATM"
 readonly TABLENAME="ex_${TEST_TYPE}"
 readonly TABLENAME_T="ex_${TEST_TYPE}_T"
@@ -184,7 +184,7 @@ ensure_runtime_dependencies() {
 }
 
 check_password() {
-    [ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+    [ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
 }
 
 path_is_safe() {
@@ -233,7 +233,7 @@ copy_if_exists() {
 
 mysql_exec() {
     local sql="$1"
-    MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -553,7 +553,7 @@ wait_for_iotdb_ready() {
     local iotdb_state=""
 
     for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        for cli_password in "" "root" "${IOTDB_PW}"; do
+        for cli_password in "" "root" "${IOTDB_PASSWORD}"; do
             if [ -z "${cli_password}" ]; then
                 iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
             else
@@ -568,11 +568,11 @@ wait_for_iotdb_ready() {
 }
 
 change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -e "show cluster" >/dev/null 2>&1; then
+    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0
     fi
 
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
 longrun_start_time_log() {
@@ -666,7 +666,7 @@ query_last_sensor_time() {
     longrun_start_time_log "query config=${config_file} db=${db_name} group_prefix=${group_name_prefix} device_prefix=${device_name_prefix} sensor=${sensor_name}"
     longrun_start_time_log "query sql=${query_sql}"
 
-    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)"
+    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)"
     cli_status=$?
     longrun_start_time_log "query cli_status=${cli_status}"
     longrun_start_time_log "query raw_output_begin"
@@ -834,7 +834,7 @@ run_iotdb_sql_for_ttl() {
     local cli_output=""
     local cli_status=0
 
-    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -sql_dialect "${dialect}" -h 127.0.0.1 -p 6667 -e "${sql}" 2>&1)"
+    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -sql_dialect "${dialect}" -h 127.0.0.1 -p 6667 -e "${sql}" 2>&1)"
     cli_status=$?
     longrun_start_time_log "set ttl cli_status=${cli_status} dialect=${dialect} sql=${sql}"
 
@@ -1365,7 +1365,7 @@ test_operation() {
     fi
 
     m_end_time="$(date +%s)"
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
     collect_monitor_data "${TEST_IP}"
     [ -n "${end_time}" ] || end_time="$(current_datetime)"
     cost_time=$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))

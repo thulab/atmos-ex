@@ -4,7 +4,6 @@ set -o pipefail
 #登录用户名
 ACCOUNT=root
 TEST_TYPE="${TEST_TYPE:-tsfile_api_test}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 export HTTP_PROXY="${HTTP_PROXY:-http://172.20.31.76:7890}"
 export HTTPS_PROXY="${HTTPS_PROXY:-${HTTP_PROXY}}"
@@ -21,13 +20,13 @@ TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-tsfile-api-test
 TEST_CPP_TOOL_PATH=${TEST_INIT_PATH}/cpp-tsfile-api-test
 TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-tsfile-api-test
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="tsfile_api_test" #数据库中用例表的名称
-if [ -z "${PASSWORD}" ]; then
+if [ -z "${MYSQL_PASSWORD}" ]; then
 	printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
 	exit 1
 fi
@@ -73,7 +72,7 @@ test_java_tsfile_api_test() { # 测试Java
 		skipped_num=-2
 		successRate=-2
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
 		return 1
 	fi
 	echo "开始测试Java接口"
@@ -113,7 +112,7 @@ test_java_tsfile_api_test() { # 测试Java
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -128,7 +127,7 @@ test_java_tsfile_api_test() { # 测试Java
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA',"${insert_sql_java}")
 EOF
 			)
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Java测试报告"
 			mkdir -p /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
 			cp -rf  ${TEST_JAVA_TOOL_PATH}/target/site /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
@@ -145,7 +144,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
 	fi
 	#备份本次测试
 	echo "备份Java测试报告"
@@ -173,7 +172,7 @@ test_cpp_tsfile_api_test() {
 		skipped_num=-2
 		successRate=-2
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 		return 1
 	fi
 	# 拷贝Cpp工具到测试路径
@@ -201,7 +200,7 @@ test_cpp_tsfile_api_test() {
 		skipped_num=-3
 		successRate=-3
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 		return 1
 	fi
 	echo "开始Cpp测试"
@@ -239,7 +238,7 @@ test_cpp_tsfile_api_test() {
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -254,7 +253,7 @@ test_cpp_tsfile_api_test() {
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP',"${insert_sql_cpp}")
 EOF
 			)
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Cpp测试报告"
 			mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
 			cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}/
@@ -271,7 +270,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
 	fi
 	#备份本次测试
 	echo "备份Cpp测试报告"
@@ -299,7 +298,7 @@ test_python_tsfile_api_test() { # 测试Python
 		skipped_num=-2
 		successRate=-2
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
 		return 1
 	fi
 	# 拷贝Python工具到测试路径
@@ -332,7 +331,7 @@ test_python_tsfile_api_test() { # 测试Python
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
 		deactivate
 		return 1
 	fi
@@ -376,7 +375,7 @@ test_python_tsfile_api_test() { # 测试Python
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -391,7 +390,7 @@ test_python_tsfile_api_test() { # 测试Python
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON',"${insert_sql_python}")
 EOF
 			)
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "$sql"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
 			echo "备份Python测试报告"
 			mkdir -p /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
 			cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
@@ -408,7 +407,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
 	fi
 	#备份本次测试
 	echo "备份Python测试报告"

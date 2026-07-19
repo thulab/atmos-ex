@@ -31,16 +31,13 @@ set_iotdb_property() {
 }
 #登录用户名
 ACCOUNT=root
-IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
-IoTDB_PW="${IOTDB_PW}"
+IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-cluster_insert_2}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/cluster_insert_2}"
-BUCKUP_PATH="${BACKUP_PATH}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_PATH=/data/atmos/zk_test/first-rest-test
 TEST_DATANODE_PATH=${TEST_PATH}/DN/apache-iotdb
@@ -65,10 +62,10 @@ Control=11.101.17.210
 query_type_csv=(PRECISE_POINT, TIME_RANGE, VALUE_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC, GROUP_BY_DESC)
 query_type_name=(PRECISE_POINT TIME_RANGE VALUE_RANGE AGG_RANGE AGG_VALUE AGG_RANGE_VALUE GROUP_BY LATEST_POINT RANGE_QUERY_DESC VALUE_RANGE_QUERY_DESC GROUP_BY_DESC)
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_cluster_insert_2" #数据库中表的名称
 TABLENAME_T="ex_cluster_insert_2_T" #企业版结果表名
@@ -77,9 +74,8 @@ TABLENAME_QUERY_T="ex_cluster_insert_2_query_T" #企业版结果表名
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
-metric_server="${METRIC_SERVER}"
 ############公用函数##########################
-if [ -z "${PASSWORD}" ]; then
+if [ -z "${MYSQL_PASSWORD}" ]; then
     printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
     exit 1
 fi
@@ -197,7 +193,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_PATH}/CN/apache-iotdb/
 	mkdir -p ${TEST_PATH}/CN/apache-iotdb/activation
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_PATH}/CN/apache-iotdb/activation/
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_PATH}/CN/apache-iotdb/activation/
 	
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_PATH}/DN/apache-iotdb/
 }
@@ -383,7 +379,7 @@ do
 	  exit -1
 	fi
 done
-change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}'\"")
+change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'\"")
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	#启动benchmark
@@ -442,7 +438,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 get_single_index() {
     # 获取 prometheus 单个指标的值
     local end=$2
-    local url="http://${metric_server}/api/v1/query"
+    local url="http://${METRIC_SERVER}/api/v1/query"
     local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
     index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
 	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
@@ -481,15 +477,15 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
+	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
     sudo rm -rf -- "${TEST_DATANODE_PATH}/data"
-	sudo mv ${TEST_DATANODE_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_DATANODE_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
 }
 test_operation() {
 	ts_type=$1
@@ -541,12 +537,12 @@ test_operation() {
 		#cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		node_id=${j}
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${data_type}','${protocol_class}')"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 		
-		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN
-		sudo mkdir -p ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN"
+		sudo mkdir -p ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN
+		sudo mkdir -p ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN
+		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN"
+		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN"
 		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo mv ${TEST_DATANODE_PATH}/dn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_dn_dump.hprof"
 		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo mv ${TEST_CONFIGNODE_PATH}/cn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_cn_dump.hprof"
 	done
@@ -559,30 +555,30 @@ test_operation() {
 			read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^${query_type_csv[${i}]} | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
 			node_id=1
 			insert_sql="insert into ${TABLENAME_QUERY} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark,protocol,query_type) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${data_type}','${protocol_class}','${query_type_name[${i}]}')"
-			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 		done
 	fi
 	
-	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
-	sudo scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/logs ${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
+	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
+	sudo scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
 }
 
 ##准备开始测试
 restore_test_type_file() {
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 main() {
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
+result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc limit 1 "
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -590,8 +586,8 @@ fi
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
@@ -661,14 +657,14 @@ else
 	test_operation tablemode unseq_rw 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
+		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main "$@"

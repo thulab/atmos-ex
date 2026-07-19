@@ -21,7 +21,7 @@ fi
 # 公共必填配置：se_query.sh/se_query_test.sh 设置为 sequence，unse_query.sh 设置为 unsequence。
 : "${QUERY_DATA_TYPE:?QUERY_DATA_TYPE must be set before sourcing query_common.sh}"
 
-readonly IOTDB_PW="${IOTDB_PW:-TimechoDB@2021}"
+readonly IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 
 readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
@@ -117,10 +117,10 @@ if ! declare -p QUERY_RESULT_LABELS >/dev/null 2>&1; then
     )
 fi
 
-readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-readonly PORT="${PORT:-13306}"
-readonly USERNAME="${USERNAME:-iotdbatm}"
-readonly PASSWORD="${PASSWORD:-${ATMOS_DB_PASSWORD:-}}"
+readonly MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+readonly MYSQL_PORT="${MYSQL_PORT:-13306}"
+readonly MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+readonly MYSQL_PASSWORD="${MYSQL_PASSWORD:-${ATMOS_DB_PASSWORD:-}}"
 readonly DBNAME="${DBNAME:-QA_ATM}"
 readonly TABLENAME="${TABLENAME:-ex_${TEST_TYPE}}"
 readonly TABLENAME_T="${TABLENAME_T:-ex_${TEST_TYPE}_T}"
@@ -215,7 +215,7 @@ ensure_runtime_dependencies() {
 }
 
 check_password() {
-    [ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+    [ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
 }
 
 # -------------------- 公共安全路径和文件操作函数 --------------------
@@ -271,7 +271,7 @@ copy_if_exists() {
 # 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
 mysql_exec() {
     local sql="$1"
-    MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {

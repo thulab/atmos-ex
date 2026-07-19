@@ -10,14 +10,14 @@ set -u
 set -o pipefail
 
 readonly ACCOUNT="atmos"
-readonly IOTDB_PW="TimechoDB@2021"
-readonly test_type="count_ts"
+readonly IOTDB_PASSWORD="TimechoDB@2021"
+readonly TEST_TYPE="count_ts"
 
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly BM_PATH="${INIT_PATH}/iot-benchmark"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
-readonly BUCKUP_PATH="/nasdata/repository/count_ts"
+readonly BACKUP_PATH="/nasdata/repository/count_ts"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -32,10 +32,10 @@ readonly -a protocol_class=(
 readonly -a protocol_list=(223)
 readonly -a ts_list=(common aligned template tempaligned)
 
-readonly MYSQLHOSTNAME="111.200.37.158"
-readonly PORT="13306"
-readonly USERNAME="iotdbatm"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly MYSQL_HOST="111.200.37.158"
+readonly MYSQL_PORT="13306"
+readonly MYSQL_USERNAME="iotdbatm"
+readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="QA_ATM"
 readonly TABLENAME="ex_count_ts"
 readonly TABLENAME_T="ex_count_ts_T"
@@ -120,14 +120,14 @@ ensure_runtime_dependencies() {
 }
 
 check_password() {
-	if [ -z "${PASSWORD}" ]; then
+	if [ -z "${MYSQL_PASSWORD}" ]; then
 		die "ATMOS_DB_PASSWORD is not set."
 	fi
 }
 
 mysql_exec() {
 	local sql="$1"
-	MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -139,20 +139,20 @@ sql_quote() {
 
 update_task_status() {
 	local status="$1"
-	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
 }
 
 mark_older_commits_skip() {
-	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
 }
 
 query_next_commit() {
 	local status_filter="$1"
 
 	if [ "${status_filter}" = "retest" ]; then
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
 	else
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc LIMIT 1"
 	fi
 }
 
@@ -184,7 +184,7 @@ path_is_safe() {
 		/|/data|/nasdata|.)
 			return 1
 			;;
-		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BUCKUP_PATH}"/*)
+		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
 			return 0
 			;;
 		*)
@@ -347,7 +347,7 @@ set_env() {
 	safe_rm "${TEST_IOTDB_PATH}"
 	mkdir -p "${TEST_IOTDB_PATH}/activation"
 	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-	copy_if_exists "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/" "license"
+	copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
 }
 
 modify_iotdb_config() {
@@ -364,7 +364,7 @@ modify_iotdb_config() {
 	set_iotdb_property "enable_seq_space_compaction" "false"
 	set_iotdb_property "enable_unseq_space_compaction" "false"
 	set_iotdb_property "enable_cross_space_compaction" "false"
-	set_iotdb_property "cluster_name" "${test_type}"
+	set_iotdb_property "cluster_name" "${TEST_TYPE}"
 	set_iotdb_property "cn_enable_metric" "true"
 	set_iotdb_property "cn_enable_performance_stat" "true"
 	set_iotdb_property "cn_metric_reporter_list" "PROMETHEUS"
@@ -433,11 +433,11 @@ wait_for_iotdb_ready() {
 }
 
 change_root_password() {
-	if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -e "show cluster" >/dev/null 2>&1; then
+	if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
 		return 0
 	fi
 
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
 start_benchmark() {
@@ -564,7 +564,7 @@ schema_cost_from_csv() {
 }
 
 run_iotdb_cli() {
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 "$@"
+	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
 }
 
 extract_elapsed_seconds() {
@@ -611,7 +611,7 @@ run_show_cost() {
 
 mv_config_file() {
 	local current_ts_type="$1"
-	local config_source="${ATMOS_PATH}/conf/${test_type}/${current_ts_type}"
+	local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}"
 	local config_target="${BM_PATH}/conf/config.properties"
 
 	[ -f "${config_source}" ] || die "missing benchmark config: ${config_source}"
@@ -712,7 +712,7 @@ append_show_results() {
 
 backup_test_data() {
 	local protocol_code="$1"
-	local backup_parent="${BUCKUP_PATH}/${protocol_code}"
+	local backup_parent="${BACKUP_PATH}/${protocol_code}"
 	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_code}"
 
 	sudo_safe_rm "${backup_dir}"
@@ -823,7 +823,7 @@ mark_test_in_progress() {
 }
 
 restore_test_type_file() {
-	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+	printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main() {
@@ -842,7 +842,7 @@ main() {
 	fi
 
 	update_task_status "ontesting"
-	log "current commit ${commit_id} starts ${test_type}"
+	log "current commit ${commit_id} starts ${TEST_TYPE}"
 	if [ "${author}" = "Timecho" ]; then
 		result_table="${TABLENAME_T}"
 	else

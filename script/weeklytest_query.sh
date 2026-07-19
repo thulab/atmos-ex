@@ -38,17 +38,14 @@ fi
 #登录用户名
 TEST_IP="11.101.17.113"
 ACCOUNT=atmos
-IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
-IoTDB_PW="${IOTDB_PW}"
+IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-weeklytest_query}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 DATA_PATH=/data/atmos/original
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/weeklytest_query}"
-BUCKUP_PATH="${BACKUP_PATH}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -59,17 +56,16 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_weeklytest_query" #数据库中表的名称
 TABLENAME_T="ex_weeklytest_query_T" #企业版结果表名
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
-metric_server="${METRIC_SERVER}"
 MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 sensor_type_list=(one more)
@@ -79,7 +75,7 @@ query_data_type=(sequence unsequence)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9-1 Q9-2 Q9-3 Q10)
 query_type_list=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, RANGE_QUERY_DESC, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 ############公用函数##########################
-if [ -z "${PASSWORD}" ]; then
+if [ -z "${MYSQL_PASSWORD}" ]; then
     printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
     exit 1
 fi
@@ -299,7 +295,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
@@ -313,7 +309,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
 	#修改集群名称
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
 	#添加启动监控功能
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
@@ -380,7 +376,7 @@ get_single_index() {
     # 获取 prometheus 单个指标的值
     local query=$1
     local end=$2
-    index_value=$(curl -G -s "http://${metric_server}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
+    index_value=$(curl -G -s "http://${METRIC_SERVER}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
 	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
 		index_value=0
 	fi
@@ -413,15 +409,15 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	walFileSize=$(bytes_to_gib "${walFileSize}")
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
+	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
-	sudo mv ${TEST_IOTDB_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo mv ${TEST_IOTDB_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${BM_PATH}/conf/config.properties
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
 	if [ $3 = "table" ]; then
 		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
 	fi
@@ -488,9 +484,9 @@ test_operation() {
 						cost_time=-3
 						throughput=-3
 						insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,query_type,sensor_type,query_num,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${query_type}','${sensor_type}','${query_num}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
-						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-						update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
-						result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+						mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+						update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
+						result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
 						return
 					fi
 					
@@ -522,7 +518,7 @@ test_operation() {
 						cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 						insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,query_type,sensor_type,query_num,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${query_type}','${sensor_type}','${query_num}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},'${protocol_class}')"
 						echo ${commit_id}版本${ts_type}查询${okPoint}数据点的耗时为：${Latency}ms
-						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
 					done
 					#停止IoTDB程序
 					stop_iotdb
@@ -544,20 +540,20 @@ test_operation() {
 
 ##准备开始测试
 restore_test_type_file() {
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 main() {
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
+result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc limit 1 "
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -565,8 +561,8 @@ fi
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
@@ -578,14 +574,14 @@ else
 	test_operation 223
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
+	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
+		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main "$@"

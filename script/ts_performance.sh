@@ -11,14 +11,14 @@ set -o pipefail
 
 readonly TEST_IP="11.101.17.115"
 readonly ACCOUNT="atmos"
-readonly test_type="ts_performance"
+readonly TEST_TYPE="ts_performance"
 
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly BM_PATH="${INIT_PATH}/iot-benchmark"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
 readonly DATA_PATH="/data/atmos/DataSet"
-readonly BUCKUP_PATH="/nasdata/repository/ts_performance"
+readonly BACKUP_PATH="/nasdata/repository/ts_performance"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -34,10 +34,10 @@ readonly -a protocol_list=(223)
 readonly -a ts_list=(common aligned tempaligned tablemode)
 readonly -a data_type_list=(sequence unsequence)
 
-readonly MYSQLHOSTNAME="111.200.37.158"
-readonly PORT="13306"
-readonly USERNAME="iotdbatm"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly MYSQL_HOST="111.200.37.158"
+readonly MYSQL_PORT="13306"
+readonly MYSQL_USERNAME="iotdbatm"
+readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="QA_ATM"
 readonly TABLENAME="ex_ts_performance"
 readonly TABLENAME_T="ex_ts_performance_T"
@@ -116,14 +116,14 @@ ensure_runtime_dependencies() {
 }
 
 check_password() {
-	if [ -z "${PASSWORD}" ]; then
+	if [ -z "${MYSQL_PASSWORD}" ]; then
 		die "ATMOS_DB_PASSWORD is not set."
 	fi
 }
 
 mysql_exec() {
 	local sql="$1"
-	MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -135,20 +135,20 @@ sql_quote() {
 
 update_task_status() {
 	local status="$1"
-	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
 }
 
 mark_older_commits_skip() {
-	mysql_exec "update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
 }
 
 query_next_commit() {
 	local status_filter="$1"
 
 	if [ "${status_filter}" = "retest" ]; then
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
 	else
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc LIMIT 1"
+		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc LIMIT 1"
 	fi
 }
 
@@ -180,7 +180,7 @@ path_is_safe() {
 		/|/data|/nasdata|.)
 			return 1
 			;;
-		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BUCKUP_PATH}"/*)
+		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
 			return 0
 			;;
 		*)
@@ -365,7 +365,7 @@ set_env() {
 	safe_rm "${TEST_IOTDB_PATH}"
 	mkdir -p "${TEST_IOTDB_PATH}/activation"
 	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-	copy_if_exists "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/" "license"
+	copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
 	mkdir -p "${TEST_IOTDB_PATH}/tools/testlog"
 }
 
@@ -378,7 +378,7 @@ modify_iotdb_config() {
 	set_iotdb_property "enable_seq_space_compaction" "false"
 	set_iotdb_property "enable_unseq_space_compaction" "false"
 	set_iotdb_property "enable_cross_space_compaction" "false"
-	set_iotdb_property "cluster_name" "${test_type}"
+	set_iotdb_property "cluster_name" "${TEST_TYPE}"
 	set_iotdb_property "cn_enable_metric" "true"
 	set_iotdb_property "cn_enable_performance_stat" "true"
 	set_iotdb_property "cn_metric_reporter_list" "PROMETHEUS"
@@ -462,7 +462,7 @@ create_tablemode_schema() {
 	run_iotdb_cli -sql_dialect table -e "create database test_g_0" >/dev/null 2>&1 || true
 	"${TEST_IOTDB_PATH}/tools/schema/import-schema.sh" \
 		-sql_dialect table \
-		-s "${ATMOS_PATH}/conf/${test_type}/metadata/dump_test_g_0.sql" \
+		-s "${ATMOS_PATH}/conf/${TEST_TYPE}/metadata/dump_test_g_0.sql" \
 		-db test_g_0 >/dev/null 2>&1 || true
 }
 
@@ -789,7 +789,7 @@ run_tool_operation() {
 
 backup_test_data() {
 	local current_ts_type="$1"
-	local backup_parent="${BUCKUP_PATH}/${current_ts_type}"
+	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
 	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
 
 	sudo_safe_rm "${backup_dir}"
@@ -811,7 +811,7 @@ test_operation() {
 	local source_path=""
 	local task_failed=0
 
-	log "start ${test_type}: protocol=${protocol_id}, ts=${ts_type}, data=${data_type}"
+	log "start ${TEST_TYPE}: protocol=${protocol_id}, ts=${ts_type}, data=${data_type}"
 	ensure_source_tsfile_path
 	cleanup_processes
 	set_env
@@ -841,7 +841,7 @@ mark_test_in_progress() {
 }
 
 restore_test_type_file() {
-	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+	printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main() {
@@ -862,7 +862,7 @@ main() {
 	fi
 
 	update_task_status "ontesting"
-	log "current commit ${commit_id} starts ${test_type}"
+	log "current commit ${commit_id} starts ${TEST_TYPE}"
 	if [ "${author}" = "Timecho" ]; then
 		result_table="${TABLENAME_T}"
 	else

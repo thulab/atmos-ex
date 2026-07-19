@@ -40,16 +40,13 @@ set_iotdb_property() {
 TEST_IP="11.101.17.156"
 readonly TIMECHO_ROUTINE_IP="11.101.17.156"
 ACCOUNT=atmos
-IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
-IoTDB_PW="${IOTDB_PW}"
+IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-routine_test}"
-test_type="${TEST_TYPE}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/routine_test}"
-BUCKUP_PATH="${BACKUP_PATH}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -60,16 +57,15 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 ############mysql信息##########################
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_routine_test" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
 METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
-metric_server="${METRIC_SERVER}"
 TABLENAME_T="ex_routine_test_T"
 result_table="${TABLENAME}"
 AUTHOR_FILTER_SQL="author != 'Timecho'"
@@ -100,11 +96,11 @@ ensure_runtime_dependencies() {
 }
 ############公用函数##########################
 check_password() {
-	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is required"
+	[ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is required"
 }
 
 run_mysql() {
-	MYSQL_PWD="${PASSWORD}" mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "$1"
+	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "$1"
 }
 
 detect_local_ips() {
@@ -145,7 +141,7 @@ format_gb() {
 }
 
 run_iotdb_cli() {
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IoTDB_PW}" -h 127.0.0.1 -p 6667 "$@"
+	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
 }
 
 parse_benchmark_result() {
@@ -266,8 +262,8 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	fi
 	cp -rf "${REPOS_PATH}/${commit_id}/apache-iotdb/"* "${TEST_IOTDB_PATH}/"
 	mkdir -p "${TEST_IOTDB_PATH}/activation"
-	cp -rf "${ATMOS_PATH}/conf/${test_type}/license" "${TEST_IOTDB_PATH}/activation/"
-	cp -rf "${ATMOS_PATH}/conf/${test_type}/env" "${TEST_INIT_PATH}/apache-iotdb/.env"
+	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/"
+	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_INIT_PATH}/apache-iotdb/.env"
 }
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
@@ -279,7 +275,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
 	#添加启动监控功能
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
@@ -354,7 +350,7 @@ get_single_index() {
     # 获取 prometheus 单个指标的值
     local query="$1"
     local end="$2"
-    local url="http://${metric_server}/api/v1/query"
+    local url="http://${METRIC_SERVER}/api/v1/query"
     local index_value
     index_value=$(curl -GfsS "${url}" --data-urlencode "query=${query}" --data-urlencode "time=${end}" |
         jq -r '.data.result[0].value[1] // 0') || index_value=0
@@ -388,7 +384,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 backup_test_data() { # 备份测试数据
 	local data_type=$1
 	local protocol_id=$2
-	local backup_dir="${BUCKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}_${protocol_id}"
+	local backup_dir="${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}_${protocol_id}"
 	sudo rm -rf "${backup_dir}"
 	sudo mkdir -p "${backup_dir}"
     sudo rm -rf "${TEST_IOTDB_PATH}/data"
@@ -398,7 +394,7 @@ backup_test_data() { # 备份测试数据
 mv_config_file() { # 移动配置文件
 	local config_name=$1
 	rm -rf "${BM_PATH}/conf/config.properties"
-	cp -rf "${ATMOS_PATH}/conf/${test_type}/${config_name}" "${BM_PATH}/conf/config.properties"
+	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/${config_name}" "${BM_PATH}/conf/config.properties"
 }
 clear_expired_file() { # 清理超过七天的文件
 	find "$1" -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -449,14 +445,14 @@ test_operation() {
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
 			echo "IoTDB正常启动，准备开始测试"
-			"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'" >/dev/null
+			"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null
 		else
 			echo "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
 			throughput=-3
 			insert_sql="insert into ${result_table} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${protocol_class_input}')"
 			run_mysql "${insert_sql}"
-			update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
+			update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
 			run_mysql "${update_sql}"
 			continue
 		fi
@@ -503,7 +499,7 @@ test_operation() {
 			####判断IoTDB是否正常启动
 			for (( t_wait = 0; t_wait <= 10; t_wait++ ))
 			do
-			  iotdb_state=$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IoTDB_PW}" -e "show cluster" | grep 'Total line number = 2')
+			  iotdb_state=$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" | grep 'Total line number = 2')
 			  if [ "${iotdb_state}" = "Total line number = 2" ]; then
 				break
 			  else
@@ -552,7 +548,7 @@ test_operation() {
 }
 ##准备开始测试
 restore_test_type_file() {
-	printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+	printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main() {
@@ -563,14 +559,14 @@ main() {
 	trap restore_test_type_file EXIT
 	echo "ontesting" > "${INIT_PATH}/test_type_file"
 init_routine_route
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc limit 1 "
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc limit 1 "
 result_string=$(run_mysql "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc limit 1 "
+	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc limit 1 "
 	result_string=$(run_mysql "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -579,7 +575,7 @@ fi
 if [ "${commit_id}" = "" ]; then
 	sleep 60s
 else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	run_mysql "${update_sql}"
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	init_items
@@ -594,9 +590,9 @@ else
 	#test_operation 211 
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
+	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	run_mysql "${update_sql}"
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < '${commit_date_time}'"
+	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < '${commit_date_time}'"
 	run_mysql "${update_sql02}"
 fi
 }

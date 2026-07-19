@@ -45,17 +45,14 @@ fi
 # -------------------- 基础环境变量 --------------------
 TEST_IP="11.101.17.111"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
-IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
-IoTDB_PW="${IOTDB_PW}"
+IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-weeklytest_insert}"
-test_type="${TEST_TYPE}"
 
 # -------------------- 路径相关变量 --------------------
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"  # 初始环境存放路径
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/weeklytest_insert}"
-BUCKUP_PATH="${BACKUP_PATH}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -69,10 +66,10 @@ protocol_list=(223 224)
 ts_list=(seq_w unseq_w tablemode_seq_w tablemode_unseq_w)
 
 # -------------------- MySQL 配置信息 --------------------
-MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
-PORT="${PORT:-13306}"
-USERNAME="${USERNAME:-iotdbatm}"
-PASSWORD="${ATMOS_DB_PASSWORD:-}"     # 密码
+MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+MYSQL_PORT="${MYSQL_PORT:-13306}"
+MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"     # 密码
 DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_weeklytest_insert" # 结果表名
 TABLENAME_T="ex_weeklytest_insert_T" # 企业版结果表名
@@ -80,13 +77,12 @@ TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
 # -------------------- Prometheus 配置信息 --------------------
 METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
-metric_server="${METRIC_SERVER}"
 MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
 check_password() {
-    if [ -z "${PASSWORD}" ]; then
+    if [ -z "${MYSQL_PASSWORD}" ]; then
         printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
         return 1
     fi
@@ -243,8 +239,8 @@ set_env() {
     [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
     mkdir -p ${TEST_IOTDB_PATH}/activation
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/license ${TEST_IOTDB_PATH}/activation/
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
+    cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
+    cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env ${TEST_IOTDB_PATH}/.env
 }
 
 modify_iotdb_config() {
@@ -257,7 +253,7 @@ modify_iotdb_config() {
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
     #修改集群名称
-    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
     #添加启动监控功能
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
@@ -325,7 +321,7 @@ monitor_test_status() {
 
 get_single_index() {
     local query=$1; local end=$2
-    local index_value=$(curl -G -s "http://${metric_server}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
+    local index_value=$(curl -G -s "http://${METRIC_SERVER}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
     if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
         index_value=0
     fi
@@ -359,7 +355,7 @@ collect_monitor_data() {
 
 backup_test_data() {
     local ts_type=$1
-    local backup_dir="${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}"
+    local backup_dir="${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}"
     sudo rm -rf -- "${backup_dir:?}"
     sudo mkdir -p $backup_dir
     sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
@@ -370,7 +366,7 @@ backup_test_data() {
 mv_config_file() {
     local ts_type=$1
     rm -rf -- "${BM_PATH}/conf/config.properties"
-    cp -rf ${ATMOS_PATH}/conf/${test_type}/$ts_type ${BM_PATH}/conf/config.properties
+    cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$ts_type ${BM_PATH}/conf/config.properties
 }
 
 test_operation() {
@@ -399,12 +395,12 @@ test_operation() {
         echo "IoTDB未能正常启动，写入负值测试结果！"
         cost_time=-3; throughput=-3
         insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-        update_sql="update ${TASK_TABLENAME} set ${test_type} = 'RError' where commit_id = '${commit_id}'"
-        mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
+        mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+        update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
+        mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}"
         return
     fi
-	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IoTDB_PW}'")
+	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
     mv_config_file ${ts_type}
     start_benchmark
     start_time=$(current_datetime)
@@ -412,7 +408,7 @@ test_operation() {
     sleep 60
     monitor_test_status "INGESTION"
     m_end_time=$(date +%s)
-    pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h 127.0.0.1 -p 6667 -e "flush")
+    pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h 127.0.0.1 -p 6667 -e "flush")
     collect_monitor_data ${TEST_IP}
     csvOutputfile=$(find_result_csv || true)
     if ! parse_benchmark_result "${csvOutputfile}" "INGESTION"; then
@@ -420,7 +416,7 @@ test_operation() {
     fi
     cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+    mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
     stop_iotdb
     sleep 30
     check_benchmark_pid
@@ -432,19 +428,19 @@ test_operation() {
 check_password
 check_benchmark_version
 restore_test_type_file() {
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 main() {
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
+result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 if [ -z "${commit_id}" ]; then
-    query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-    result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
+    query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc limit 1 "
+    result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
     commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
     author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
     commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -452,8 +448,8 @@ fi
 if [ -z "${commit_id}" ]; then
     sleep 60s
 else
-    update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
+    update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
+    mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}"
     echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
@@ -469,14 +465,14 @@ else
         done
     done
     echo "本轮测试${test_date_time}已结束."
-    update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-    mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}"
-    update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
+    update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
+    mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}"
+    update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
+		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
 main "$@"

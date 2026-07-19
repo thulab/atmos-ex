@@ -23,7 +23,7 @@ readonly BACKUP_PATH="/nasdata/repository/${TEST_TYPE}"
 readonly TABLENAME="ex_${TEST_TYPE}"
 readonly TABLENAME_T="ex_${TEST_TYPE}_T"
 
-readonly IOTDB_PW="TimechoDB@2021"
+readonly IOTDB_PASSWORD="TimechoDB@2021"
 
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
@@ -60,10 +60,10 @@ else
     readonly ENABLE_BENCHMARK_VERSION_CHECK
 fi
 
-readonly MYSQLHOSTNAME="111.200.37.158"
-readonly PORT="13306"
-readonly USERNAME="iotdbatm"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly MYSQL_HOST="111.200.37.158"
+readonly MYSQL_PORT="13306"
+readonly MYSQL_USERNAME="iotdbatm"
+readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="QA_ATM"
 readonly TASK_TABLENAME="ex_commit_history"
 
@@ -155,7 +155,7 @@ require_command() {
 }
 
 check_password() {
-    if [ -z "${PASSWORD}" ]; then
+    if [ -z "${MYSQL_PASSWORD}" ]; then
         die "ATMOS_DB_PASSWORD 未设置，无法连接 MySQL。"
     fi
 }
@@ -419,7 +419,7 @@ sudo_safe_rm() {
 # 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
 mysql_exec() {
     local sql="$1"
-    MYSQL_PWD="${PASSWORD}" mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "${sql}"
+    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
 }
 
 sql_quote() {
@@ -498,7 +498,7 @@ sendMsg() {
     : <<'ATMOS_PERF_ALERT_DISABLED'
     local error_type="$1"
     local date_time
-    local test_type="${test_type:-性能测试}"  # 默认值
+    local alert_test_type="${alert_test_type:-性能测试}"  # 默认值
     local headline=''
     local msgbody=''
     
@@ -508,12 +508,12 @@ sendMsg() {
         1)
             # 1. 吞吐量监控异常
             headline="吞吐量监控异常告警"
-            msgbody="[Atmos性能测试告警]\n错误类型：吞吐量异常\n告警时间：${date_time}\n测试类型：${test_type}\n当前吞吐量：${2}\n控制上限：${3}\n控制下限：${4}\n历史均值：${5}\n"
+            msgbody="[Atmos性能测试告警]\n错误类型：吞吐量异常\n告警时间：${date_time}\n测试类型：${alert_test_type}\n当前吞吐量：${2}\n控制上限：${3}\n控制下限：${4}\n历史均值：${5}\n"
             ;;
         2)
             # 2. 其他错误类型（可根据需要扩展）
-            headline="${test_type}代码编译失败"
-            msgbody="错误类型：${test_type}代码编译失败\n报错时间：${date_time}\n报错Commit：${commit_id:-N/A}\n提交人：${author:-N/A}\n报错信息：${comp_mvn:-N/A}"
+            headline="${alert_test_type}代码编译失败"
+            msgbody="错误类型：${alert_test_type}代码编译失败\n报错时间：${date_time}\n报错Commit：${commit_id:-N/A}\n提交人：${author:-N/A}\n报错信息：${comp_mvn:-N/A}"
             ;;
         *)
             log "未知错误类型: ${error_type}"
@@ -816,11 +816,11 @@ wait_for_iotdb_ready() {
 }
 
 change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -e "show cluster" >/dev/null 2>&1; then
+    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0
     fi
 
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PW}'" >/dev/null 2>&1
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
 # -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
@@ -1200,7 +1200,7 @@ test_operation() {
     fi
 
     m_end_time="$(date +%s)"
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PW}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
+    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
     collect_monitor_data "${TEST_IP}"
 
     csv_file="$(find_result_csv || true)"
