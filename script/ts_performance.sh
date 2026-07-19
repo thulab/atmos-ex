@@ -292,7 +292,9 @@ check_pid_and_kill() {
 
 	while IFS= read -r pid; do
 		[ -n "${pid}" ] || continue
-		kill -9 "${pid}" 2>/dev/null || true
+		kill -TERM "${pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${pid}" 2>/dev/null || true
 	done <<< "${pids}"
 	log "${desc} stopped."
 }

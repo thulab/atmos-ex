@@ -1,16 +1,48 @@
-#!/bin/sh
+#!/usr/bin/env bash
+set -o pipefail
+
+set_iotdb_property() {
+    local properties_file="$1"
+    local property_name="$2"
+    local property_value="$3"
+    local temp_file="${properties_file}.tmp.$$"
+
+    [ -f "${properties_file}" ] || {
+        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
+        return 1
+    }
+    awk -F= -v key="${property_name}" -v value="${property_value}" '
+        BEGIN { updated = 0 }
+        $1 == key {
+            if (!updated) {
+                print key "=" value
+                updated = 1
+            }
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${properties_file}" > "${temp_file}" &&
+        mv -- "${temp_file}" "${properties_file}"
+}
 #登录用户名
 ACCOUNT=root
-IoTDB_PW=TimechoDB@2021
-test_type=pipe_test
+IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
+IoTDB_PW="${IOTDB_PW}"
+TEST_TYPE="${TEST_TYPE:-pipe_test}"
+test_type="${TEST_TYPE}"
 #初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/pipe_test
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=${INIT_PATH}/first-rest-test
+BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/pipe_test}"
+BUCKUP_PATH="${BACKUP_PATH}"
+REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
+TEST_INIT_PATH="${TEST_INIT_PATH:-${INIT_PATH}/first-rest-test}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_BM_PATH=${TEST_INIT_PATH}/iot-benchmark
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
@@ -26,27 +58,36 @@ Control=11.101.17.120
 config_node_config_nodes=(0 11.101.17.144:10710 11.101.17.146:10710)
 data_node_config_nodes=(0 11.101.17.144:10710 11.101.17.146:10710)
 ############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"  #数据库名称
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_pipe_test" #数据库中表的名称
 TABLENAME_T="ex_pipe_test_T" #企业版结果表名
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
-metric_server="111.200.37.158:19090"
+METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
+metric_server="${METRIC_SERVER}"
 ############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+if [ -z "${PASSWORD}" ]; then
+    printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
+    exit 1
 fi
+for required_command in awk date mysql sed; do
+    if ! command -v "${required_command}" >/dev/null 2>&1; then
+        printf '[ERROR] required command not found: %s\n' "${required_command}" >&2
+        exit 1
+    fi
+done
+unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
+BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
+	rm -rf -- "${BM_PATH}"
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 init_items() {
@@ -102,7 +143,9 @@ check_benchmark_pid() { # 检查benchmark的pid，有就停止
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到监控程序！"
 	else
-		kill -9 ${monitor_pid}
+		kill -TERM "${monitor_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${monitor_pid}" 2>/dev/null || true
 		echo "BM程序已停止！"
 	fi
 }
@@ -111,21 +154,27 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到DataNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "DataNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到ConfigNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "ConfigNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到IoTDB程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "IoTDB程序已停止！"
 	fi
 	echo "程序检测和清理操作已完成！"
@@ -135,7 +184,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		mkdir -p ${TEST_INIT_PATH}
 		mkdir -p ${TEST_IOTDB_PATH}
 	else
-		rm -rf ${TEST_INIT_PATH}
+		rm -rf -- "${TEST_INIT_PATH}"
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
@@ -148,37 +197,37 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"6G\"/g" ${TEST_IOTDB_PATH}/conf/confignode-env.sh
 	#清空配置文件
 	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "query_timeout_threshold=6000000" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "query_timeout_threshold" "6000000"
 	#关闭影响写入性能的其他功能
-	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_seq_space_compaction" "false"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
 	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
 	#开启自动创建
-	echo "enable_auto_create_schema=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "default_storage_group_level=2" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_auto_create_schema" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "default_storage_group_level" "2"
 	#添加启动监控功能
-	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
 	#添加启动监控功能
-	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 setup_env() {
 	echo "开始重置环境！"
@@ -197,15 +246,15 @@ setup_env() {
 		ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_INIT_PATH}"
 		ssh ${ACCOUNT}@${TEST_IP} "mkdir -p ${TEST_INIT_PATH}"
 		#修改IoTDB的配置		
-		echo "dn_rpc_address=${TEST_IP}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-		echo "dn_internal_address=${TEST_IP}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-		echo "dn_seed_config_node=${data_node_config_nodes[$i]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-		echo "cn_internal_address=${TEST_IP}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-		echo "cn_seed_config_node=${config_node_config_nodes[$i]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_rpc_address" "${TEST_IP}"
+		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_internal_address" "${TEST_IP}"
+		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_seed_config_node" "${data_node_config_nodes[$i]}"
+		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_internal_address" "${TEST_IP}"
+		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_seed_config_node" "${config_node_config_nodes[$i]}"
 		#准备配置文件和license
 		mv_config_file ${ts_type} ${TEST_IP}
 		#sed -i "s/^HOST=.*$/HOST=${TEST_IP}/g" ${TEST_BM_PATH}/conf/config.properties
-		rm -rf ${TEST_INIT_PATH}/apache-iotdb/activation
+		rm -rf -- "${TEST_INIT_PATH}/apache-iotdb/activation"
 		mkdir -p ${TEST_INIT_PATH}/apache-iotdb/activation
 		cp -rf ${ATMOS_PATH}/conf/${test_type}/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/activation/license
 		cp -rf ${ATMOS_PATH}/conf/${test_type}/env_${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/.env
@@ -387,7 +436,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-function get_single_index() {
+get_single_index() {
     # 获取 prometheus 单个指标的值
     local end=$2
     local url="http://${metric_server}/api/v1/query"
@@ -470,7 +519,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	done
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo rm -rf -- "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
@@ -482,7 +531,7 @@ backup_test_data() { # 备份测试数据
 	sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 }
 mv_config_file() { # 移动配置文件
-	rm -rf ${TEST_BM_PATH}/conf/config.properties
+	rm -rf -- "${TEST_BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${test_type}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
 }
 clear_expired_file() { # 清理超过七天的文件
@@ -538,7 +587,7 @@ test_operation() {
 	#测试结果收集写入数据库
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
-		rm -rf ${TEST_BM_PATH}/TestResult/csvOutput/*
+		rm -rf -- "${TEST_BM_PATH:?}/TestResult/csvOutput/"*
 		mkdir -p ${TEST_BM_PATH}/TestResult/csvOutput/
 		scp -r ${ACCOUNT}@${IP_list[${j}]}:${TEST_BM_PATH}/data/csvOutput/*result.csv ${TEST_BM_PATH}/TestResult/csvOutput/
 		#收集启动后基础监控数据
@@ -572,7 +621,12 @@ test_operation() {
 	backup_test_data ${ts_type}
 }
 ##准备开始测试
-echo "ontesting" > ${INIT_PATH}/test_type_file
+restore_test_type_file() {
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+main() {
+    trap restore_test_type_file EXIT
+printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
 result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -616,4 +670,7 @@ else
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"

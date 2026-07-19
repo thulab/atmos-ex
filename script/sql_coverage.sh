@@ -1,18 +1,51 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
+
+set_iotdb_property() {
+    local properties_file="$1"
+    local property_name="$2"
+    local property_value="$3"
+    local temp_file="${properties_file}.tmp.$$"
+
+    [ -f "${properties_file}" ] || {
+        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
+        return 1
+    }
+    awk -F= -v key="${property_name}" -v value="${property_value}" '
+        BEGIN { updated = 0 }
+        $1 == key {
+            if (!updated) {
+                print key "=" value
+                updated = 1
+            }
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${properties_file}" > "${temp_file}" &&
+        mv -- "${temp_file}" "${properties_file}"
+}
 #登录用户名
 ACCOUNT=atmos
-IoTDB_PW=TimechoDB@2021
-test_type=sql_coverage
+IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
+IoTDB_PW="${IOTDB_PW}"
+TEST_TYPE="${TEST_TYPE:-sql_coverage}"
+test_type="${TEST_TYPE}"
 #初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 TOOL_PATH=${INIT_PATH}/iotdb-sql
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/sql_coverage/master
-REPOS_PATH=/nasdata/repository/master
+BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/sql_coverage/master}"
+BUCKUP_PATH="${BACKUP_PATH}"
+REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TC_PATH=${INIT_PATH}/iotdb-sql-testcase
 #测试数据运行路径
-TEST_INIT_PATH=/data/atmos
+TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 TEST_AINode_PATH=${TEST_INIT_PATH}/apache-iotdb-ainode
 TEST_TOOL_PATH=${TEST_INIT_PATH}/iotdb-sql
@@ -23,24 +56,32 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"                   #数据库名称
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_sql_coverage" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+if [ -z "${PASSWORD}" ]; then
+    printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
+    exit 1
 fi
+for required_command in awk date mysql sed; do
+    if ! command -v "${required_command}" >/dev/null 2>&1; then
+        printf '[ERROR] required command not found: %s\n' "${required_command}" >&2
+        exit 1
+    fi
+done
+unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
+BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
+	rm -rf -- "${BM_PATH}"
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 init_items() {
@@ -62,7 +103,9 @@ check_sql_test_pid() { # 检查benchmark的pid，有就停止
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到InterFace程序！"
 	else
-		kill -9 ${monitor_pid}
+		kill -TERM "${monitor_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${monitor_pid}" 2>/dev/null || true
 		echo "InterFace程序已停止！"
 	fi
 }
@@ -71,28 +114,36 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到AINode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "AINode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到DataNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "DataNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到ConfigNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "ConfigNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到IoTDB程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "IoTDB程序已停止！"
 	fi
 	echo "程序检测和清理操作已完成！"
@@ -102,7 +153,7 @@ set_env() {
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}
 	else
-		rm -rf ${TEST_IOTDB_PATH}
+		rm -rf -- "${TEST_IOTDB_PATH}"
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
@@ -111,7 +162,7 @@ set_env() {
 	if [ ! -d "${TEST_AINode_PATH}" ]; then
 		mkdir -p ${TEST_AINode_PATH}
 	else
-		rm -rf ${TEST_AINode_PATH}
+		rm -rf -- "${TEST_AINode_PATH}"
 		mkdir -p ${TEST_AINode_PATH}
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb-ainode/* ${TEST_AINode_PATH}/
@@ -124,7 +175,7 @@ set_env() {
 	if [ ! -d "${TEST_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_TOOL_PATH}
 	else
-		rm -rf ${TEST_TOOL_PATH}
+		rm -rf -- "${TEST_TOOL_PATH}"
 		mkdir -p ${TEST_TOOL_PATH}
 	fi
 	cp -rf ${TOOL_PATH}/* ${TEST_TOOL_PATH}/
@@ -134,27 +185,27 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#清空配置文件
 	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_internal_reporter_type=MEMORY" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_internal_reporter_type" "MEMORY"
 	#关闭影响写入性能的其他功能
-	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_seq_space_compaction" "false"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
 	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
 	#添加启动监控功能
-	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
 	#添加启动监控功能
-	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 	#UDF路径限制扩展
-	echo "trusted_uri_pattern=.*" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "trusted_uri_pattern" ".*"
 	#修改AINode名称
 	echo "# 修改AINode名称" >> ${TEST_AINode_PATH}/conf/iotdb-ainode.properties
 	echo "cluster_name=${test_type}" >> ${TEST_AINode_PATH}/conf/iotdb-ainode.properties
@@ -164,19 +215,19 @@ set_protocol_class() {
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 start_iotdb() { # 启动iotdb
-	cd ${TEST_IOTDB_PATH}
+	cd "${TEST_IOTDB_PATH}" || return 1
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
 start_iotdb_ainode() { # 启动iotdb
-	cd ${TEST_AINode_PATH}
+	cd "${TEST_AINode_PATH}" || return 1
 	ai_start=$(./sbin/start-ainode.sh -r >/dev/null 2>&1 &)
 	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
 	do
@@ -193,18 +244,18 @@ start_iotdb_ainode() { # 启动iotdb
 	cd ~/
 }
 stop_iotdb() { # 停止iotdb
-	cd ${TEST_AINode_PATH}
+	cd "${TEST_AINode_PATH}" || return 1
 	ai_stop=$(./sbin/stop-ainode.sh >/dev/null 2>&1 &)
-	cd ${TEST_IOTDB_PATH}
+	cd "${TEST_IOTDB_PATH}" || return 1
 	data_stop=$(./sbin/stop-datanode.sh >/dev/null 2>&1 &)
 	sleep 10
 	conf_stop=$(./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 	cd ~/
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	sudo rm -rf -- "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
 	sudo mkdir -p ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-    sudo rm -rf ${TEST_IOTDB_PATH}/data
+    sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
 	#sudo rm -rf ${TEST_AINode_PATH}/venv
 	#sudo mv ${TEST_AINode_PATH}/venv /data/atmos/zk_test/AINode/
 	if [ -d "${TEST_AINode_PATH}/venv" ]; then
@@ -215,7 +266,12 @@ backup_test_data() { # 备份测试数据
 	sudo mv ${TEST_TOOL_PATH} ${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 ##准备开始测试
-echo "ontesting" > ${INIT_PATH}/test_type_file
+restore_test_type_file() {
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+main() {
+    trap restore_test_type_file EXIT
+printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
 result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -235,7 +291,7 @@ else
 	#测试表模型
 	init_items
 	# 获取git commit对比判定是否启动测试
-	cd ${TC_PATH}
+	cd "${TC_PATH}" || return 1
 	#last_cid1=$(git log --pretty=format:"%h" -1)
 	#更新TC
 	git_pull=$(timeout 100s git pull)
@@ -301,7 +357,7 @@ else
 	cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 	cp -rf ${TC_PATH}/table/scripts ${TEST_TOOL_PATH}/user/
 	cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
-	cd ${TEST_TOOL_PATH}
+	cd "${TEST_TOOL_PATH}" || return 1
 	sed -i "s/sql_dialect=tree$/sql_dialect=table/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
 	sed -i "s/setup$/test/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
 	#start_test=$(./test.sh)
@@ -311,7 +367,7 @@ else
 	start_test=$(./test.sh >/dev/null 2>&1 &)
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
-		cd ${TEST_TOOL_PATH}
+		cd "${TEST_TOOL_PATH}" || return 1
 		result_file=${TEST_TOOL_PATH}/result.xml
 		if [ ! -f "$result_file" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -334,7 +390,7 @@ else
 	check_iotdb_pid
 	if [ "${flag}" = "0" ]; then
 		#收集测试结果
-		cd ${TEST_TOOL_PATH}
+		cd "${TEST_TOOL_PATH}" || return 1
 		pass_num=$(grep -n 'run" result="PASS"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 		fail_num=$(grep -n 'run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 		#结果写入mysql
@@ -344,7 +400,7 @@ else
 		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 	else
 		#收集测试结果
-		cd ${TEST_TOOL_PATH}
+		cd "${TEST_TOOL_PATH}" || return 1
 		pass_num=0
 		fail_num=-1
 		#结果写入mysql
@@ -360,7 +416,7 @@ else
 		#测试AINode_tree
 		init_items
 		# 获取git commit对比判定是否启动测试
-		cd ${TC_PATH}
+		cd "${TC_PATH}" || return 1
 		#last_cid1=$(git log --pretty=format:"%h" -1)
 		#更新TC
 		git_pull=$(timeout 100s git pull)
@@ -442,7 +498,7 @@ else
 			cp -rf ${TC_PATH}/ainode_tree/scripts ${TEST_TOOL_PATH}/user/
 			#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 			cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
-			cd ${TEST_TOOL_PATH}
+			cd "${TEST_TOOL_PATH}" || return 1
 			sed -i "s/sql_dialect=table$/sql_dialect=tree/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
 			#start_test=$(./test.sh)
 			#javac -encoding gbk -cp '${TEST_TOOL_PATH}/user/driver/iotdb/*:${TEST_TOOL_PATH}/lib/*:${TEST_TOOL_PATH}/user/driver/POI/*:.' ${TEST_TOOL_PATH}/src/*.java -d ${TEST_TOOL_PATH}/bin
@@ -451,7 +507,7 @@ else
 			start_test=$(./test.sh >/dev/null 2>&1 &)
 			for (( t_wait = 0; t_wait <= 20; ))
 			do
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				result_file=${TEST_TOOL_PATH}/result.xml
 				if [ ! -f "$result_file" ]; then
 					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -474,7 +530,7 @@ else
 			check_iotdb_pid
 			if [ "${flag}" = "0" ]; then
 				#收集测试结果
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				pass_num=$(grep -n 'run" result="PASS"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 				fail_num=$(grep -n 'run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 				#结果写入mysql
@@ -484,7 +540,7 @@ else
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			else
 				#收集测试结果
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				pass_num=0
 				fail_num=-1
 				#结果写入mysql
@@ -509,7 +565,7 @@ else
 		#测试AINode_table
 		init_items
 		# 获取git commit对比判定是否启动测试
-		cd ${TC_PATH}
+		cd "${TC_PATH}" || return 1
 		#last_cid1=$(git log --pretty=format:"%h" -1)
 		#更新TC
 		git_pull=$(timeout 100s git pull)
@@ -581,7 +637,7 @@ else
 			cp -rf ${TC_PATH}/ainode_tree/scripts ${TEST_TOOL_PATH}/user/
 			#cp -rf ${TC_PATH}/lib/udf_jar/example ${TEST_IOTDB_PATH}/ext/udf/
 			cp -rf ${TEST_IOTDB_PATH}/lib/* ${TEST_TOOL_PATH}/user/driver/iotdb/
-			cd ${TEST_TOOL_PATH}
+			cd "${TEST_TOOL_PATH}" || return 1
 			sed -i "s/sql_dialect=table$/sql_dialect=table/g" ${TEST_TOOL_PATH}/user/CONFIG/otf_new.properties
 			#start_test=$(./test.sh)
 			#javac -encoding gbk -cp '${TEST_TOOL_PATH}/user/driver/iotdb/*:${TEST_TOOL_PATH}/lib/*:${TEST_TOOL_PATH}/user/driver/POI/*:.' ${TEST_TOOL_PATH}/src/*.java -d ${TEST_TOOL_PATH}/bin
@@ -590,7 +646,7 @@ else
 			start_test=$(./test.sh >/dev/null 2>&1 &)
 			for (( t_wait = 0; t_wait <= 20; ))
 			do
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				result_file=${TEST_TOOL_PATH}/result.xml
 				if [ ! -f "$result_file" ]; then
 					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -613,7 +669,7 @@ else
 			check_iotdb_pid
 			if [ "${flag}" = "0" ]; then
 				#收集测试结果
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				pass_num=$(grep -n 'run" result="PASS"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 				fail_num=$(grep -n 'run" result="FAIL"' ${TEST_TOOL_PATH}/result.xml | wc -l)
 				#结果写入mysql
@@ -623,7 +679,7 @@ else
 				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 			else
 				#收集测试结果
-				cd ${TEST_TOOL_PATH}
+				cd "${TEST_TOOL_PATH}" || return 1
 				pass_num=0
 				fail_num=-1
 				#结果写入mysql
@@ -654,4 +710,7 @@ else
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"

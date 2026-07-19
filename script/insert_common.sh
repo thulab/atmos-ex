@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -o pipefail
 
 # 写入类测试公共库。
 # 公共适用脚本：se_insert.sh、unse_insert.sh、api_insert.sh、api_insert_cts.sh、config_insert.sh、insert_records.sh 等。
@@ -684,7 +685,9 @@ check_pid_and_kill() {
 
     while IFS= read -r pid; do
         [ -n "${pid}" ] || continue
-        kill -9 "${pid}"
+        kill -TERM "${pid}" 2>/dev/null || true
+        sleep 2
+        kill -KILL "${pid}" 2>/dev/null || true
     done <<< "${pids}"
     log "${desc} 已停止。"
 }

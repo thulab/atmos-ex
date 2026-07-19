@@ -7,20 +7,51 @@ if shopt -oq posix; then
 fi
 
 set -o pipefail
+
+set_iotdb_property() {
+    local properties_file="$1"
+    local property_name="$2"
+    local property_value="$3"
+    local temp_file="${properties_file}.tmp.$$"
+
+    [ -f "${properties_file}" ] || {
+        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
+        return 1
+    }
+    awk -F= -v key="${property_name}" -v value="${property_value}" '
+        BEGIN { updated = 0 }
+        $1 == key {
+            if (!updated) {
+                print key "=" value
+                updated = 1
+            }
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${properties_file}" > "${temp_file}" &&
+        mv -- "${temp_file}" "${properties_file}"
+}
 #登录用户名
 TEST_IP="11.101.17.156"
 readonly TIMECHO_ROUTINE_IP="11.101.17.156"
 ACCOUNT=atmos
-IoTDB_PW=TimechoDB@2021
-test_type=routine_test
+IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
+IoTDB_PW="${IOTDB_PW}"
+TEST_TYPE="${TEST_TYPE:-routine_test}"
+test_type="${TEST_TYPE}"
 #初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/routine_test
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=/data/atmos
+BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/routine_test}"
+BUCKUP_PATH="${BACKUP_PATH}"
+REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
+TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
@@ -29,15 +60,16 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(SESSION_BY_TABLET SESSION_BY_RECORDS SESSION_BY_RECORD JDBC)
 ############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
 PASSWORD="${ATMOS_DB_PASSWORD:-}"
-DBNAME="QA_ATM"  #数据库名称
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_routine_test" #数据库中表的名称
 TASK_TABLENAME="ex_commit_history" #数据库中任务表的名称
 ############prometheus##########################
-metric_server="111.200.37.158:19090"
+METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
+metric_server="${METRIC_SERVER}"
 TABLENAME_T="ex_routine_test_T"
 result_table="${TABLENAME}"
 AUTHOR_FILTER_SQL="author != 'Timecho'"
@@ -68,7 +100,7 @@ ensure_runtime_dependencies() {
 }
 ############公用函数##########################
 check_password() {
-	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
+	[ -n "${PASSWORD}" ] || die "ATMOS_DB_PASSWORD is required"
 }
 
 run_mysql() {
@@ -189,7 +221,9 @@ check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到监控程序！"
 	else
-		kill -9 ${monitor_pid}
+		kill -TERM "${monitor_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${monitor_pid}" 2>/dev/null || true
 		echo "BM程序已停止！"
 	fi
 }
@@ -198,21 +232,27 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到DataNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "DataNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到ConfigNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "ConfigNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到IoTDB程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "IoTDB程序已停止！"
 	fi
 	echo "程序检测和清理操作已完成！"
@@ -239,28 +279,28 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
 	#修改集群名称
-	echo "cluster_name=${test_type}" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
 	#添加启动监控功能
-	echo "cn_enable_metric=true" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "cn_enable_performance_stat=true" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "cn_metric_reporter_list=PROMETHEUS" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "cn_metric_level=ALL" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "cn_metric_prometheus_reporter_port=9081" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
 	#添加启动监控功能
-	echo "dn_enable_metric=true" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "dn_enable_performance_stat=true" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "dn_metric_reporter_list=PROMETHEUS" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "dn_metric_level=ALL" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "dn_metric_prometheus_reporter_port=9091" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 set_protocol_class() { 
 	local config_node=$1
 	local schema_region=$2
 	local data_region=$3
 	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 start_iotdb() { # 启动iotdb
 	cd "${TEST_IOTDB_PATH}" || return 1

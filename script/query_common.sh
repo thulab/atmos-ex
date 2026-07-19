@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -o pipefail
 
 # 查询类测试公共库。
 # 公共适用脚本：se_query.sh、unse_query.sh、se_query_test.sh。
@@ -429,7 +430,9 @@ check_pid_and_kill() {
 
     while IFS= read -r pid; do
         [ -n "${pid}" ] || continue
-        kill -9 "${pid}"
+        kill -TERM "${pid}" 2>/dev/null || true
+        sleep 2
+        kill -KILL "${pid}" 2>/dev/null || true
     done <<< "${pids}"
     log "${desc} process stopped."
 }

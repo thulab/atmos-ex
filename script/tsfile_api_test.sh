@@ -1,11 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
+
 #登录用户名
 ACCOUNT=root
-test_type=tsfile_api_test
+TEST_TYPE="${TEST_TYPE:-tsfile_api_test}"
+test_type="${TEST_TYPE}"
 #初始环境存放路径
-export HTTP_PROXY=http://172.20.31.76:7890
-export HTTPS_PROXY=$HTTP_PROXY
-INIT_PATH=/data/atmos/zk_test
+export HTTP_PROXY="${HTTP_PROXY:-http://172.20.31.76:7890}"
+export HTTPS_PROXY="${HTTPS_PROXY:-${HTTP_PROXY}}"
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 TSFILE_PATH=${INIT_PATH}/tsfile
 JAVA_TOOL_PATH=${INIT_PATH}/java-tsfile-api-test
@@ -13,17 +16,28 @@ CPP_TOOL_PATH=${INIT_PATH}/cpp-tsfile-api-test
 PYTHON_TOOL_PATH=${INIT_PATH}/python-tsfile-api-test
 BK_PATH=${INIT_PATH}/tsfile_api_test_report
 #测试数据运行路径
-TEST_INIT_PATH=/data/qa
+TEST_INIT_PATH="${TEST_INIT_PATH:-/data/qa}"
 TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-tsfile-api-test
 TEST_CPP_TOOL_PATH=${TEST_INIT_PATH}/cpp-tsfile-api-test
 TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-tsfile-api-test
 ############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"                   #数据库名称
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="tsfile_api_test" #数据库中用例表的名称
+if [ -z "${PASSWORD}" ]; then
+	printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
+	exit 1
+fi
+for required_command in awk date mysql sed; do
+	if ! command -v "${required_command}" >/dev/null 2>&1; then
+		printf '[ERROR] required command not found: %s\n' "${required_command}" >&2
+		exit 1
+	fi
+done
+unset required_command
 init_items() {
 ############定义监控采集项初始值##########################
 tests_num=0
@@ -41,12 +55,12 @@ test_java_tsfile_api_test() { # 测试Java
 	if [ ! -d "${TEST_JAVA_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_JAVA_TOOL_PATH}
 	else
-		rm -rf ${TEST_JAVA_TOOL_PATH}
+		rm -rf -- "${TEST_JAVA_TOOL_PATH}"
 		mkdir -p ${TEST_JAVA_TOOL_PATH}
 	fi
 	cp -rf ${JAVA_TOOL_PATH}/* ${TEST_JAVA_TOOL_PATH}/
 	# 编译工具
-	cd ${TEST_JAVA_TOOL_PATH}
+	cd "${TEST_JAVA_TOOL_PATH}" || return 1
 	compile=$(timeout 300s mvn clean install -P with-java -DskipTests)
 	if [ $? -eq 0 ]
 	then
@@ -67,7 +81,7 @@ test_java_tsfile_api_test() { # 测试Java
 	start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
-		cd ${TEST_JAVA_TOOL_PATH}
+		cd "${TEST_JAVA_TOOL_PATH}" || return 1
 		result_file=${TEST_JAVA_TOOL_PATH}/target/site/surefire-report.html
 		if [ ! -f "$result_file" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -88,7 +102,7 @@ test_java_tsfile_api_test() { # 测试Java
 	sleep 60
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
-		cd ${TEST_JAVA_TOOL_PATH}
+		cd "${TEST_JAVA_TOOL_PATH}" || return 1
 		# 从HTML报告中提取Java测试结果
 		tests_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/target/site/surefire-report.html | sed -n '1p' | grep -o '[0-9]*')
 		errors_num=$(grep -o '<td align="left">[0-9]*</td>' ${TEST_JAVA_TOOL_PATH}/target/site/surefire-report.html | sed -n '2p' | grep -o '[0-9]*')
@@ -122,7 +136,7 @@ EOF
 		fi
 	else
 		#收集测试结果
-		cd ${TEST_JAVA_TOOL_PATH}
+		cd "${TEST_JAVA_TOOL_PATH}" || return 1
 		tests_num=-3
 		errors_num=-3
 		failures_num=-3
@@ -135,7 +149,7 @@ EOF
 	fi
 	#备份本次测试
 	echo "备份Java测试报告"
-	rm -rf ${BK_PATH}/java/*
+	rm -rf -- "${BK_PATH:?}/java/"*
 	cp -rf ${TEST_JAVA_TOOL_PATH}/target/site ${BK_PATH}/java
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -147,7 +161,7 @@ EOF
 test_cpp_tsfile_api_test() {
 	# C++代码编译
 	echo "编译C++"
-	cd ${TSFILE_PATH}
+	cd "${TSFILE_PATH}" || return 1
 	comp_cpp=$(timeout 7200s  bash -c "mvn clean install -P with-cpp -DskipTests")
 	if [ $? -eq 0 ]; then
 		echo "编译C++完成，准备开始测试！"
@@ -166,7 +180,7 @@ test_cpp_tsfile_api_test() {
 	if [ ! -d "${TEST_CPP_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_CPP_TOOL_PATH}
 	else
-		rm -rf ${TEST_CPP_TOOL_PATH}
+		rm -rf -- "${TEST_CPP_TOOL_PATH}"
 		mkdir -p ${TEST_CPP_TOOL_PATH}
 	fi
 	cp -rf ${CPP_TOOL_PATH}/* ${TEST_CPP_TOOL_PATH}/
@@ -175,7 +189,7 @@ test_cpp_tsfile_api_test() {
 	cp -rf ${TSFILE_PATH}/cpp/third_party/antlr4-cpp-runtime-4/runtime/src/* ${TEST_CPP_TOOL_PATH}/include/
 	cp -rf ${TSFILE_PATH}/cpp/target/build/lib/* ${TEST_CPP_TOOL_PATH}/lib/
 	# 编译工具
-	cd ${TEST_CPP_TOOL_PATH}
+	cd "${TEST_CPP_TOOL_PATH}" || return 1
 	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
 	if [ $? -eq 0 ]; then
 		echo "编译Cpp测试工具完成，准备开始测试！"
@@ -195,7 +209,7 @@ test_cpp_tsfile_api_test() {
 	start_test=$(timeout 7200s bash -c "source /etc/profile && ./run.sh")
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
-		cd ${TEST_CPP_TOOL_PATH}
+		cd "${TEST_CPP_TOOL_PATH}" || return 1
 		result_file=${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json
 		if [ ! -f "$result_file" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -216,7 +230,7 @@ test_cpp_tsfile_api_test() {
 	sleep 60
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
-		cd ${TEST_CPP_TOOL_PATH}
+		cd "${TEST_CPP_TOOL_PATH}" || return 1
 		tests_num=$(jq -r '.tests' "${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json")
 		errors_num=$(jq -r '.errors' "${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json")
 		failures_num=$(jq -r '.failures' "${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json")
@@ -248,7 +262,7 @@ EOF
 		fi
 	else
 		#收集测试结果
-		cd ${TEST_CPP_TOOL_PATH}
+		cd "${TEST_CPP_TOOL_PATH}" || return 1
 		tests_num=-4
 		errors_num=-4
 		failures_num=-4
@@ -261,7 +275,7 @@ EOF
 	fi
 	#备份本次测试
 	echo "备份Cpp测试报告"
-	rm -rf ${BK_PATH}/cpp/*
+	rm -rf -- "${BK_PATH:?}/cpp/"*
 	cp -f ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json ${BK_PATH}/cpp/
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -273,7 +287,7 @@ EOF
 test_python_tsfile_api_test() { # 测试Python
 	# Python代码编译
 	echo "编译python"
-	cd ${TSFILE_PATH}
+	cd "${TSFILE_PATH}" || return 1
 	comp_python=$(timeout 7200s  bash -c "mvn clean install -P with-python -DskipTests")
 	if [ $? -eq 0 ]; then
 		echo "编译Python完成，准备开始测试！"
@@ -292,12 +306,12 @@ test_python_tsfile_api_test() { # 测试Python
 	if [ ! -d "${TEST_PYTHON_TOOL_PATH}" ]; then
 		mkdir -p ${TEST_PYTHON_TOOL_PATH}
 	else
-		rm -rf ${TEST_PYTHON_TOOL_PATH}
+		rm -rf -- "${TEST_PYTHON_TOOL_PATH}"
 		mkdir -p ${TEST_PYTHON_TOOL_PATH}
 	fi
 	cp -rf ${PYTHON_TOOL_PATH}/* ${TEST_PYTHON_TOOL_PATH}/
 	# 创建测试环境，安装测试依赖
-	cd ${TEST_PYTHON_TOOL_PATH}
+	cd "${TEST_PYTHON_TOOL_PATH}" || return 1
 	python3 -m venv venv
 	source venv/bin/activate
 	pip3 install pytest
@@ -329,7 +343,7 @@ test_python_tsfile_api_test() { # 测试Python
 	start_test=$(timeout 7200s bash -c "pytest --html=../reports/report.html")
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
-		cd ${TEST_PYTHON_TOOL_PATH}
+		cd "${TEST_PYTHON_TOOL_PATH}" || return 1
 		result_file=${TEST_PYTHON_TOOL_PATH}/reports/report.html
 		if [ ! -f "$result_file" ]; then
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
@@ -351,7 +365,7 @@ test_python_tsfile_api_test() { # 测试Python
 	deactivate
 	if [ $flag -eq 0 ]; then
 		#收集测试结果
-		cd ${TEST_PYTHON_TOOL_PATH}
+		cd "${TEST_PYTHON_TOOL_PATH}" || return 1
 		# 从HTML报告中提取测试结果
 		tests_num=$(grep -o '[0-9]\+ tests' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
 		errors_num=$(grep -o '[0-9]\+ Error' ${TEST_PYTHON_TOOL_PATH}/reports/report.html | head -1 | grep -o '[0-9]\+')
@@ -385,7 +399,7 @@ EOF
 		fi
 	else
 		#收集测试结果
-		cd ${TEST_PYTHON_TOOL_PATH}
+		cd "${TEST_PYTHON_TOOL_PATH}" || return 1
 		tests_num=-4
 		errors_num=-4
 		failures_num=-4
@@ -398,7 +412,7 @@ EOF
 	fi
 	#备份本次测试
 	echo "备份Python测试报告"
-	rm -rf ${BK_PATH}/python/*
+	rm -rf -- "${BK_PATH:?}/python/"*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
@@ -407,11 +421,12 @@ EOF
 #	git commit -m ${last_cid_TsFile}_${failures_num}
 #	git push -f
 }
-echo "ontesting" > ${INIT_PATH}/test_type_file
+main() {
+printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 # 初始化参数
 init_items
 # 收集TsFile当前和最新的commit，拉取最新的代码
-cd ${TSFILE_PATH}
+cd "${TSFILE_PATH}" || return 1
 last_cid_TsFile=$(git log --pretty=format:"%h" -1)
 git_pull=$(timeout 100s git fetch --all)
 git_pull=$(git reset --hard origin/develop)
@@ -420,11 +435,11 @@ commit_id_TsFile=$(git log --pretty=format:"%h" -1)
 # 获取TsFile的commit信息时间
 test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
 # 更新测试工具
-cd ${JAVA_TOOL_PATH}
+cd "${JAVA_TOOL_PATH}" || return 1
 git_pull=$(timeout 100s git pull)
-cd ${CPP_TOOL_PATH}
+cd "${CPP_TOOL_PATH}" || return 1
 git_pull=$(timeout 100s git pull)
-cd ${PYTHON_TOOL_PATH}
+cd "${PYTHON_TOOL_PATH}" || return 1
 git_pull=$(timeout 100s git pull)
 # 对比判定是否启动测试
 if [ "${last_cid_TsFile}" != "${commit_id_TsFile}" ]; then
@@ -459,4 +474,7 @@ else
 	echo "没有更新，都执行过测试"
 	sleep 300s
 fi
-echo "native_api_test" > ${INIT_PATH}/test_type_file
+printf 'native_api_test\n' > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"

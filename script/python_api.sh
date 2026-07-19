@@ -1,13 +1,44 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
+
+set_iotdb_property() {
+    local properties_file="$1"
+    local property_name="$2"
+    local property_value="$3"
+    local temp_file="${properties_file}.tmp.$$"
+
+    [ -f "${properties_file}" ] || {
+        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
+        return 1
+    }
+    awk -F= -v key="${property_name}" -v value="${property_value}" '
+        BEGIN { updated = 0 }
+        $1 == key {
+            if (!updated) {
+                print key "=" value
+                updated = 1
+            }
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${properties_file}" > "${temp_file}" &&
+        mv -- "${temp_file}" "${properties_file}"
+}
 #登录用户名
 ACCOUNT=root
-test_type=python_api
+TEST_TYPE="${TEST_TYPE:-python_api}"
+test_type="${TEST_TYPE}"
 #初始环境存放路径
-INIT_PATH=/root/zk_test
+INIT_PATH="${INIT_PATH:-/root/zk_test}"
 IOTDB_PATH=${INIT_PATH}/iotdb
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 #测试数据运行路径
-TEST_INIT_PATH=/root
+TEST_INIT_PATH="${TEST_INIT_PATH:-/root}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
@@ -16,22 +47,30 @@ protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.i
 protocol_list=(111 223 222 211)
 ts_list=(common aligned template tempaligned)
 ############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"                   #数据库名称
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="python_api" #数据库中表的名称
 ############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+if [ -z "${PASSWORD}" ]; then
+    printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
+    exit 1
 fi
+for required_command in awk date mysql sed; do
+    if ! command -v "${required_command}" >/dev/null 2>&1; then
+        printf '[ERROR] required command not found: %s\n' "${required_command}" >&2
+        exit 1
+    fi
+done
+unset required_command
 echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
+BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf ${BM_PATH}
+	rm -rf -- "${BM_PATH}"
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 init_items() {
@@ -50,16 +89,16 @@ set_protocol_class() {
 	schema_region=$2
 	data_region=$3
 	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 set_env() {
 	# 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}
 	else
-		rm -rf ${TEST_IOTDB_PATH}
+		rm -rf -- "${TEST_IOTDB_PATH}"
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
 	cp -rf ${IOTDB_PATH}/distribution/target/apache-iotdb-*-all-bin/apache-iotdb-*-all-bin/* ${TEST_IOTDB_PATH}/
@@ -75,7 +114,9 @@ check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	if [ "${monitor_pid}" = "" ]; then
 		echo "未检测到InterFace程序！"
 	else
-		kill -9 ${monitor_pid}
+		kill -TERM "${monitor_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${monitor_pid}" 2>/dev/null || true
 		echo "InterFace程序已停止！"
 	fi
 }
@@ -84,37 +125,44 @@ check_iotdb_pid() { # 检查iotdb的pid，有就停止
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到DataNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "DataNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到ConfigNode程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "ConfigNode程序已停止！"
 	fi
 	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
 	if [ "${iotdb_pid}" = "" ]; then
 		echo "未检测到IoTDB程序！"
 	else
-		kill -9 ${iotdb_pid}
+		kill -TERM "${iotdb_pid}" 2>/dev/null || true
+		sleep 2
+		kill -KILL "${iotdb_pid}" 2>/dev/null || true
 		echo "IoTDB程序已停止！"
 	fi
 	echo "程序检测和清理操作已完成！"
 }
 start_iotdb() { # 启动iotdb
-	cd ${TEST_IOTDB_PATH}
+	cd "${TEST_IOTDB_PATH}" || return 1
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
+main() {
 while true; do
 	init_items
 	# 获取git commit对比判定是否启动测试
 	#对比判定是否启动测试
-	cd ${IOTDB_PATH}
+	cd "${IOTDB_PATH}" || return 1
 	#git reset --hard 938c1f19df122ffaafd827a00a65f5931cbc7f4c
 	last_cid=$(git log --pretty=format:"%h" -1)
 	#last_cid=0
@@ -132,7 +180,7 @@ while true; do
 	else
 		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
-		rm -rf ${INIT_PATH}/log_python_api
+		rm -rf -- "${INIT_PATH}/log_python_api"
 		#代码编译
 		comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
@@ -194,7 +242,7 @@ while true; do
 		check_iotdb_pid
 		if [ $flag -eq 0 ]; then
 			#收集测试结果
-			cd ${TEST_TOOL_PATH}
+			cd "${TEST_TOOL_PATH}" || return 1
 			InsertRecord=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
 			InsertRecords=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
 			InsertTablet=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
@@ -205,7 +253,7 @@ while true; do
 			mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
 		else
 			#收集测试结果
-			cd ${TEST_TOOL_PATH}
+			cd "${TEST_TOOL_PATH}" || return 1
 			InsertRecord=-3
 			InsertRecords=-3
 			InsertTablet=-3
@@ -223,3 +271,6 @@ while true; do
 		#find ${BUCKUP_PATH}/ -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	fi
 done
+}
+
+main "$@"

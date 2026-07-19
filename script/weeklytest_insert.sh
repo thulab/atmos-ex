@@ -1,4 +1,34 @@
 #!/usr/bin/env bash
+set -o pipefail
+
+set_iotdb_property() {
+    local properties_file="$1"
+    local property_name="$2"
+    local property_value="$3"
+    local temp_file="${properties_file}.tmp.$$"
+
+    [ -f "${properties_file}" ] || {
+        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
+        return 1
+    }
+    awk -F= -v key="${property_name}" -v value="${property_value}" '
+        BEGIN { updated = 0 }
+        $1 == key {
+            if (!updated) {
+                print key "=" value
+                updated = 1
+            }
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${properties_file}" > "${temp_file}" &&
+        mv -- "${temp_file}" "${properties_file}"
+}
 if [ -z "${BASH_VERSION:-}" ]; then
     exec bash "$0" "$@"
 fi
@@ -15,18 +45,19 @@ fi
 # -------------------- 基础环境变量 --------------------
 TEST_IP="11.101.17.111"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
-IoTDB_PW=TimechoDB@2021
-test_type=weeklytest_insert
+IOTDB_PW="${IOTDB_PASSWORD:-TimechoDB@2021}"
+IoTDB_PW="${IOTDB_PW}"
+TEST_TYPE="${TEST_TYPE:-weeklytest_insert}"
+test_type="${TEST_TYPE}"
 
 # -------------------- 路径相关变量 --------------------
-INIT_PATH=/data/atmos/zk_test     # 初始环境存放路径
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"  # 初始环境存放路径
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BUCKUP_PATH=/nasdata/repository/weeklytest_insert
-REPOS_PATH=/nasdata/repository/master
-
-# -------------------- 测试数据路径 --------------------
-TEST_INIT_PATH=/data/atmos
+BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/weeklytest_insert}"
+BUCKUP_PATH="${BACKUP_PATH}"
+REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
+TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 
 # -------------------- 协议相关变量 --------------------
@@ -38,44 +69,46 @@ protocol_list=(223 224)
 ts_list=(seq_w unseq_w tablemode_seq_w tablemode_unseq_w)
 
 # -------------------- MySQL 配置信息 --------------------
-MYSQLHOSTNAME="111.200.37.158"   # 数据库主机
-PORT="13306"                     # 端口
-USERNAME="iotdbatm"              # 用户名
-PASSWORD=${ATMOS_DB_PASSWORD}     # 密码
-DBNAME="QA_ATM"                  # 数据库名称
+MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
+PORT="${PORT:-13306}"
+USERNAME="${USERNAME:-iotdbatm}"
+PASSWORD="${ATMOS_DB_PASSWORD:-}"     # 密码
+DBNAME="${DBNAME:-QA_ATM}"
 TABLENAME="ex_weeklytest_insert" # 结果表名
 TABLENAME_T="ex_weeklytest_insert_T" # 企业版结果表名
 TASK_TABLENAME="ex_commit_history" # 数据库中任务表的名称
 
 # -------------------- Prometheus 配置信息 --------------------
-metric_server="111.200.37.158:19090"
+METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
+metric_server="${METRIC_SERVER}"
 MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
-function check_password() {
+check_password() {
     if [ -z "${PASSWORD}" ]; then
-        echo "需要关注密码设置！"
+        printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
+        return 1
     fi
 }
 
-function current_datetime() {
+current_datetime() {
     date +"%Y-%m-%d %H:%M:%S"
 }
 
-function datetime_to_epoch() {
+datetime_to_epoch() {
     date -d "$1" +%s
 }
 
-function git_commit_abbrev() {
+git_commit_abbrev() {
     awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
 }
 
-function find_result_csv() {
+find_result_csv() {
     find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
 }
 
-function create_stuck_result_csv() {
+create_stuck_result_csv() {
     local result_label="${1:-INGESTION}"
     local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
     local index=0
@@ -88,15 +121,15 @@ function create_stuck_result_csv() {
     done
 }
 
-function bytes_to_gib() {
+bytes_to_gib() {
     awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
 }
 
-function to_int() {
+to_int() {
     awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
 }
 
-function set_negative_benchmark_metrics() {
+set_negative_benchmark_metrics() {
     local value=$1
     okPoint=${value}
     okOperation=${value}
@@ -116,7 +149,7 @@ function set_negative_benchmark_metrics() {
     MAX=${value}
 }
 
-function parse_benchmark_result() {
+parse_benchmark_result() {
     local csv_file=$1
     local result_label="${2:-INGESTION}"
     local throughput_line=""
@@ -161,7 +194,7 @@ function parse_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
-function check_benchmark_version() {
+check_benchmark_version() {
     BM_REPOS_PATH=/nasdata/repository/iot-benchmark
     BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
     BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
@@ -171,7 +204,7 @@ function check_benchmark_version() {
     fi
 }
 
-function init_items() {
+init_items() {
     # 定义监控采集项初始值
     ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
     throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
@@ -180,31 +213,33 @@ function init_items() {
     maxDiskIOOpsRead=0; maxDiskIOOpsWrite=0; maxDiskIOSizeRead=0; maxDiskIOSizeWrite=0
 }
 
-function sendEmail() {
+sendEmail() {
     sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
 
-function check_pid_and_kill() {
+check_pid_and_kill() {
     local pname=$1
     local desc=$2
     local pid=$(jps | awk -v pname="$pname" '$2 == pname {print $1}')
     if [ -n "$pid" ]; then
-        kill -9 $pid
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 2
+        kill -KILL "$pid" 2>/dev/null || true
         echo "$desc 已停止！"
     else
         echo "未检测到$desc！"
     fi
 }
 
-function check_benchmark_pid() { check_pid_and_kill "App" "BM程序"; }
-function check_iotdb_pid() {
+check_benchmark_pid() { check_pid_and_kill "App" "BM程序"; }
+check_iotdb_pid() {
     check_pid_and_kill "DataNode" "DataNode程序"
     check_pid_and_kill "ConfigNode" "ConfigNode程序"
     check_pid_and_kill "IoTDB" "IoTDB程序"
     echo "程序检测和清理操作已完成！"
 }
 
-function set_env() {
+set_env() {
     [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
     mkdir -p ${TEST_IOTDB_PATH}/activation
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
@@ -212,56 +247,56 @@ function set_env() {
     cp -rf ${ATMOS_PATH}/conf/${test_type}/env ${TEST_IOTDB_PATH}/.env
 }
 
-function modify_iotdb_config() {
+modify_iotdb_config() {
     #修改IoTDB的配置
     sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
     #清空配置文件
     # echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
     #关闭影响写入性能的其他功能
-    echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_seq_space_compaction" "false"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
     #修改集群名称
-    echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${test_type}"
     #添加启动监控功能
-    echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
     #添加启动监控功能
-    echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 
-function set_protocol_class() {
+set_protocol_class() {
     local config_node=$1; local schema_region=$2; local data_region=$3
-    echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-    echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
+    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 
-function start_iotdb() {
+start_iotdb() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
     sleep 10
     (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
 }
 
-function stop_iotdb() {
+stop_iotdb() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
     sleep 10
     (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 }
 
-function start_benchmark() {
+start_benchmark() {
     rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
     (cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
 }
 
-function monitor_test_status() {
+monitor_test_status() {
     local result_label="${1:-INGESTION}"
     local csv_file=""
     local now_epoch=0
@@ -288,7 +323,7 @@ function monitor_test_status() {
     done
 }
 
-function get_single_index() {
+get_single_index() {
     local query=$1; local end=$2
     local index_value=$(curl -G -s "http://${metric_server}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
     if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
@@ -297,7 +332,7 @@ function get_single_index() {
     echo "$index_value"
 }
 
-function collect_monitor_data() {
+collect_monitor_data() {
     local ip=$1
     local metric_window=$((m_end_time-m_start_time))
     local maxNumofThread_C=0
@@ -322,23 +357,23 @@ function collect_monitor_data() {
     maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${metric_window}s])" $m_end_time)
 }
 
-function backup_test_data() {
+backup_test_data() {
     local ts_type=$1
     local backup_dir="${BUCKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}"
-    sudo rm -rf $backup_dir
+    sudo rm -rf -- "${backup_dir:?}"
     sudo mkdir -p $backup_dir
-    sudo rm -rf ${TEST_IOTDB_PATH}/data
+    sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
     sudo mv ${TEST_IOTDB_PATH} $backup_dir
     sudo cp -rf ${BM_PATH}/data/csvOutput $backup_dir
 }
 
-function mv_config_file() {
+mv_config_file() {
     local ts_type=$1
-    rm -rf ${BM_PATH}/conf/config.properties
+    rm -rf -- "${BM_PATH}/conf/config.properties"
     cp -rf ${ATMOS_PATH}/conf/${test_type}/$ts_type ${BM_PATH}/conf/config.properties
 }
 
-function test_operation() {
+test_operation() {
     local protocol_class_input=$1
     local ts_type=$2
     echo "开始测试${ts_type}时间序列！"
@@ -396,8 +431,12 @@ function test_operation() {
 # -------------------- 主流程 --------------------
 check_password
 check_benchmark_version
-
-echo "ontesting" > ${INIT_PATH}/test_type_file
+restore_test_type_file() {
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+main() {
+    trap restore_test_type_file EXIT
+printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
 result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -437,4 +476,7 @@ else
 		result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
 	fi
 fi
-echo "${test_type}" > ${INIT_PATH}/test_type_file
+    printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
+}
+
+main "$@"
