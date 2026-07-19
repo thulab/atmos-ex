@@ -421,6 +421,8 @@ EOF
 #	git push -f
 }
 main() {
+ensure_runtime_dependencies
+check_password
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 # 初始化参数
 init_items
@@ -442,30 +444,10 @@ cd "${PYTHON_TOOL_PATH}" || return 1
 git_pull=$(timeout 100s git pull)
 # 对比判定是否启动测试
 if [ "${last_cid_TsFile}" != "${commit_id_TsFile}" ]; then
-	echo "TsFile代码有更新，当前新版本commit：${commit_id_TsFile} 未执行过测试"
-	# 测试Java
-	echo "测试Java"
-	test_java_tsfile_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "Java测试失败"
-	fi
-	# 测试Cpp
-	init_items
-	echo "测试Cpp"
-	test_cpp_tsfile_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "Cpp测试失败"
-	fi
-	# 测试Python
-	init_items
-	echo "测试Python"
-	test_python_tsfile_api_test
-	if [ $? -eq 1 ]; then
-		sleep 60
-		echo "Python测试失败"
-	fi
+	run_api_test_suite \
+		"Java:test_java_tsfile_api_test" \
+		"Cpp:test_cpp_tsfile_api_test" \
+		"Python:test_python_tsfile_api_test" || true
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	sleep 300s
@@ -475,5 +457,8 @@ else
 fi
 printf 'native_api_test\n' > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/api_test_common.sh"
 
 main "$@"

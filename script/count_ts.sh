@@ -79,149 +79,6 @@ maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
 
-log() {
-	printf '[%s] %s\n' "$(date '+%F %T')" "$*" >&2
-}
-
-die() {
-	log "ERROR: $*"
-	exit 1
-}
-
-trim() {
-	local value="${1:-}"
-	value="${value#"${value%%[![:space:]]*}"}"
-	value="${value%"${value##*[![:space:]]}"}"
-	printf '%s' "${value}"
-}
-
-current_datetime() {
-	date '+%Y-%m-%d %H:%M:%S'
-}
-
-datetime_to_epoch() {
-	date -d "$1" +%s
-}
-
-normalize_datetime() {
-	printf '%s' "$1" | tr -cd '0-9'
-}
-
-require_command() {
-	command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
-}
-
-ensure_runtime_dependencies() {
-	local cmd=""
-
-	for cmd in awk cat cp date du find grep jps kill lsof mkdir mv mysql ps rm sed sudo tail tr wc; do
-		require_command "${cmd}"
-	done
-}
-
-check_password() {
-	if [ -z "${MYSQL_PASSWORD}" ]; then
-		die "ATMOS_DB_PASSWORD is not set."
-	fi
-}
-
-mysql_exec() {
-	local sql="$1"
-	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
-}
-
-sql_quote() {
-	local value="${1:-}"
-	value="${value//\\/\\\\}"
-	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
-	printf "'%s'" "${value}"
-}
-
-update_task_status() {
-	local status="$1"
-	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
-}
-
-mark_older_commits_skip() {
-	mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
-}
-
-query_next_commit() {
-	local status_filter="$1"
-
-	if [ "${status_filter}" = "retest" ]; then
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
-	else
-		mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc LIMIT 1"
-	fi
-}
-
-fetch_next_commit() {
-	local row=""
-	local raw_commit_date_time=""
-
-	row="$(query_next_commit "retest")"
-	if [ -z "${row}" ]; then
-		row="$(query_next_commit "pending")"
-	fi
-	[ -n "${row}" ] || return 1
-
-	IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
-	author="$(trim "${author}")"
-	commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
-	[ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
-}
-
-git_commit_abbrev() {
-	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
-}
-
-path_is_safe() {
-	local path="$1"
-
-	[ -n "${path}" ] || return 1
-	case "${path}" in
-		/|/data|/nasdata|.)
-			return 1
-			;;
-		"${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
-			return 0
-			;;
-		*)
-			return 1
-			;;
-	esac
-}
-
-safe_rm() {
-	local path="$1"
-
-	[ -e "${path}" ] || return 0
-	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-	rm -rf -- "${path}"
-}
-
-sudo_safe_rm() {
-	local path="$1"
-
-	[ -e "${path}" ] || return 0
-	path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-	sudo rm -rf -- "${path}"
-}
-
-copy_if_exists() {
-	local source="$1"
-	local target="$2"
-	local label="${3:-$1}"
-
-	if [ ! -e "${source}" ]; then
-		log "skip copy, missing ${label}: ${source}"
-		return 0
-	fi
-
-	cp -rf -- "${source}" "${target}"
-}
-
 check_benchmark_version() {
 	local bm_new=""
 	local bm_old=""
@@ -291,27 +148,6 @@ init_items() {
 	errorLogSize=0
 }
 
-check_pid_and_kill() {
-	local pname="$1"
-	local desc="$2"
-	local pids=""
-	local pid=""
-
-	pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
-	if [ -z "${pids}" ]; then
-		log "no ${desc} process found."
-		return 0
-	fi
-
-	while IFS= read -r pid; do
-		[ -n "${pid}" ] || continue
-		kill -TERM "${pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${pid}" 2>/dev/null || true
-	done <<< "${pids}"
-	log "${desc} stopped."
-}
-
 check_benchmark_pid() {
 	check_pid_and_kill "App" "benchmark"
 }
@@ -325,19 +161,6 @@ check_iotdb_pid() {
 cleanup_processes() {
 	check_benchmark_pid
 	check_iotdb_pid
-}
-
-set_iotdb_property() {
-	local key="$1"
-	local value="$2"
-	local conf_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-	[ -f "${conf_file}" ] || die "missing config file: ${conf_file}"
-	if grep -q "^[[:space:]]*${key}[[:space:]]*=" "${conf_file}"; then
-		sed -i "s|^[[:space:]]*${key}[[:space:]]*=.*$|${key}=${value}|g" "${conf_file}"
-	else
-		printf '%s=%s\n' "${key}" "${value}" >> "${conf_file}"
-	fi
 }
 
 set_env() {
@@ -818,14 +641,6 @@ test_operation() {
 	return "${monitor_failed}"
 }
 
-mark_test_in_progress() {
-	printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-}
-
-restore_test_type_file() {
-	printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
-
 main() {
 	local protocol=""
 	local task_failed=0
@@ -866,5 +681,7 @@ main() {
 		update_task_status "RError"
 	fi
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
 
 main "$@"

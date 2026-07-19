@@ -1,34 +1,6 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 if [ -z "${BASH_VERSION:-}" ]; then
 	exec bash "$0" "$@"
 fi
@@ -87,18 +59,6 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 
-current_datetime() {
-	date +"%Y-%m-%d %H:%M:%S"
-}
-
-datetime_to_epoch() {
-	date -d "$1" +%s
-}
-
-git_commit_abbrev() {
-	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
-}
-
 check_benchmark_version() {
 	local bm_repos_path=/nasdata/repository/iot-benchmark
 	local bm_new=""
@@ -127,14 +87,6 @@ create_stuck_result_csv() {
 	for ((index = 0; index < 100; index++)); do
 		echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
 	done
-}
-
-bytes_to_gib() {
-	awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
-}
-
-to_int() {
-	awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
 }
 
 set_negative_benchmark_metrics() {
@@ -372,16 +324,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
 	done
 }
-get_single_index() {
-    # 获取 prometheus 单个指标的值
-    local query=$1
-    local end=$2
-    index_value=$(curl -G -s "http://${METRIC_SERVER}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
-	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-		index_value=0
-	fi
-	echo "${index_value}"
-}
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	#TEST_IP=$1
 	local metric_window=0
@@ -539,10 +481,9 @@ test_operation() {
 }
 
 ##准备开始测试
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
 main() {
+    ensure_runtime_dependencies
+    check_password
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -583,5 +524,8 @@ else
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

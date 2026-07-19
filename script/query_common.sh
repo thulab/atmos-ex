@@ -174,155 +174,12 @@ m_end_time=0
 
 # -------------------- 公共基础工具函数 --------------------
 # 这些函数不依赖具体查询类型，供所有查询类入口脚本和本文件内部流程复用。
-log() {
-    printf '[%s] %s\n' "$(date '+%F %T')" "$*"
-}
-
-die() {
-    log "ERROR: $*"
-    exit 1
-}
-
-trim() {
-    local value="${1:-}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    printf '%s' "${value}"
-}
-
-current_datetime() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
-datetime_to_epoch() {
-    date -d "$1" +%s
-}
-
-normalize_datetime() {
-    printf '%s' "$1" | tr -cd '0-9'
-}
-
-require_command() {
-    command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
-}
-
-ensure_runtime_dependencies() {
-    local cmd=""
-
-    for cmd in awk cat cp curl date du grep jq jps kill mkdir mv mysql rm sed sudo tr; do
-        require_command "${cmd}"
-    done
-}
-
-check_password() {
-    [ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
-}
-
 # -------------------- 公共安全路径和文件操作函数 --------------------
 # 所有删除/移动前先通过 path_is_safe 做路径白名单校验，避免变量为空或拼接异常时误删宿主机目录。
-path_is_safe() {
-    local path="$1"
-    [ -n "${path}" ] || return 1
-
-    case "${path}" in
-        "/"|"/data"|"/nasdata"|".")
-            return 1
-            ;;
-        "${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
-            return 0
-            ;;
-        *"/data/csvOutput/"*.csv)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-safe_rm() {
-    local path="$1"
-    [ -e "${path}" ] || return 0
-    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-    rm -rf -- "${path}"
-}
-
-sudo_safe_rm() {
-    local path="$1"
-    [ -e "${path}" ] || return 0
-    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-    sudo rm -rf -- "${path}"
-}
-
-copy_if_exists() {
-    local source="$1"
-    local target="$2"
-    local label="${3:-$1}"
-
-    if [ ! -e "${source}" ]; then
-        log "skip copy, missing ${label}: ${source}"
-        return 0
-    fi
-
-    cp -rf -- "${source}" "${target}"
-}
-
 # -------------------- 公共 MySQL 和任务队列函数 --------------------
 # 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
-mysql_exec() {
-    local sql="$1"
-    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
-}
-
-sql_quote() {
-    local value="${1:-}"
-    value="${value//\\/\\\\}"
-    value="$(printf '%s' "${value}" | sed "s/'/''/g")"
-    printf "'%s'" "${value}"
-}
-
-update_task_status() {
-    local status="$1"
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
-}
-
-mark_older_commits_skip() {
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
-}
-
-query_next_commit() {
-    local status_filter="$1"
-
-    if [ "${status_filter}" = "retest" ]; then
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc LIMIT 1"
-    else
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc LIMIT 1"
-    fi
-}
-
-fetch_next_commit() {
-    local row=""
-    local raw_commit_date_time=""
-
-    row="$(query_next_commit "retest")"
-    if [ -z "${row}" ]; then
-        row="$(query_next_commit "pending")"
-    fi
-    [ -n "${row}" ] || return 1
-
-    IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
-    author="$(trim "${author}")"
-    commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
-    [ -n "${commit_id}" ] || return 1
-    [ -n "${commit_date_time}" ] || die "failed to parse commit_date_time."
-}
-
 # -------------------- 公共 Benchmark 版本同步函数 --------------------
 # git_commit_abbrev/check_benchmark_version 负责保持查询测试使用的 iot-benchmark 为最新版本。
-git_commit_abbrev() {
-    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
-}
-
 check_benchmark_version() {
     local source_version=""
     local target_version=""
@@ -416,27 +273,6 @@ set_negative_benchmark_metrics() {
 
 # -------------------- 公共进程清理函数 --------------------
 # 统一清理 Benchmark 和 IoTDB 相关 Java 进程，供正常流程和异常流程复用。
-check_pid_and_kill() {
-    local pname="$1"
-    local desc="$2"
-    local pids=""
-    local pid=""
-
-    pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
-    if [ -z "${pids}" ]; then
-        log "no ${desc} process detected."
-        return 0
-    fi
-
-    while IFS= read -r pid; do
-        [ -n "${pid}" ] || continue
-        kill -TERM "${pid}" 2>/dev/null || true
-        sleep 2
-        kill -KILL "${pid}" 2>/dev/null || true
-    done <<< "${pids}"
-    log "${desc} process stopped."
-}
-
 cleanup_processes() {
     check_pid_and_kill "App" "Benchmark"
     check_pid_and_kill "DataNode" "DataNode"
@@ -664,42 +500,6 @@ monitor_test_status() {
 
 # -------------------- 公共 Prometheus 指标采集函数 --------------------
 # 采集文件数、线程数、WAL、日志大小等通用性能指标，供结果入库使用。
-get_single_index() {
-    local query="$1"
-    local end="$2"
-    local index_value=""
-
-    index_value="$(
-        curl -G -s "http://${METRIC_SERVER}/api/v1/query" \
-            --data-urlencode "query=${query}" \
-            --data-urlencode "time=${end}" \
-            | jq -r '.data.result[0].value[1] // 0'
-    )"
-
-    if [ "${index_value}" = "null" ] || [ -z "${index_value}" ]; then
-        index_value=0
-    fi
-
-    printf '%s\n' "${index_value}"
-}
-
-bytes_to_gib() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
-}
-
-to_int() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
-}
-
-file_size_bytes() {
-    local file="$1"
-    if [ -f "${file}" ]; then
-        du -sb "${file}" 2>/dev/null | awk '{print $1}'
-    else
-        printf '0\n'
-    fi
-}
-
 collect_monitor_data() {
     local metric_window=$((m_end_time - m_start_time))
     local maxNumofThread_C=0
@@ -1038,16 +838,6 @@ test_operation() {
 
 # -------------------- 公共调度状态函数 --------------------
 # 与外层调度器通过 test_type_file 协同当前测试状态。
-mark_test_in_progress() {
-    mkdir -p "${INIT_PATH}"
-    printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-}
-
-restore_test_type_file() {
-    mkdir -p "${INIT_PATH}"
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
-
 # -------------------- 公共主流程入口 --------------------
 # 由各入口脚本在 source 后调用 main "$@"，统一完成依赖检查、取 commit、遍历协议并更新任务状态。
 main() {
@@ -1094,3 +884,6 @@ main() {
         update_task_status "RError"
     fi
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"

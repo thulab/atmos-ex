@@ -1,34 +1,6 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 #登录用户名
 ACCOUNT=root
 TEST_TYPE="${TEST_TYPE:-python_api}"
@@ -157,6 +129,8 @@ start_iotdb() { # 启动iotdb
 	cd ~/
 }
 main() {
+    ensure_runtime_dependencies
+    check_password
 while true; do
 	init_items
 	# 获取git commit对比判定是否启动测试
@@ -271,5 +245,8 @@ while true; do
 	fi
 done
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

@@ -143,142 +143,6 @@ QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
 LONGRUN_TTL_MS=0
 
-log() {
-    printf '[%s] %s\n' "$(date '+%F %T')" "$*"
-}
-
-die() {
-    log "ERROR: $*"
-    exit 1
-}
-
-trim() {
-    local value="${1:-}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    printf '%s' "${value}"
-}
-
-current_datetime() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
-datetime_to_epoch() {
-    date -d "$1" +%s
-}
-
-normalize_datetime() {
-    printf '%s' "$1" | tr -cd '0-9'
-}
-
-require_command() {
-    command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
-}
-
-ensure_runtime_dependencies() {
-    local cmd=""
-
-    for cmd in awk cat cp curl date du grep jq jps kill mkdir mv mysql rm sed sudo tr; do
-        require_command "${cmd}"
-    done
-}
-
-check_password() {
-    [ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
-}
-
-path_is_safe() {
-    local path="$1"
-    [ -n "${path}" ] || return 1
-
-    case "${path}" in
-        "/"|"/data"|"/nasdata"|".")
-            return 1
-            ;;
-        "${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-safe_rm() {
-    local path="$1"
-    [ -e "${path}" ] || return 0
-    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-    rm -rf -- "${path}"
-}
-
-sudo_safe_rm() {
-    local path="$1"
-    [ -e "${path}" ] || return 0
-    path_is_safe "${path}" || die "refuse to remove unexpected path: ${path}"
-    sudo rm -rf -- "${path}"
-}
-
-copy_if_exists() {
-    local source="$1"
-    local target="$2"
-    local label="${3:-$1}"
-
-    if [ ! -e "${source}" ]; then
-        log "skip copy, missing ${label}: ${source}"
-        return 0
-    fi
-
-    cp -rf -- "${source}" "${target}"
-}
-
-mysql_exec() {
-    local sql="$1"
-    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
-}
-
-sql_quote() {
-    local value="${1:-}"
-    value="${value//\\/\\\\}"
-    value="$(printf '%s' "${value}" | sed "s/'/''/g")"
-    printf "'%s'" "${value}"
-}
-
-update_task_status() {
-    local status="$1"
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
-}
-
-mark_older_commits_skip() {
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < $(sql_quote "${commit_date_time}")"
-}
-
-query_next_commit() {
-    local status_filter="$1"
-
-    if [ "${status_filter}" = "retest" ]; then
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc LIMIT 1"
-    else
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} ORDER BY commit_date_time desc LIMIT 1"
-    fi
-}
-
-fetch_next_commit() {
-    local row=""
-    local raw_commit_date_time=""
-
-    row="$(query_next_commit "retest")"
-    if [ -z "${row}" ]; then
-        row="$(query_next_commit "pending")"
-    fi
-    [ -n "${row}" ] || return 1
-
-    IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
-    author="$(trim "${author}")"
-    commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
-    [ -n "${commit_id}" ] || return 1
-    [ -n "${commit_date_time}" ] || die "failed to parse commit_date_time."
-}
-
 detect_local_ips() {
     {
         hostname -I 2>/dev/null || true
@@ -306,10 +170,6 @@ init_longrun_route() {
     fi
 
     log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
-}
-
-git_commit_abbrev() {
-    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
 }
 
 sync_benchmark_path() {
@@ -418,27 +278,6 @@ set_negative_benchmark_metrics() {
     P99="${value}"
     P999="${value}"
     MAX="${value}"
-}
-
-check_pid_and_kill() {
-    local pname="$1"
-    local desc="$2"
-    local pids=""
-    local pid=""
-
-    pids="$(jps | awk -v pname="${pname}" '$2 == pname {print $1}')"
-    if [ -z "${pids}" ]; then
-        log "no ${desc} process detected."
-        return 0
-    fi
-
-    while IFS= read -r pid; do
-        [ -n "${pid}" ] || continue
-        kill -TERM "${pid}" 2>/dev/null || true
-        sleep 2
-        kill -KILL "${pid}" 2>/dev/null || true
-    done <<< "${pids}"
-    log "${desc} process stopped."
 }
 
 cleanup_processes() {
@@ -1027,42 +866,6 @@ monitor_test_status() {
     done
 }
 
-get_single_index() {
-    local query="$1"
-    local end="$2"
-    local index_value=""
-
-    index_value="$(
-        curl -G -s "http://${METRIC_SERVER}/api/v1/query" \
-            --data-urlencode "query=${query}" \
-            --data-urlencode "time=${end}" \
-            | jq -r '.data.result[0].value[1] // 0'
-    )"
-
-    if [ "${index_value}" = "null" ] || [ -z "${index_value}" ]; then
-        index_value=0
-    fi
-
-    printf '%s\n' "${index_value}"
-}
-
-bytes_to_gib() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
-}
-
-to_int() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
-}
-
-file_size_bytes() {
-    local file="$1"
-    if [ -f "${file}" ]; then
-        du -sb "${file}" 2>/dev/null | awk '{print $1}'
-    else
-        printf '0\n'
-    fi
-}
-
 collect_monitor_data() {
     local ip="$1"
     local metric_window=$((m_end_time - m_start_time))
@@ -1384,14 +1187,6 @@ test_operation() {
     [ "${monitor_failed}" -eq 0 ] && [ "${result_failed}" -eq 0 ]
 }
 
-mark_test_in_progress() {
-    printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-}
-
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
-
 main() {
     local protocol=""
     local task_failed=0
@@ -1427,5 +1222,8 @@ main() {
         update_task_status "RError"
     fi
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

@@ -1,34 +1,6 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 #登录用户名
 ACCOUNT=atmos
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -263,10 +235,9 @@ backup_test_data() { # 备份测试数据
 	sudo mv ${TEST_TOOL_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
 ##准备开始测试
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
 main() {
+    ensure_runtime_dependencies
+    check_password
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -709,5 +680,8 @@ else
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

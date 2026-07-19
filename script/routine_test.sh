@@ -8,34 +8,6 @@ fi
 
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 #登录用户名
 TEST_IP="11.101.17.156"
 readonly TIMECHO_ROUTINE_IP="11.101.17.156"
@@ -75,30 +47,7 @@ query_data_type=(seq unseq)
 query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3 Q5 Q6-1 Q6-2 Q6-3 Q7-1 Q7-2 Q7-3 Q7-4 Q8 Q9 Q10)
 query_type=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 
-log() {
-	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
-}
-
-die() {
-	log "ERROR: $*"
-	exit 1
-}
-
-require_command() {
-	command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
-}
-
-ensure_runtime_dependencies() {
-	local cmd
-	for cmd in awk cp curl cut date find grep hostname jps jq kill mkdir mv mysql rm sed sleep sudo touch tr; do
-		require_command "${cmd}"
-	done
-}
 ############公用函数##########################
-check_password() {
-	[ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is required"
-}
-
 run_mysql() {
 	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "$1"
 }
@@ -130,10 +79,6 @@ init_routine_route() {
 	fi
 
 	echo "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
-}
-
-git_commit_abbrev() {
-	awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
 }
 
 format_gb() {
@@ -346,16 +291,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-get_single_index() {
-    # 获取 prometheus 单个指标的值
-    local query="$1"
-    local end="$2"
-    local url="http://${METRIC_SERVER}/api/v1/query"
-    local index_value
-    index_value=$(curl -GfsS "${url}" --data-urlencode "query=${query}" --data-urlencode "time=${end}" |
-        jq -r '.data.result[0].value[1] // 0') || index_value=0
-	printf '%s\n' "${index_value}"
-}
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	local ip="${1:-${TEST_IP}}"
 	local range_seconds=$((m_end_time - m_start_time))
@@ -547,10 +482,6 @@ test_operation() {
 	done
 }
 ##准备开始测试
-restore_test_type_file() {
-	printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
-
 main() {
 	ensure_runtime_dependencies
 	check_password
@@ -596,5 +527,8 @@ else
 	run_mysql "${update_sql02}"
 fi
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

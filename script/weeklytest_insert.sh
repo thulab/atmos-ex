@@ -1,34 +1,6 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 if [ -z "${BASH_VERSION:-}" ]; then
     exec bash "$0" "$@"
 fi
@@ -81,25 +53,6 @@ MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
-check_password() {
-    if [ -z "${MYSQL_PASSWORD}" ]; then
-        printf '[ERROR] ATMOS_DB_PASSWORD is required\n' >&2
-        return 1
-    fi
-}
-
-current_datetime() {
-    date +"%Y-%m-%d %H:%M:%S"
-}
-
-datetime_to_epoch() {
-    date -d "$1" +%s
-}
-
-git_commit_abbrev() {
-    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
-}
-
 find_result_csv() {
     find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
 }
@@ -115,14 +68,6 @@ create_stuck_result_csv() {
     for ((index = 0; index < 100; index++)); do
         echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
     done
-}
-
-bytes_to_gib() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%.2f\n", value / 1073741824 }'
-}
-
-to_int() {
-    awk -v value="${1:-0}" 'BEGIN { printf "%d\n", value }'
 }
 
 set_negative_benchmark_metrics() {
@@ -211,20 +156,6 @@ init_items() {
 
 sendEmail() {
     sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
-}
-
-check_pid_and_kill() {
-    local pname=$1
-    local desc=$2
-    local pid=$(jps | awk -v pname="$pname" '$2 == pname {print $1}')
-    if [ -n "$pid" ]; then
-        kill -TERM "$pid" 2>/dev/null || true
-        sleep 2
-        kill -KILL "$pid" 2>/dev/null || true
-        echo "$desc 已停止！"
-    else
-        echo "未检测到$desc！"
-    fi
 }
 
 check_benchmark_pid() { check_pid_and_kill "App" "BM程序"; }
@@ -317,15 +248,6 @@ monitor_test_status() {
 
         sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
     done
-}
-
-get_single_index() {
-    local query=$1; local end=$2
-    local index_value=$(curl -G -s "http://${METRIC_SERVER}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // 0')
-    if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-        index_value=0
-    fi
-    echo "$index_value"
 }
 
 collect_monitor_data() {
@@ -427,10 +349,9 @@ test_operation() {
 # -------------------- 主流程 --------------------
 check_password
 check_benchmark_version
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
 main() {
+    ensure_runtime_dependencies
+    check_password
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -474,5 +395,8 @@ else
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
 
 main "$@"

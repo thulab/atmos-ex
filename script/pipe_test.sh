@@ -1,34 +1,6 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 #登录用户名
 ACCOUNT=root
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -225,7 +197,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
-setup_env() {
+setup_env_linux() {
 	echo "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
@@ -432,17 +404,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-get_single_index() {
-    # 获取 prometheus 单个指标的值
-    local end=$2
-    local url="http://${METRIC_SERVER}/api/v1/query"
-    local data_param="--data-urlencode query=$1 --data-urlencode 'time=${end}'"
-    index_value=$(curl -G -s $url ${data_param} | jq '.data.result[0].value[1]'| tr -d '"')
-	if [[ "$index_value" == "null" || -z "$index_value" ]]; then 
-		index_value=0
-	fi
-	echo ${index_value}
-}
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	dataFileSizeA=0
 	numOfSe0LevelA=0
@@ -557,7 +518,7 @@ test_operation() {
 		return
 	fi
 	#启动iotdb
-	setup_env
+	setup_platform_env
 	sleep 60
 	#启动写入程序
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
@@ -617,10 +578,9 @@ test_operation() {
 	backup_test_data ${ts_type}
 }
 ##准备开始测试
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
 main() {
+    ensure_runtime_dependencies
+    check_password
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -668,5 +628,9 @@ else
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/platform_common.sh"
 
 main "$@"

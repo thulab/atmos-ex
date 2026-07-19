@@ -7,35 +7,8 @@ if shopt -oq posix; then
 fi
 
 set -o pipefail
+readonly TEST_PLATFORM="windows"
 
-set_iotdb_property() {
-    local properties_file="$1"
-    local property_name="$2"
-    local property_value="$3"
-    local temp_file="${properties_file}.tmp.$$"
-
-    [ -f "${properties_file}" ] || {
-        printf '[ERROR] missing properties file: %s\n' "${properties_file}" >&2
-        return 1
-    }
-    awk -F= -v key="${property_name}" -v value="${property_value}" '
-        BEGIN { updated = 0 }
-        $1 == key {
-            if (!updated) {
-                print key "=" value
-                updated = 1
-            }
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${properties_file}" > "${temp_file}" &&
-        mv -- "${temp_file}" "${properties_file}"
-}
 #登录用户名
 ACCOUNT=Administrator
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -90,48 +63,6 @@ unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
-log() {
-	printf '[%s] %s\n' "$(date '+%F %T')" "$*"
-}
-
-die() {
-	log "ERROR: $*"
-	exit 1
-}
-
-require_command() {
-	command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
-}
-
-ensure_runtime_dependencies() {
-	local cmd
-	for cmd in awk curl date find grep jq mysql scp sed ssh; do
-		require_command "${cmd}"
-	done
-}
-
-check_password() {
-	[ -n "${MYSQL_PASSWORD}" ] || die "ATMOS_DB_PASSWORD is not set, cannot connect to MySQL."
-}
-
-mysql_exec() {
-	local sql="$1"
-	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "${sql}"
-}
-
-sql_quote() {
-	local value="${1:-}"
-	value="${value//\\/\\\\}"
-	value="$(printf '%s' "${value}" | sed "s/'/''/g")"
-	printf "'%s'" "${value}"
-}
-
-git_commit_abbrev() {
-	local properties="$1/git.properties"
-	[ -f "${properties}" ] || return 0
-	awk -F= '$1 == "git.commit.id.abbrev" { print $2; exit }' "${properties}"
-}
-
 sync_benchmark_path() {
 	local new_commit old_commit
 	new_commit="$(git_commit_abbrev "${BM_REPOS_PATH}")"
@@ -237,7 +168,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
-setup_env() {
+setup_env_windows() {
 	echo "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
@@ -474,18 +405,6 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
-get_single_index() {
-    # 获取 prometheus 单个指标的值
-	local query="$1"
-	local end="$2"
-	local url="http://${METRIC_SERVER}/api/v1/query"
-	local index_value
-	index_value=$(curl -GfsS "${url}" \
-		--data-urlencode "query=${query}" \
-		--data-urlencode "time=${end}" |
-		jq -r '.data.result[0].value[1] // 0') || index_value=0
-	printf '%s\n' "${index_value}"
-}
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	dataFileSizeA=0
 	numOfSe0LevelA=0
@@ -601,7 +520,7 @@ test_operation() {
 		return
 	fi
 	#启动iotdb
-	setup_env
+	setup_platform_env
 	sleep 10
 	#启动写入程序
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
@@ -666,9 +585,6 @@ main() {
 	check_password
 	sync_benchmark_path
 	mkdir -p "${INIT_PATH}"
-restore_test_type_file() {
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
-}
 trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -716,5 +632,9 @@ else
 fi
 	echo "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/platform_common.sh"
 
 main "$@"
