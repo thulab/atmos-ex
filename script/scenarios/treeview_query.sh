@@ -218,13 +218,13 @@ copy_benchmark_config() {
     local config_source="$1"
     local config_target="${BM_PATH}/conf/config.properties"
 
-    [ -f "${config_source}" ] || die "missing benchmark config: ${config_source}"
-    safe_rm "${config_target}"
-    cp -rf -- "${config_source}" "${config_target}"
+    install_benchmark_config "${config_source}" "${config_target}"
 }
 
 # 功能：更新 Benchmark 配置属性；不存在时追加
 upsert_benchmark_property() {
+    upsert_properties "${BM_PATH}/conf/config.properties" "$1=$2"
+    return
     local key="$1"
     local value="$2"
     local config_file="${BM_PATH}/conf/config.properties"

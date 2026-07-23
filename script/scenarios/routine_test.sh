@@ -117,6 +117,9 @@ check_benchmark_version() {
 
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+	init_case_state
+	test_date_time=0; ts_type=0; data_type=0; op_type=0
+	return
 ############定义监控采集项初始值##########################
 test_date_time=0
 ts_type=0
@@ -188,6 +191,10 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 }
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
+	set_iotdb_heap_memory 20G
+	upsert_properties "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name=${TEST_TYPE}"
+	apply_iotdb_profile metrics
+	return
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
 	#清空配置文件
@@ -246,6 +253,11 @@ start_benchmark() { # 启动benchmark
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	routine_timeout_result() {
+		create_standard_stuck_result_csv INGESTION
+	}
+	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-100000}" 10 routine_timeout_result "$(date -d "${start_time}" +%s)"
+	return
 	while true; do
 		csvOutput=${BM_PATH}/data/csvOutput
 		if [ ! -d "$csvOutput" ]; then
@@ -275,6 +287,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
+	resolve_monitor_disk_id
+	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
+	return
 	local ip="${1:-${TEST_IP}}"
 	local range_seconds=$((m_end_time - m_start_time))
 	local data_file_bytes wal_file_bytes
@@ -312,6 +327,8 @@ backup_test_data() { # 备份测试数据
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
+	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
+	return
 	local config_name=$1
 	rm -rf "${BM_PATH}/conf/config.properties"
 	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/${config_name}" "${BM_PATH}/conf/config.properties"
@@ -522,6 +539,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

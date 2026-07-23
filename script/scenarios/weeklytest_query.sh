@@ -62,6 +62,9 @@ unset required_command
 
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+	init_case_state
+	ts_type=0; data_type=0; query_type=0; sensor_type=0; query_num=0
+	return
 ############定义监控采集项初始值##########################
 test_date_time=0
 ts_type=0
@@ -116,6 +119,9 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 }
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
+	set_iotdb_heap_memory 20G
+	apply_iotdb_profile base
+	return
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 	#清空配置文件
@@ -170,6 +176,12 @@ start_benchmark() { # 启动benchmark
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	weekly_query_timeout_result() {
+		create_standard_stuck_result_csv QUERY
+	}
+	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-7200}" \
+		"${MONITOR_POLL_INTERVAL_SECONDS:-10}" weekly_query_timeout_result "${m_start_time}"
+	return
 	local result_label="${1:-PRECISE_POINT}"
 	local csv_file=""
 	local now_epoch=0
@@ -188,7 +200,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
 			end_time=$(current_datetime)
 			log "${ts_type} benchmark timed out."
-			create_stuck_result_csv "${result_label}"
+			create_standard_stuck_result_csv "${result_label}"
 			return 1
 		fi
 
@@ -197,6 +209,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
+	resolve_monitor_disk_id
+	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
+	return
 	#TEST_IP=$1
 	local metric_window=0
 	local maxNumofThread_C=0
@@ -232,6 +247,8 @@ backup_test_data() { # 备份测试数据
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
+	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
+	return
 	rm -rf -- "${BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
 	if [ $3 = "table" ]; then
@@ -333,8 +350,8 @@ test_operation_impl() {
 						collect_monitor_data
 						#测试结果收集写入数据库
 						csvOutputfile=$(find_result_csv || true)
-						if ! parse_benchmark_result "${csvOutputfile}" "${query_type_list[${i}]}"; then
-							set_negative_benchmark_metrics -2
+						if ! parse_standard_benchmark_result "${csvOutputfile}" "${query_type_list[${i}]}"; then
+							set_standard_negative_benchmark_metrics -2
 						fi
 
 						cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
@@ -407,7 +424,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/standard_benchmark_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

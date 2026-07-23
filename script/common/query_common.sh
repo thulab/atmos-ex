@@ -185,6 +185,8 @@ m_end_time=0
 # git_commit_abbrev/check_benchmark_version 负责保持查询测试使用的 iot-benchmark 为最新版本。
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
+    return
     local source_version=""
     local target_version=""
 
@@ -207,6 +209,8 @@ check_benchmark_version() {
 # 每个协议或查询 case 开始前重置全局指标，避免上一次结果污染本次入库数据。
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+    init_case_state
+    return
     okPoint=0
     okOperation=0
     failPoint=0
@@ -308,9 +312,9 @@ prepare_query_users() {
         return 0
     fi
 
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -e "CREATE USER qa_user 'test123456789'" >/dev/null 2>&1 || true
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -e "GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION" >/dev/null 2>&1 || true
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw root -sql_dialect table -e "GRANT ALL TO USER qa_user" >/dev/null 2>&1 || true
+    iotdb_cli_exec "CREATE USER qa_user 'test123456789'" 127.0.0.1 6667 root root >/dev/null 2>&1 || true
+    iotdb_cli_exec "GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION" 127.0.0.1 6667 root root >/dev/null 2>&1 || true
+    iotdb_cli_run -u root -pw root -sql_dialect table -e "GRANT ALL TO USER qa_user" >/dev/null 2>&1 || true
 }
 
 # -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
@@ -330,6 +334,13 @@ create_stuck_result_csv() {
 monitor_test_status() {
     local query_name="$1"
     local result_label="$2"
+    query_timeout_result() {
+        log "${query_name} query timed out."
+        create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" "${result_label}"
+    }
+    wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
+        "${MONITOR_POLL_INTERVAL_SECONDS}" query_timeout_result "${m_start_time}"
+    return
     local csv_file=""
     local now_epoch=0
     local elapsed=0
@@ -359,6 +370,9 @@ monitor_test_status() {
 # 采集文件数、线程数、WAL、日志大小等通用性能指标，供结果入库使用。
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
+    collect_standard_monitor_snapshot "${TEST_IP}"
+    errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") ))
+    return
     local metric_window=$((m_end_time - m_start_time))
     local maxNumofThread_C=0
     local maxNumofThread_D=0
@@ -604,10 +618,7 @@ run_query_case() {
     log "start query: protocol=${protocol_code}, ts_type=${current_ts_type}, query=${query_name}"
     cleanup_processes
     sleep 1
-    start_iotdb
-    sleep "${STARTUP_GRACE_SECONDS}"
-
-    if ! wait_for_iotdb_ready; then
+    if ! start_iotdb_and_wait; then
         log "IoTDB failed to start, writing negative result."
         start_time="0"
         end_time="0"
@@ -726,12 +737,10 @@ main() {
     check_benchmark_version
 
     mark_test_in_progress
-    if ! fetch_next_commit; then
+    if ! claim_next_task; then
         sleep 60
         return 0
     fi
-
-    update_task_status "ontesting"
     log "current commit ${commit_id} is pending, start query test."
 
     if [ "${author}" = "Timecho" ]; then
@@ -750,12 +759,11 @@ main() {
 
     log "test round ${test_date_time} finished."
     if [ "${task_failed}" -eq 0 ]; then
-        update_task_status "done"
-        if [ "${author}" != "Timecho" ]; then
-            mark_older_commits_skip
-        fi
+        TASK_SKIP_OLDER_COMMITS=1
+        [ "${author}" != "Timecho" ] || TASK_SKIP_OLDER_COMMITS=0
+        finish_task_success
     else
-        update_task_status "RError"
+        finish_task_failure
     fi
 }
 

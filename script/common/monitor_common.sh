@@ -185,3 +185,39 @@ file_size_bytes() {
     local path="$1"
     [ -f "${path}" ] && wc -c < "${path}" || printf '0\n'
 }
+
+# 功能：记录监控窗口开始时间
+begin_monitor_window() {
+    m_start_time="$(date +%s)"
+}
+
+# 功能：记录监控窗口结束时间并计算有效窗口长度
+end_monitor_window() {
+    m_end_time="$(date +%s)"
+    monitor_window_seconds=$((m_end_time - m_start_time))
+    [ "${monitor_window_seconds}" -gt 0 ] || monitor_window_seconds=1
+}
+
+# 功能：采集标准 IoTDB 文件、线程、CPU、WAL 和磁盘指标
+collect_standard_monitor_snapshot() {
+    local ip="${1:-${TEST_IP}}"
+    local window="${2:-${monitor_window_seconds:-$((m_end_time - m_start_time))}}"
+    local cn_threads=0
+    local dn_threads=0
+
+    [ "${window}" -gt 0 ] || window=1
+    dataFileSize="$(bytes_to_gib "$(prometheus_value "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")")"
+    numOfSe0Level="$(prometheus_value "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
+    numOfUnse0Level="$(prometheus_value "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
+    cn_threads="$(prometheus_value "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${window}s])" "${m_end_time}")"
+    dn_threads="$(prometheus_value "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${window}s])" "${m_end_time}")"
+    maxNumofThread=$(( $(to_int "${cn_threads}") + $(to_int "${dn_threads}") ))
+    maxNumofOpenFiles="$(prometheus_value "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${window}s])" "${m_end_time}")"
+    walFileSize="$(bytes_to_gib "$(prometheus_value "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${window}s])" "${m_end_time}")")"
+    maxCPULoad="$(prometheus_value "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${window}s])" "${m_end_time}")"
+    avgCPULoad="$(prometheus_value "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${window}s])" "${m_end_time}")"
+    maxDiskIOOpsRead="$(prometheus_value "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex:-.*}\",type=~\"read\"}[${window}s]))" "${m_end_time}")"
+    maxDiskIOOpsWrite="$(prometheus_value "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex:-.*}\",type=~\"write\"}[${window}s]))" "${m_end_time}")"
+    maxDiskIOSizeRead="$(prometheus_value "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex:-.*}\",type=~\"read\"}[${window}s]))" "${m_end_time}")"
+    maxDiskIOSizeWrite="$(prometheus_value "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex:-.*}\",type=~\"write\"}[${window}s]))" "${m_end_time}")"
+}

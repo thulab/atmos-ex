@@ -275,9 +275,7 @@ backup_test_data() {
 	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
 	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
 
-	sudo_safe_rm "${backup_dir}"
-	path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
-	sudo mkdir -p -- "${backup_dir}"
+	prepare_archive_directory "${backup_dir}"
 	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
 	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"

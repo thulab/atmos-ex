@@ -116,14 +116,12 @@ while true; do
 	#对比判定是否启动测试
 	cd "${IOTDB_PATH}" || return 1
 	#git reset --hard 938c1f19df122ffaafd827a00a65f5931cbc7f4c
-	last_cid=$(git log --pretty=format:"%h" -1)
+	last_cid=$(git_current_commit "${IOTDB_PATH}")
 	#last_cid=0
 	#更新iotdb代码
-	git_pull=$(timeout 100s git fetch --all)
-	git_pull=$(git reset --hard origin/master)
-	git_pull=$(timeout 100s git pull)
+	git_sync_branch "${IOTDB_PATH}" master 100
 	# 获取更新后git commit对比判定是否启动测试
-	commit_id=$(git log --pretty=format:"%h" -1)
+	commit_id=$(git_current_commit "${IOTDB_PATH}")
 	#对比判定是否启动测试
 	if [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
 		log "无代码更新，当前版本${commit_id}已经执行过测试"

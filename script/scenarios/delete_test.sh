@@ -395,6 +395,13 @@ create_stuck_result_csv() {
 monitor_test_status() {
     local current_name="$1"
     local result_label="$2"
+    delete_timeout_result() {
+        log "${current_name} benchmark timed out."
+        create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" "${result_label}"
+    }
+    wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
+        "${MONITOR_POLL_INTERVAL_SECONDS}" delete_timeout_result "${m_start_time}"
+    return
     local csv_file=""
     local now_epoch=0
     local elapsed=0
@@ -452,7 +459,7 @@ count_tsfiles() {
 
 # 功能：统计指定文件、数据点或运行对象数量
 count_mods_files() {
-    count_data_files_by_name "*.mods2"
+    count_files_by_pattern "${TEST_IOTDB_PATH}/data" "*.mods2"
 }
 
 # 功能：统计指定文件、数据点或运行对象数量
@@ -581,9 +588,7 @@ copy_benchmark_config() {
     local config_source="$1"
     local config_target="${BM_PATH}/conf/config.properties"
 
-    [ -f "${config_source}" ] || die "missing benchmark config: ${config_source}"
-    safe_rm "${config_target}"
-    cp -rf "${config_source}" "${config_target}"
+    install_benchmark_config "${config_source}" "${config_target}"
 }
 
 # 功能：检测并设置 IoTDB root 用户密码
@@ -747,12 +752,7 @@ run_benchmark_write() {
 # 功能：执行指定测试阶段或外部工具命令
 run_iotdb_sql() {
     local sql="$1"
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" \
-        -u root \
-        -pw "${IOTDB_PASSWORD}" \
-        -h "${CLI_HOST}" \
-        -p "${CLI_PORT}" \
-        -e "${sql}" 2>&1
+    iotdb_cli_exec "${sql}" "${CLI_HOST}" "${CLI_PORT}" root "${IOTDB_PASSWORD}" 2>&1
 }
 
 # 功能：从命令输出、日志或结果文件中提取目标值
@@ -1261,6 +1261,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

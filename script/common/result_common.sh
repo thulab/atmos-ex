@@ -54,3 +54,50 @@ fetch_next_commit() {
     commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
     [ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
 }
+
+# 功能：领取下一个任务并立即标记为执行中
+claim_next_task() {
+    fetch_next_commit || return 1
+    update_task_status "ontesting"
+}
+
+# 功能：完成当前任务并按配置跳过更旧提交
+finish_task_success() {
+    update_task_status "done"
+    [ "${TASK_SKIP_OLDER_COMMITS:-1}" -eq 0 ] || mark_older_commits_skip
+}
+
+# 功能：将当前任务标记为失败状态
+finish_task_failure() {
+    update_task_status "${1:-${TASK_FAILURE_STATUS:-RError}}"
+}
+
+# 功能：执行一次领取、运行和状态收尾流程
+run_task_lifecycle() {
+    local task_function="$1"
+    shift
+
+    claim_next_task || return 2
+    if "${task_function}" "$@"; then
+        finish_task_success
+        return 0
+    fi
+    finish_task_failure
+    return 1
+}
+
+# 功能：持续领取并执行任务，无任务时按配置间隔轮询
+run_task_loop() {
+    local task_function="$1"
+    local poll_seconds="${TASK_POLL_INTERVAL_SECONDS:-60}"
+    shift
+
+    while true; do
+        run_task_lifecycle "${task_function}" "$@"
+        case "$?" in
+            0|1) [ "${TASK_RUN_ONCE:-0}" -eq 0 ] || return ;;
+            2) [ "${TASK_RUN_ONCE:-0}" -eq 0 ] || return 2 ;;
+        esac
+        sleep "${poll_seconds}"
+    done
+}

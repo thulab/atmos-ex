@@ -134,6 +134,8 @@ disk_id_regex="^${DEFAULT_DISK_ID}$"
 # 默认同步 iot-benchmark；last_cache_query 等特殊脚本可在 source 后覆盖同名函数。
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
+    return
     local bm_new=""
     local bm_old=""
 
@@ -300,6 +302,9 @@ check_throughput_monitor() {
 # 每个 case 开始前重置全局指标，避免上一个 case 的结果污染本次入库数据。
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+    init_case_state
+    disk_id_regex="^${DEFAULT_DISK_ID}$"
+    return
     okPoint=0
     okOperation=0
     failPoint=0
@@ -353,6 +358,13 @@ create_stuck_result_csv() {
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local current_ts_type="$1"
+    insert_timeout_result() {
+        log "${current_ts_type} benchmark timed out."
+        create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv"
+    }
+    wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
+        "${MONITOR_POLL_INTERVAL_SECONDS}" insert_timeout_result "${m_start_time}"
+    return
     local csv_file=""
     local now_epoch=0
     local elapsed=0
@@ -400,6 +412,10 @@ normalize_decimal() {
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local ip="$1"
+    resolve_monitor_disk_id
+    collect_standard_monitor_snapshot "${ip}"
+    errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") ))
+    return
     local metric_window=$((m_end_time - m_start_time))
     local maxNumofThread_C=0
     local maxNumofThread_D=0
@@ -464,6 +480,9 @@ mv_config_file() {
     local current_api_type="$3"
     local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}_${current_api_type}"
     local config_target="${BM_PATH}/conf/config.properties"
+
+    install_benchmark_config "${config_source}" "${config_target}"
+    return
 
     [ -f "${config_source}" ] || die "缺少 benchmark 配置文件: ${config_source}"
     safe_rm "${config_target}"
@@ -643,9 +662,7 @@ test_operation_impl() {
         return 1
     fi
 
-    start_iotdb
-    sleep "${STARTUP_GRACE_SECONDS}"
-    if ! wait_for_iotdb_ready; then
+    if ! start_iotdb_and_wait; then
         log "IoTDB 未能正常启动，写入负值测试结果。"
         cost_time=-3
         throughput=-3
@@ -732,12 +749,10 @@ main() {
     fi
 
     mark_test_in_progress
-    if ! fetch_next_commit; then
+    if ! claim_next_task; then
         sleep 60
         return 0
     fi
-
-    update_task_status "ontesting"
     log "当前版本 ${commit_id} 未执行过测试，即将启动测试流程。"
 
     if [ "${author}" = "Timecho" ]; then
@@ -759,12 +774,11 @@ main() {
 
     log "本轮测试 ${test_date_time} 已结束。"
     if [ "${task_failed}" -eq 0 ]; then
-        update_task_status "done"
-        if [ "${author}" != "Timecho" ]; then
-            mark_older_commits_skip
-        fi
+        TASK_SKIP_OLDER_COMMITS=1
+        [ "${author}" != "Timecho" ] || TASK_SKIP_OLDER_COMMITS=0
+        finish_task_success
     else
-        update_task_status "RError"
+        finish_task_failure
     fi
 }
 

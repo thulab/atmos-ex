@@ -433,20 +433,18 @@ printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 init_items
 # 收集TsFile当前和最新的commit，拉取最新的代码
 cd "${TSFILE_PATH}" || return 1
-last_cid_TsFile=$(git log --pretty=format:"%h" -1)
-git_pull=$(timeout 100s git fetch --all)
-git_pull=$(git reset --hard origin/develop)
-git_pull=$(timeout 100s git pull)
-commit_id_TsFile=$(git log --pretty=format:"%h" -1)
+last_cid_TsFile=$(git_current_commit "${TSFILE_PATH}")
+git_sync_branch "${TSFILE_PATH}" develop 100
+commit_id_TsFile=$(git_current_commit "${TSFILE_PATH}")
 # 获取TsFile的commit信息时间
 test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
 # 更新测试工具
 cd "${JAVA_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${JAVA_TOOL_PATH}" 100
 cd "${CPP_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${CPP_TOOL_PATH}" 100
 cd "${PYTHON_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${PYTHON_TOOL_PATH}" 100
 # 对比判定是否启动测试
 if [ "${last_cid_TsFile}" != "${commit_id_TsFile}" ]; then
 	run_api_test_suite \

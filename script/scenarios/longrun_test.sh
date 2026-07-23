@@ -176,6 +176,8 @@ init_longrun_route() {
 
 # 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "$1"
+    return
     local target_path="$1"
     local source_version=""
     local target_version=""
@@ -791,9 +793,7 @@ copy_benchmark_config() {
     local target_benchmark_path="$2"
     local target_config="${target_benchmark_path}/conf/config.properties"
 
-    [ -f "${source_config}" ] || die "missing benchmark config file: ${source_config}"
-    safe_rm "${target_config}"
-    cp -rf -- "${source_config}" "${target_config}"
+    install_benchmark_config "${source_config}" "${target_config}"
 }
 
 # 功能：准备当前步骤所需的目录、配置或测试数据
@@ -1186,9 +1186,7 @@ test_operation_impl() {
         return 1
     fi
 
-    start_iotdb
-    sleep "${STARTUP_GRACE_SECONDS}"
-    if ! wait_for_iotdb_ready; then
+    if ! start_iotdb_and_wait; then
         log "IoTDB failed to start, writing negative result."
         write_start_failure_result "${protocol_code}" -3
         cleanup_processes

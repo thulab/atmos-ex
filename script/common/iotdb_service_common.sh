@@ -10,6 +10,13 @@ start_iotdb() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
 }
 
+# 功能：启动 IoTDB 并等待集群就绪
+start_iotdb_and_wait() {
+    start_iotdb
+    sleep "${IOTDB_READY_INITIAL_WAIT_SECONDS:-${STARTUP_GRACE_SECONDS:-0}}"
+    wait_iotdb_ready "${1:-${IOTDB_READY_RETRIES:-10}}" "${2:-${IOTDB_READY_INTERVAL_SECONDS:-5}}"
+}
+
 # 功能：执行一次 DataNode 和 ConfigNode 停止操作
 stop_iotdb_once() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
@@ -36,13 +43,28 @@ stop_iotdb() {
     return 1
 }
 
+# 功能：停止后重新启动 IoTDB 并等待集群恢复
+restart_iotdb_and_wait() {
+    stop_iotdb || true
+    sleep "${IOTDB_RESTART_WAIT_SECONDS:-${STARTUP_GRACE_SECONDS:-10}}"
+    start_iotdb_and_wait "$@"
+}
+
+# 功能：启动失败时调用场景提供的结果记录回调
+start_iotdb_or_handle_failure() {
+    local failure_callback="${1:-}"
+    shift || true
+    start_iotdb_and_wait "$@" && return 0
+    [ -z "${failure_callback}" ] || "${failure_callback}"
+    return 1
+}
+
 # 功能：执行一次 IoTDB 集群就绪查询
 iotdb_is_ready() {
     local output=""
-    local -a cli_args=()
-    [ -z "${IOTDB_READY_USER:-}" ] || cli_args+=(-u "${IOTDB_READY_USER}")
-    [ -z "${IOTDB_READY_PASSWORD:-}" ] || cli_args+=(-pw "${IOTDB_READY_PASSWORD}")
-    output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${cli_args[@]}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
+    output="$(iotdb_cli_query "show cluster" 127.0.0.1 6667 \
+        "${IOTDB_READY_USER:-root}" "${IOTDB_READY_PASSWORD:-${IOTDB_PASSWORD:-root}}" |
+        grep -F 'Total line number = 2' || true)"
     [ "${output}" = "Total line number = 2" ]
 }
 
@@ -60,8 +82,8 @@ wait_for_iotdb_ready() {
 
 # 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
+    if iotdb_cli_exec "show cluster" 127.0.0.1 6667 root "${IOTDB_PASSWORD}" >/dev/null 2>&1; then
         return 0
     fi
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
+    iotdb_cli_exec "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" 127.0.0.1 6667 root root >/dev/null 2>&1
 }

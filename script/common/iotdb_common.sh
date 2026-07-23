@@ -10,23 +10,8 @@ modify_iotdb_config() {
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
     [ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
     [ -f "${properties_file}" ] || die "missing config file: ${properties_file}"
-    sed -i "s/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY=\"${IOTDB_HEAP_MEMORY:-20G}\"/" "${datanode_env}"
-    cat >> "${properties_file}" <<EOF
-enable_seq_space_compaction=false
-enable_unseq_space_compaction=false
-enable_cross_space_compaction=false
-cluster_name=${TEST_TYPE}
-cn_enable_metric=true
-cn_enable_performance_stat=true
-cn_metric_reporter_list=PROMETHEUS
-cn_metric_level=ALL
-cn_metric_prometheus_reporter_port=9081
-dn_enable_metric=true
-dn_enable_performance_stat=true
-dn_metric_reporter_list=PROMETHEUS
-dn_metric_level=ALL
-dn_metric_prometheus_reporter_port=9091
-EOF
+    set_iotdb_heap_memory "${IOTDB_HEAP_MEMORY:-20G}"
+    apply_iotdb_profile base
     if declare -F append_iotdb_case_properties >/dev/null 2>&1; then
         append_iotdb_case_properties "${properties_file}"
     fi
@@ -52,8 +37,8 @@ EOF
 
 # 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
+    if iotdb_cli_exec "show cluster" 127.0.0.1 6667 root "${IOTDB_PASSWORD}" >/dev/null 2>&1; then
         return 0
     fi
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
+    iotdb_cli_exec "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" 127.0.0.1 6667 root root >/dev/null 2>&1
 }

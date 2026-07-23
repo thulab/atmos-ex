@@ -59,6 +59,9 @@ unset required_command
 
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+	init_case_state
+	test_date_time=0; ts_type=0; data_type=0; op_type=0
+	return
 ############定义监控采集项初始值##########################
 test_date_time=0
 ts_type=0
@@ -109,6 +112,9 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 }
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
+	set_iotdb_heap_memory 20G
+	apply_iotdb_profile base
+	return
 	#修改IoTDB的配置
 	sed -i "s/^@REM set ON_HEAP_MEMORY=2G.*$/set ON_HEAP_MEMORY=20G/g" ${TEST_IOTDB_PATH}/conf/windows/datanode-env.bat
 	#清空配置文件
@@ -213,6 +219,11 @@ start_benchmark() { # 启动benchmark
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	windows_timeout_result() {
+		create_standard_stuck_result_csv INGESTION
+	}
+	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-7200}" 10 windows_timeout_result "$(date -d "${start_time}" +%s)"
+	return
 	local result_label="${1:-INGESTION}"
 	local csv_file=""
 	local now_epoch=0
@@ -231,7 +242,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
 			end_time=$(current_datetime)
 			log "${ts_type} benchmark timed out."
-			create_stuck_result_csv "${result_label}"
+			create_standard_stuck_result_csv "${result_label}"
 			return 1
 		fi
 
@@ -240,6 +251,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
+	resolve_monitor_disk_id
+	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
+	return
 	local metric_window=0
 	local maxNumofThread_C=0
 	local maxNumofThread_D=0
@@ -266,6 +280,8 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
+	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
+	return
 	rm -rf -- "${BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1 ${BM_PATH}/conf/config.properties
 }
@@ -313,8 +329,8 @@ test_operation_impl() {
 		collect_monitor_data
 		#测试结果收集写入数据库
 		csvOutputfile=$(find_result_csv || true)
-		if ! parse_benchmark_result "${csvOutputfile}" "INGESTION"; then
-			set_negative_benchmark_metrics -2
+		if ! parse_standard_benchmark_result "${csvOutputfile}" "INGESTION"; then
+			set_standard_negative_benchmark_metrics -2
 		fi
 
 		cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
@@ -353,8 +369,8 @@ test_operation_impl() {
 						log "$csvOutputfile"
 						sleep 10
 					fi
-					if ! parse_benchmark_result "${csvOutputfile}" "${query_type[${j}]}"; then
-						set_negative_benchmark_metrics -2
+					if ! parse_standard_benchmark_result "${csvOutputfile}" "${query_type[${j}]}"; then
+						set_standard_negative_benchmark_metrics -2
 					fi
 					cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 					insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
@@ -416,7 +432,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/standard_benchmark_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"

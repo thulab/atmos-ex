@@ -77,6 +77,8 @@ errorLogSize=0
 
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
+	sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
+	return
 	local bm_new=""
 	local bm_old=""
 
@@ -147,7 +149,7 @@ modify_iotdb_config() {
 
 # 功能：使用当前场景参数执行 IoTDB CLI 命令
 run_iotdb_cli() {
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -h 127.0.0.1 -p 6667 "$@"
+	iotdb_cli_run -h 127.0.0.1 -p 6667 "$@"
 }
 
 # 功能：输出表模型 CLI 调用所需的公共参数
@@ -319,9 +321,7 @@ write_startup_error_result() {
 start_iotdb_or_record_error() {
 	local remark_value="$1"
 
-	start_iotdb
-	sleep "${STARTUP_GRACE_SECONDS}"
-	if wait_for_iotdb_ready; then
+	if start_iotdb_and_wait; then
 		log "IoTDB started for ${remark_value}."
 		return 0
 	fi
@@ -515,9 +515,7 @@ backup_test_data() {
 	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
 	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
 
-	sudo_safe_rm "${backup_dir}"
-	path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
-	sudo mkdir -p -- "${backup_dir}"
+	prepare_archive_directory "${backup_dir}"
 	if [ -d "${TEST_IOTDB_PATH}/tools/testlog" ]; then
 		sudo mv "${TEST_IOTDB_PATH}/tools/testlog" "${backup_dir}/"
 	fi
@@ -609,6 +607,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_distribution_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/protocol_common.sh"

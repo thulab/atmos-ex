@@ -30,3 +30,44 @@ clear_expired_directories() {
     [ -d "${root_dir}" ] || return 0
     find "${root_dir}" -mindepth 1 -type d -mtime "+${retention_days}" -exec rm -rf -- {} +
 }
+
+# 功能：创建并清空单轮测试归档目录
+prepare_archive_directory() {
+    local archive_dir="$1"
+    path_is_safe "${archive_dir}" || die "unsafe archive path: ${archive_dir}"
+    sudo rm -rf -- "${archive_dir}"
+    sudo mkdir -p "${archive_dir}"
+}
+
+# 功能：将存在的文件或目录复制到归档目录
+archive_if_exists() {
+    local source_path="$1"
+    local archive_dir="$2"
+    [ -e "${source_path}" ] || return 0
+    sudo cp -rf -- "${source_path}" "${archive_dir}/"
+}
+
+# 功能：归档 Benchmark CSV、日志和配置
+archive_benchmark_runtime() {
+    local benchmark_path="$1"
+    local archive_dir="$2"
+    archive_if_exists "${benchmark_path}/data/csvOutput" "${archive_dir}"
+    archive_if_exists "${benchmark_path}/logs" "${archive_dir}"
+    archive_if_exists "${benchmark_path}/conf/config.properties" "${archive_dir}"
+}
+
+# 功能：统计指定模式的文件数量
+count_files_by_pattern() {
+    local root_path="$1"
+    local pattern="$2"
+    [ -d "${root_path}" ] || { printf '0\n'; return; }
+    find "${root_path}" -type f -name "${pattern}" | wc -l
+}
+
+# 功能：统计指定层级的 TsFile 数量
+count_tsfiles_by_level() {
+    local root_path="$1"
+    local level="$2"
+    [ -d "${root_path}" ] || { printf '0\n'; return; }
+    find "${root_path}" -type f -name "*.tsfile" -path "*/${level}/*" | wc -l
+}

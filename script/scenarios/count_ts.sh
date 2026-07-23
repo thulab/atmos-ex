@@ -81,6 +81,8 @@ errorLogSize=0
 
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
+	sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
+	return
 	local bm_new=""
 	local bm_old=""
 
@@ -203,6 +205,12 @@ create_stuck_schema_csv() {
 
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
+	count_ts_timeout_result() {
+		create_stuck_schema_csv
+	}
+	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
+		"${MONITOR_POLL_INTERVAL_SECONDS}" count_ts_timeout_result "$(date +%s)"
+	return
 	local csv_file=""
 	local monitor_start_epoch=0
 	local now_epoch=0
@@ -257,7 +265,7 @@ schema_cost_from_csv() {
 
 # 功能：使用当前场景参数执行 IoTDB CLI 命令
 run_iotdb_cli() {
-	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
+	iotdb_cli_run -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
 }
 
 # 功能：从命令输出、日志或结果文件中提取目标值
@@ -416,15 +424,11 @@ backup_test_data() {
 	local backup_parent="${BACKUP_PATH}/${protocol_code}"
 	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_code}"
 
-	sudo_safe_rm "${backup_dir}"
-	path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
-	sudo mkdir -p -- "${backup_dir}"
+	prepare_archive_directory "${backup_dir}"
 	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
 	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-	if [ -d "${BM_PATH}/data/csvOutput" ]; then
-		sudo cp -rf "${BM_PATH}/data/csvOutput" "${backup_dir}/"
-	fi
+	archive_benchmark_runtime "${BM_PATH}" "${backup_dir}"
 }
 
 # 功能：执行指定测试阶段或外部工具命令
@@ -472,10 +476,8 @@ test_operation_impl() {
 		return 1
 	fi
 
-	start_iotdb
 	start_time="$(current_datetime)"
-	sleep "${STARTUP_GRACE_SECONDS}"
-	if ! wait_for_iotdb_ready; then
+	if ! start_iotdb_and_wait; then
 		log "IoTDB startup failed."
 		cost_time=-3
 		write_startup_error_result "${protocol_code}" "-3"
@@ -570,6 +572,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_distribution_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/protocol_common.sh"

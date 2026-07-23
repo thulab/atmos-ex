@@ -23,6 +23,8 @@ source "${SCRIPT_DIR}/../common/insert_common.sh"
 
 # 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "$1"
+    return
     local target_path="$1"
     local source_version=""
     local target_version=""
@@ -59,9 +61,7 @@ copy_benchmark_config() {
     local target_benchmark_path="$2"
     local target_config="${target_benchmark_path}/conf/config.properties"
 
-    [ -f "${source_config}" ] || die "missing benchmark config file: ${source_config}"
-    safe_rm "${target_config}"
-    cp -rf -- "${source_config}" "${target_config}"
+    install_benchmark_config "${source_config}" "${target_config}"
 }
 
 # 功能：生成或修改当前测试步骤所需的配置

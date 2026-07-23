@@ -56,6 +56,9 @@ MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 # -------------------- 公用函数 --------------------
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
+    init_case_state
+    ts_type=0
+    return
     # 定义监控采集项初始值
     ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
     throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
@@ -80,6 +83,9 @@ set_env() {
 
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
+    set_iotdb_heap_memory 20G
+    apply_iotdb_profile base
+    return
     #修改IoTDB的配置
     sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
     #清空配置文件
@@ -134,6 +140,12 @@ start_benchmark() {
 
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
+    weekly_insert_timeout_result() {
+        create_standard_stuck_result_csv INGESTION
+    }
+    wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
+        "${MONITOR_POLL_INTERVAL_SECONDS}" weekly_insert_timeout_result "${m_start_time}"
+    return
     local result_label="${1:-INGESTION}"
     local csv_file=""
     local now_epoch=0
@@ -152,7 +164,7 @@ monitor_test_status() {
         if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
             end_time=$(current_datetime)
             log "${ts_type} benchmark timed out."
-            create_stuck_result_csv "${result_label}"
+            create_standard_stuck_result_csv "${result_label}"
             return 1
         fi
 
@@ -162,6 +174,9 @@ monitor_test_status() {
 
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
+    resolve_monitor_disk_id
+    collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
+    return
     local ip=$1
     local metric_window=$((m_end_time-m_start_time))
     local maxNumofThread_C=0
@@ -199,6 +214,8 @@ backup_test_data() {
 
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() {
+    install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
+    return
     local ts_type=$1
     rm -rf -- "${BM_PATH}/conf/config.properties"
     cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$ts_type ${BM_PATH}/conf/config.properties
@@ -252,8 +269,8 @@ test_operation_impl() {
     pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h 127.0.0.1 -p 6667 -e "flush")
     collect_monitor_data ${TEST_IP}
     csvOutputfile=$(find_result_csv || true)
-    if ! parse_benchmark_result "${csvOutputfile}" "INGESTION"; then
-        set_negative_benchmark_metrics -2
+    if ! parse_standard_benchmark_result "${csvOutputfile}" "INGESTION"; then
+        set_standard_negative_benchmark_metrics -2
     fi
     cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
@@ -267,7 +284,7 @@ test_operation_impl() {
 
 # -------------------- 主流程 --------------------
 check_password
-check_benchmark_version
+check_standard_benchmark_version
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
@@ -317,7 +334,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/standard_benchmark_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

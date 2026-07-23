@@ -658,21 +658,19 @@ printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 init_items
 # 收集IoTDB当前和最新的commit，拉取最新的代码
 cd "${IOTDB_PATH}" || return 1
-last_cid_iotdb=$(git log --pretty=format:"%h" -1)
-git_pull=$(timeout 100s git fetch --all)
-git_pull=$(git reset --hard origin/master)
-git_pull=$(timeout 100s git pull)
-commit_id_iotdb=$(git log --pretty=format:"%h" -1)
+last_cid_iotdb=$(git_current_commit "${IOTDB_PATH}")
+git_sync_branch "${IOTDB_PATH}" master 100
+commit_id_iotdb=$(git_current_commit "${IOTDB_PATH}")
 # 获取IoTDB的commit信息时间
 #test_date_time=$(date -d @$(git show -s --format=%ct HEAD) +%Y%m%d%H%M%S)
 test_date_time=$(date +%Y%m%d%H%M%S)
 # 更新测试工具
 cd "${JAVA_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${JAVA_TOOL_PATH}" 100
 cd "${CPP_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${CPP_TOOL_PATH}" 100
 cd "${PYTHON_TOOL_PATH}" || return 1
-git_pull=$(timeout 100s git pull)
+git_pull_repository "${PYTHON_TOOL_PATH}" 100
 # 对比判定是否启动测试
 if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是否更新
 	log "IoTDB代码有更新，当前新版本commit：${commit_id_iotdb} 未执行过测试"

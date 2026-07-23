@@ -71,7 +71,7 @@ check_password() {
 
 # 功能：从 git.properties 中读取缩写提交号
 git_commit_abbrev() {
-    awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
+    git_properties_commit "$1"
 }
 
 # 功能：判断目标路径是否位于允许操作的工作目录内
@@ -159,6 +159,10 @@ readonly RUNTIME_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${RUNTIME_COMMON_DIR}/process_common.sh"
 source "${RUNTIME_COMMON_DIR}/result_common.sh"
 source "${RUNTIME_COMMON_DIR}/file_common.sh"
+source "${RUNTIME_COMMON_DIR}/git_common.sh"
+source "${RUNTIME_COMMON_DIR}/config_common.sh"
+source "${RUNTIME_COMMON_DIR}/iotdb_cli_common.sh"
+source "${RUNTIME_COMMON_DIR}/case_state_common.sh"
 
 # 功能：在脚本退出时恢复测试类型状态文件
 restore_test_type_file() {
