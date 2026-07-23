@@ -54,55 +54,6 @@ check_password() {
     [ -n "${MYSQL_PASSWORD:-}" ] || die "ATMOS_DB_PASSWORD is required"
 }
 
-mysql_exec() {
-    local sql="$1"
-    MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B \
-        -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" \
-        "${DBNAME}" -e "${sql}"
-}
-
-sql_quote() {
-    local value="${1:-}"
-    value="${value//\\/\\\\}"
-    value="$(printf '%s' "${value}" | sed "s/'/''/g")"
-    printf "'%s'" "${value}"
-}
-
-update_task_status() {
-    local status="$1"
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
-}
-
-mark_older_commits_skip() {
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
-}
-
-query_next_commit() {
-    local status_filter="$1"
-    local author_filter="${TASK_AUTHOR_FILTER_SQL:-}"
-    local extra_filter=""
-
-    [ -z "${author_filter}" ] || extra_filter=" and ${author_filter}"
-    if [ "${status_filter}" = "retest" ]; then
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest'${extra_filter} ORDER BY commit_date_time desc LIMIT 1"
-    else
-        mysql_exec "SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL${extra_filter} ORDER BY commit_date_time desc LIMIT 1"
-    fi
-}
-
-fetch_next_commit() {
-    local row=""
-    local raw_commit_date_time=""
-
-    row="$(query_next_commit retest)"
-    [ -n "${row}" ] || row="$(query_next_commit pending)"
-    [ -n "${row}" ] || return 1
-
-    IFS=$'\t' read -r commit_id author raw_commit_date_time <<< "${row}"
-    author="$(trim "${author}")"
-    commit_date_time="$(normalize_datetime "${raw_commit_date_time}")"
-    [ -n "${commit_id}" ] && [ -n "${commit_date_time}" ]
-}
 
 git_commit_abbrev() {
     awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "$1" 2>/dev/null
@@ -179,33 +130,13 @@ set_iotdb_property() {
     ' "${properties_file}" > "${temp_file}" && mv -- "${temp_file}" "${properties_file}"
 }
 
-check_pid_and_kill() {
-    local process_name="$1"
-    local description="${2:-$1}"
-    local pid=""
-    local pids=""
-
-    pids="$(jps | awk -v name="${process_name}" '$2 == name {print $1}')"
-    if [ -z "${pids}" ]; then
-        log "no ${description} process found"
-        return 0
-    fi
-
-    while IFS= read -r pid; do
-        [ -n "${pid}" ] || continue
-        kill -TERM "${pid}" 2>/dev/null || true
-    done <<< "${pids}"
-    sleep "${PROCESS_STOP_WAIT_SECONDS:-2}"
-    while IFS= read -r pid; do
-        [ -n "${pid}" ] || continue
-        kill -KILL "${pid}" 2>/dev/null || true
-    done <<< "${pids}"
-    log "${description} stopped"
-}
-
 mark_test_in_progress() {
     printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 }
+
+readonly RUNTIME_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${RUNTIME_COMMON_DIR}/process_common.sh"
+source "${RUNTIME_COMMON_DIR}/result_common.sh"
 
 restore_test_type_file() {
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"

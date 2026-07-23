@@ -136,6 +136,9 @@ readonly IOTDB_READY_PASSWORD="${IOTDB_READY_PASSWORD:-root}"
 readonly STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-10}"
 readonly BENCHMARK_RESULT_WAIT_SECONDS="${BENCHMARK_RESULT_WAIT_SECONDS:-2}"
 readonly BENCHMARK_STOP_WAIT_SECONDS="${BENCHMARK_STOP_WAIT_SECONDS:-30}"
+readonly IOTDB_STOP_RETRIES="${IOTDB_STOP_RETRIES:-${IOTDB_READY_RETRIES}}"
+readonly IOTDB_STOP_DATANODE_WAIT_SECONDS="${IOTDB_STOP_DATANODE_WAIT_SECONDS:-3}"
+readonly IOTDB_STOP_CONFIGNODE_WAIT_SECONDS="${IOTDB_STOP_CONFIGNODE_WAIT_SECONDS:-5}"
 
 result_table="${TABLENAME}"
 commit_id=""
@@ -282,60 +285,10 @@ cleanup_processes() {
 
 # -------------------- 公共 IoTDB / Benchmark 生命周期函数 --------------------
 # 负责准备待测版本、修改基础配置、设置共识协议、启动/停止服务和等待可用。
-set_env() {
-    local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-
-    [ -d "${source_path}" ] || die "missing tested IoTDB path: ${source_path}"
-    safe_rm "${TEST_IOTDB_PATH}"
-    mkdir -p "${TEST_IOTDB_PATH}/activation"
-    cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
-}
-
-modify_iotdb_config() {
-    local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    [ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
-    [ -f "${properties_file}" ] || die "missing config file: ${properties_file}"
-    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="20G"/' "${datanode_env}"
-
+append_iotdb_case_properties() {
+    local properties_file="$1"
     cat >> "${properties_file}" <<EOF
 series_slot_num=10000
-enable_seq_space_compaction=false
-enable_unseq_space_compaction=false
-enable_cross_space_compaction=false
-cluster_name=${TEST_TYPE}
-cn_enable_metric=true
-cn_enable_performance_stat=true
-cn_metric_reporter_list=PROMETHEUS
-cn_metric_level=ALL
-cn_metric_prometheus_reporter_port=9081
-dn_enable_metric=true
-dn_enable_performance_stat=true
-dn_metric_reporter_list=PROMETHEUS
-dn_metric_level=ALL
-dn_metric_prometheus_reporter_port=9091
-EOF
-}
-
-set_protocol_class() {
-    local protocol_code="$1"
-    local config_node="${protocol_code:0:1}"
-    local schema_region="${protocol_code:1:1}"
-    local data_region="${protocol_code:2:1}"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    [ "${#protocol_code}" -eq 3 ] || return 1
-    [ -n "${PROTOCOL_CLASS[${config_node}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${schema_region}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${data_region}]:-}" ] || return 1
-
-    cat >> "${properties_file}" <<EOF
-config_node_consensus_protocol_class=${PROTOCOL_CLASS[${config_node}]}
-schema_region_consensus_protocol_class=${PROTOCOL_CLASS[${schema_region}]}
-data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
 EOF
 }
 
@@ -345,75 +298,8 @@ drop_system_caches() {
     fi
 }
 
-start_iotdb() {
+before_iotdb_start() {
     drop_system_caches
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-confignode.sh >/dev/null 2>&1 &
-    )
-    sleep "${STARTUP_GRACE_SECONDS}"
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-    )
-}
-
-stop_iotdb() {
-    local attempt=0
-    local dn_pid=""
-    local cn_pid=""
-
-    if [ ! -d "${TEST_IOTDB_PATH}" ]; then
-        return 0
-    fi
-
-    for ((attempt = 0; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        (
-            cd "${TEST_IOTDB_PATH}" || exit 1
-            ./sbin/stop-datanode.sh >/dev/null 2>&1 &
-        )
-        sleep 3
-        (
-            cd "${TEST_IOTDB_PATH}" || exit 1
-            ./sbin/stop-confignode.sh >/dev/null 2>&1 &
-        )
-        sleep 5
-
-        dn_pid="$(jps | awk '$2 == "DataNode" {print $1; exit}')"
-        cn_pid="$(jps | awk '$2 == "ConfigNode" {print $1; exit}')"
-        if [ -z "${dn_pid}" ] && [ -z "${cn_pid}" ]; then
-            return 0
-        fi
-    done
-
-    return 1
-}
-
-wait_for_iotdb_ready() {
-    local attempt=0
-    local iotdb_state=""
-    local -a cli_args=()
-
-    if [ -n "${IOTDB_READY_USER}" ]; then
-        cli_args+=(-u "${IOTDB_READY_USER}")
-    fi
-    if [ -n "${IOTDB_READY_PASSWORD}" ]; then
-        cli_args+=(-pw "${IOTDB_READY_PASSWORD}")
-    fi
-
-    for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        if [ "${#cli_args[@]}" -gt 0 ]; then
-            iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${cli_args[@]}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-        else
-            iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-        fi
-        if [ "${iotdb_state}" = "Total line number = 2" ]; then
-            return 0
-        fi
-        sleep "${IOTDB_READY_INTERVAL_SECONDS}"
-    done
-
-    return 1
 }
 
 # -------------------- 特定脚本预留函数：se_query_test QA 用户准备 --------------------
@@ -430,36 +316,6 @@ prepare_query_users() {
 
 # -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
 # 启动查询 Benchmark，并通过输出 CSV 判断查询是否完成；超时时生成兜底结果。
-start_benchmark() {
-    safe_rm "${BM_PATH}/logs"
-    safe_rm "${BM_PATH}/data"
-    (
-        cd "${BM_PATH}" || exit 1
-        ./benchmark.sh >/dev/null 2>&1 &
-    )
-}
-
-find_result_csv() {
-    local had_nullglob=0
-    local files=()
-
-    if shopt -q nullglob; then
-        had_nullglob=1
-    else
-        shopt -s nullglob
-    fi
-
-    files=("${BM_PATH}/data/csvOutput/"*result.csv)
-
-    if [ "${had_nullglob}" -eq 0 ]; then
-        shopt -u nullglob
-    fi
-
-    if [ "${#files[@]}" -gt 0 ]; then
-        printf '%s\n' "${files[0]}"
-    fi
-}
-
 create_stuck_result_csv() {
     local csv_file="$1"
     local result_label="$2"
@@ -886,4 +742,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/iotdb_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/benchmark_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"

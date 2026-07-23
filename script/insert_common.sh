@@ -346,148 +346,8 @@ check_iotdb_pid() {
 
 # -------------------- 公共 IoTDB / Benchmark 生命周期函数 --------------------
 # 负责准备待测版本、修改基础配置、设置共识协议、启动/停止服务和等待可用。
-set_env() {
-    local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-    [ -d "${source_path}" ] || die "缺少待测版本目录: ${source_path}"
-
-    safe_rm "${TEST_IOTDB_PATH}"
-    mkdir -p "${TEST_IOTDB_PATH}/activation"
-    cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
-}
-
-modify_iotdb_config() {
-    local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    [ -f "${datanode_env}" ] || die "缺少配置文件: ${datanode_env}"
-    [ -f "${properties_file}" ] || die "缺少配置文件: ${properties_file}"
-
-    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="20G"/' "${datanode_env}"
-
-    # 每次测试都会从干净源码重新准备工作目录，因此这里直接追加覆盖配置，
-    # 不会在不同 commit 之间持续累积。
-    cat >> "${properties_file}" <<EOF
-enable_seq_space_compaction=false
-enable_unseq_space_compaction=false
-enable_cross_space_compaction=false
-cluster_name=${TEST_TYPE}
-cn_enable_metric=true
-cn_enable_performance_stat=true
-cn_metric_reporter_list=PROMETHEUS
-cn_metric_level=ALL
-cn_metric_prometheus_reporter_port=9081
-dn_enable_metric=true
-dn_enable_performance_stat=true
-dn_metric_reporter_list=PROMETHEUS
-dn_metric_level=ALL
-dn_metric_prometheus_reporter_port=9091
-EOF
-}
-
-set_protocol_class() {
-    local protocol_code="$1"
-    local config_node="${protocol_code:0:1}"
-    local schema_region="${protocol_code:1:1}"
-    local data_region="${protocol_code:2:1}"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    [ "${#protocol_code}" -eq 3 ] || return 1
-    [ -n "${PROTOCOL_CLASS[${config_node}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${schema_region}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${data_region}]:-}" ] || return 1
-
-    cat >> "${properties_file}" <<EOF
-config_node_consensus_protocol_class=${PROTOCOL_CLASS[${config_node}]}
-schema_region_consensus_protocol_class=${PROTOCOL_CLASS[${schema_region}]}
-data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
-EOF
-}
-
-start_iotdb() {
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-confignode.sh >/dev/null 2>&1 &
-    )
-    sleep "${STARTUP_GRACE_SECONDS}"
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-    )
-}
-
-stop_iotdb() {
-    if [ ! -d "${TEST_IOTDB_PATH}" ]; then
-        return 0
-    fi
-
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/stop-datanode.sh >/dev/null 2>&1 &
-    )
-    sleep "${STARTUP_GRACE_SECONDS}"
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/stop-confignode.sh >/dev/null 2>&1 &
-    )
-}
-
-start_benchmark() {
-    safe_rm "${BM_PATH}/logs"
-    safe_rm "${BM_PATH}/data"
-    (
-        cd "${BM_PATH}" || exit 1
-        ./benchmark.sh >/dev/null 2>&1 &
-    )
-}
-
-wait_for_iotdb_ready() {
-    local attempt=0
-    local iotdb_state=""
-
-    for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-        if [ "${iotdb_state}" = "Total line number = 2" ]; then
-            return 0
-        fi
-        sleep "${IOTDB_READY_INTERVAL_SECONDS}"
-    done
-
-    return 1
-}
-
-change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
-}
-
 # -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
 # 通过 IoT-Benchmark 输出 CSV 判断写入是否完成；超时时生成兜底结果，保证后续入库有失败记录。
-find_result_csv() {
-    local had_nullglob=0
-    local files=()
-
-    if shopt -q nullglob; then
-        had_nullglob=1
-    else
-        shopt -s nullglob
-    fi
-
-    files=("${BM_PATH}/data/csvOutput/"*result.csv)
-
-    if [ "${had_nullglob}" -eq 0 ]; then
-        shopt -u nullglob
-    fi
-
-    if [ "${#files[@]}" -gt 0 ]; then
-        printf '%s\n' "${files[0]}"
-    fi
-}
-
 create_stuck_result_csv() {
     local csv_file="$1"
     local index=0
@@ -909,4 +769,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/iotdb_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/benchmark_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
