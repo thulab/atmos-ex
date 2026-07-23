@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# 功能：执行指定测试阶段或外部工具命令
 run_api_test_step() {
     local label="$1"
     local test_function="$2"
@@ -16,6 +17,7 @@ run_api_test_step() {
     return 1
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_api_test_suite() {
     local entry=""
     local label=""

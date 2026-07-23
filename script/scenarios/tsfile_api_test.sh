@@ -37,6 +37,7 @@ for required_command in awk date mysql sed; do
 	fi
 done
 unset required_command
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 tests_num=0
@@ -49,6 +50,7 @@ start_time=0
 end_time=0
 flag=0
 }
+# 功能：执行指定语言、接口或测试场景
 test_java_tsfile_api_test() { # 测试Java
 	# 拷贝Java工具到测试路径
 	if [ ! -d "${TEST_JAVA_TOOL_PATH}" ]; then
@@ -157,6 +159,7 @@ EOF
 #	git commit -m ${last_cid_TsFile}_${failures_num}
 #	git push -f
 }
+# 功能：执行指定语言、接口或测试场景
 test_cpp_tsfile_api_test() {
 	# C++代码编译
 	echo "编译C++"
@@ -283,6 +286,7 @@ EOF
 #	git commit -m ${last_cid_TsFile}_${failures_num}
 #	git push -f
 }
+# 功能：执行指定语言、接口或测试场景
 test_python_tsfile_api_test() { # 测试Python
 	# Python代码编译
 	echo "编译python"
@@ -420,6 +424,7 @@ EOF
 #	git commit -m ${last_cid_TsFile}_${failures_num}
 #	git push -f
 }
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 ensure_runtime_dependencies
 check_password

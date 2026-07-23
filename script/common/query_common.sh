@@ -183,6 +183,7 @@ m_end_time=0
 # 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
 # -------------------- 公共 Benchmark 版本同步函数 --------------------
 # git_commit_abbrev/check_benchmark_version 负责保持查询测试使用的 iot-benchmark 为最新版本。
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     local source_version=""
     local target_version=""
@@ -204,6 +205,7 @@ check_benchmark_version() {
 
 # -------------------- 公共测试指标初始化函数 --------------------
 # 每个协议或查询 case 开始前重置全局指标，避免上一次结果污染本次入库数据。
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     okPoint=0
     okOperation=0
@@ -235,6 +237,7 @@ init_items() {
     m_end_time=0
 }
 
+# 功能：重置当前测试使用的指标或运行状态
 reset_benchmark_metrics() {
     okPoint=0
     okOperation=0
@@ -254,6 +257,7 @@ reset_benchmark_metrics() {
     MAX=0
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_negative_benchmark_metrics() {
     local value="$1"
     okPoint="${value}"
@@ -276,15 +280,7 @@ set_negative_benchmark_metrics() {
 
 # -------------------- 公共进程清理函数 --------------------
 # 统一清理 Benchmark 和 IoTDB 相关 Java 进程，供正常流程和异常流程复用。
-cleanup_processes() {
-    check_pid_and_kill "App" "Benchmark"
-    check_pid_and_kill "DataNode" "DataNode"
-    check_pid_and_kill "ConfigNode" "ConfigNode"
-    check_pid_and_kill "IoTDB" "IoTDB"
-}
-
-# -------------------- 公共 IoTDB / Benchmark 生命周期函数 --------------------
-# 负责准备待测版本、修改基础配置、设置共识协议、启动/停止服务和等待可用。
+# 功能：向配置、结果或备注中追加当前值
 append_iotdb_case_properties() {
     local properties_file="$1"
     cat >> "${properties_file}" <<EOF
@@ -292,18 +288,21 @@ series_slot_num=10000
 EOF
 }
 
+# 功能：在权限允许时清理 Linux 文件系统缓存
 drop_system_caches() {
     if [ -w /proc/sys/vm/drop_caches ]; then
         echo 3 > /proc/sys/vm/drop_caches || true
     fi
 }
 
+# 功能：在启动 IoTDB 前执行查询测试所需的缓存清理钩子
 before_iotdb_start() {
     drop_system_caches
 }
 
 # -------------------- 特定脚本预留函数：se_query_test QA 用户准备 --------------------
 # 只有 se_query_test.sh 将 QUERY_CREATE_QA_USER 设为 1 时才会实际创建 qa_user。
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_query_users() {
     if [ "${QUERY_CREATE_QA_USER}" != "1" ]; then
         return 0
@@ -316,6 +315,7 @@ prepare_query_users() {
 
 # -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
 # 启动查询 Benchmark，并通过输出 CSV 判断查询是否完成；超时时生成兜底结果。
+# 功能：为超时或卡死场景生成失败占位结果
 create_stuck_result_csv() {
     local csv_file="$1"
     local result_label="$2"
@@ -326,6 +326,7 @@ create_stuck_result_csv() {
     echo "${result_label} ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> "${csv_file}"
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local query_name="$1"
     local result_label="$2"
@@ -356,6 +357,7 @@ monitor_test_status() {
 
 # -------------------- 公共 Prometheus 指标采集函数 --------------------
 # 采集文件数、线程数、WAL、日志大小等通用性能指标，供结果入库使用。
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local metric_window=$((m_end_time - m_start_time))
     local maxNumofThread_C=0
@@ -382,6 +384,7 @@ collect_monitor_data() {
 
 # -------------------- 公共查询配置、结果解析和入库函数 --------------------
 # configure_benchmark 按 ts_type/query_name 切换 Benchmark 配置；parse_benchmark_result 按 label 解析查询结果。
+# 功能：生成或修改当前测试步骤所需的配置
 configure_benchmark() {
     local current_ts_type="$1"
     local current_query_name="$2"
@@ -401,6 +404,7 @@ configure_benchmark() {
     fi
 }
 
+# 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
     local csv_file="$1"
     local result_label="$2"
@@ -451,6 +455,7 @@ parse_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
+# 功能：将当前测试结果写入结果数据库
 insert_result_row() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -505,6 +510,7 @@ EOF
 
 # -------------------- 公共数据集搬运和日志备份函数 --------------------
 # 查询类脚本复用预生成数据集，单个 ts_type 测完后再把 data 目录还原到数据集仓库。
+# 功能：移动当前测试所需的数据或运行文件
 move_dataset_to_iotdb() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -514,6 +520,7 @@ move_dataset_to_iotdb() {
     mv -- "${source_data}" "${TEST_IOTDB_PATH}/"
 }
 
+# 功能：恢复测试前的文件、数据或运行状态
 restore_dataset_from_iotdb() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -525,6 +532,7 @@ restore_dataset_from_iotdb() {
     fi
 }
 
+# 功能：保存当前查询用例产生的 Benchmark 和 IoTDB 日志
 save_query_logs() {
     local query_name="$1"
     local logs_target="${TEST_IOTDB_PATH}/logs_${query_name}"
@@ -560,6 +568,7 @@ save_query_logs() {
     done
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local current_ts_type="$1"
     local backup_parent="${BACKUP_PATH}/${current_ts_type}"
@@ -581,6 +590,7 @@ backup_test_data() {
 
 # -------------------- 公共查询 case 执行流程 --------------------
 # 单个 query case 流程：启动 IoTDB -> 准备用户 -> 运行 Benchmark -> 解析结果 -> 入库 -> 保存日志。
+# 功能：执行指定测试阶段或外部工具命令
 run_query_case() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -646,6 +656,7 @@ run_query_case() {
 
 # -------------------- 公共序列类型执行流程 --------------------
 # 单个 ts_type 流程：准备 IoTDB 目录和数据集，然后遍历 QUERY_LIST 中的所有查询用例。
+# 功能：执行指定测试阶段或外部工具命令
 run_ts_type() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -678,6 +689,7 @@ run_ts_type() {
 
 # -------------------- 公共协议执行流程 --------------------
 # 单个协议下遍历 QUERY_TS_LIST；se_query_test.sh 通过覆盖 QUERY_TS_LIST 缩小测试范围。
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
     local current_ts_type=""
@@ -696,6 +708,7 @@ test_operation() {
 # 与外层调度器通过 test_type_file 协同当前测试状态。
 # -------------------- 公共主流程入口 --------------------
 # 由各入口脚本在 source 后调用 main "$@"，统一完成依赖检查、取 commit、遍历协议并更新任务状态。
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     local protocol=""
     local task_failed=0

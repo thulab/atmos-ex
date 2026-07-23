@@ -63,6 +63,7 @@ unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
 echo "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
+# 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
 	local new_commit old_commit
 	new_commit="$(git_commit_abbrev "${BM_REPOS_PATH}")"
@@ -74,6 +75,7 @@ sync_benchmark_path() {
 		cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
 	fi
 }
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -118,6 +120,7 @@ minPointNum=222222
 ############定义监控采集项初始值##########################
 pipeflag=0
 }
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_PATH}" ]; then
 		mkdir -p ${TEST_PATH}
@@ -130,6 +133,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	cp -rf ${BM_PATH} ${TEST_PATH}/
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^@REM set ON_HEAP_MEMORY=2G.*$/set ON_HEAP_MEMORY=20G/g" ${TEST_IOTDB_PATH}/conf/windows/datanode-env.bat
@@ -159,6 +163,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
@@ -168,6 +173,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：部署并初始化当前测试运行环境
 setup_env_windows() {
 	echo "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
@@ -293,6 +299,7 @@ setup_env_windows() {
 	fi
 	echo $pipeflag
 }
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	sleep 600  #等待六百秒，因为测试执行至少20分钟
 	for (( device = 0; device < 50; device++ ))
@@ -404,6 +411,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	dataFileSizeA=0
 	numOfSe0LevelA=0
@@ -475,6 +483,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		fi
 	done
 }
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
 	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
 	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
@@ -487,13 +496,16 @@ backup_test_data() { # 备份测试数据
 	done
 	#sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 }
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${TEST_BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
 }
+# 功能：清理超过保留期限的历史测试文件
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	protocol_class=$1
 	ts_type=$2
@@ -578,6 +590,7 @@ test_operation() {
 	#backup_test_data ${ts_type}
 }
 ##准备开始测试
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	ensure_runtime_dependencies
 	check_password

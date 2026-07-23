@@ -26,6 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=script/common/insert_common.sh
 source "${SCRIPT_DIR}/../common/insert_common.sh"
 
+# 功能：构造并写入当前场景的结果记录
 insert_records_config_path() {
     local current_ts_type="$1"
     local base_ts_type=""
@@ -48,6 +49,7 @@ insert_records_config_path() {
     printf '%s/%s/%s\n' "${ATMOS_PATH}/conf/${TEST_TYPE}" "${base_ts_type}" "${insert_mode}"
 }
 
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() {
     local current_ts_type="$2"
     local current_api_type="$3"
@@ -62,6 +64,7 @@ mv_config_file() {
     cp -rf -- "${config_source}" "${config_target}"
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local current_ts_type="$2"

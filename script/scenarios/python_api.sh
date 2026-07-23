@@ -44,6 +44,7 @@ if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${B
 	rm -rf -- "${BM_PATH}"
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -55,6 +56,7 @@ start_time=0
 end_time=0
 flag=0
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
@@ -64,6 +66,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() {
 	# 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
@@ -76,10 +79,12 @@ set_env() {
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"2G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
 }
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep InterFace | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
@@ -91,36 +96,7 @@ check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 		echo "InterFace程序已停止！"
 	fi
 }
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() { # 启动iotdb
 	cd "${TEST_IOTDB_PATH}" || return 1
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
@@ -128,6 +104,7 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password

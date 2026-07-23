@@ -58,6 +58,7 @@ if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${B
 	rm -rf -- "${BM_PATH}"
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -103,50 +104,11 @@ minPointNum=222222
 pipflag=0
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+# 功能：保留或执行测试异常通知逻辑
 sendEmail() {
 sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
-check_benchmark_pid() { # 检查benchmark的pid，有就停止
-	monitor_pid=$(jps | grep App | awk '{print $1}')
-	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
-	else
-		kill -TERM "${monitor_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${monitor_pid}" 2>/dev/null || true
-		echo "BM程序已停止！"
-	fi
-}
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_INIT_PATH}" ]; then
 		mkdir -p ${TEST_INIT_PATH}
@@ -159,6 +121,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${BM_PATH} ${TEST_INIT_PATH}/
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
@@ -188,6 +151,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
@@ -197,6 +161,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：部署并初始化当前测试运行环境
 setup_env_linux() {
 	echo "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
@@ -301,6 +266,7 @@ setup_env_linux() {
 	fi
 	echo $pipflag
 }
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	TEST_IP=$1
 	for (( device = 0; device < 50; device++ ))
@@ -402,6 +368,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	dataFileSizeA=0
 	numOfSe0LevelA=0
@@ -473,6 +440,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 		fi
 	done
 }
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
 	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
 	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
@@ -485,13 +453,16 @@ backup_test_data() { # 备份测试数据
 	done
 	sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
 }
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${TEST_BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
 }
+# 功能：清理超过保留期限的历史测试文件
 clear_expired_file() { # 清理超过七天的文件
 	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	protocol_class=$1
 	ts_type=$2
@@ -576,6 +547,7 @@ test_operation() {
 	backup_test_data ${ts_type}
 }
 ##准备开始测试
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password

@@ -25,6 +25,7 @@ TABLENAME_QUERY="ex_cluster_insert_2_query"
 TABLENAME_QUERY_T="ex_cluster_insert_2_query_T"
 CLUSTER_NAME="Apache-IoTDB-2"
 
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
@@ -55,6 +56,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_DATANODE_PATH}/conf/iotdb-system.properties" "dn_wal_dirs" "/ssd/datanode/wal"
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	while true; do
 		flag=0
@@ -91,6 +93,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 	done
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	ts_type=$1
 	data_type=$2
@@ -167,6 +170,7 @@ test_operation() {
 	sudo scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	ensure_runtime_dependencies
 	check_password

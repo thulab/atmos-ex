@@ -19,6 +19,7 @@ TEST_IP="11.101.17.111"           # 测试服务器IP
 ACCOUNT=atmos                     # 登录用户名
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-weeklytest_insert}"
+BENCHMARK_DEFAULT_RESULT_LABEL="INGESTION"
 
 # -------------------- 路径相关变量 --------------------
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"  # 初始环境存放路径
@@ -53,98 +54,7 @@ MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
-find_result_csv() {
-    find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
-}
-
-create_stuck_result_csv() {
-    local result_label="${1:-INGESTION}"
-    local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
-    local index=0
-
-    result_label="${result_label%,}"
-    mkdir -p "${csv_file%/*}"
-    : > "${csv_file}"
-    for ((index = 0; index < 100; index++)); do
-        echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
-    done
-}
-
-set_negative_benchmark_metrics() {
-    local value=$1
-    okPoint=${value}
-    okOperation=${value}
-    failPoint=${value}
-    failOperation=${value}
-    throughput=${value}
-    Latency=${value}
-    MIN=${value}
-    P10=${value}
-    P25=${value}
-    MEDIAN=${value}
-    P75=${value}
-    P90=${value}
-    P95=${value}
-    P99=${value}
-    P999=${value}
-    MAX=${value}
-}
-
-parse_benchmark_result() {
-    local csv_file=$1
-    local result_label="${2:-INGESTION}"
-    local throughput_line=""
-    local latency_line=""
-
-    [ -f "${csv_file}" ] || return 1
-    result_label="${result_label%,}"
-    throughput_line=$(awk -F, -v label="${result_label}" '
-        {
-            name = $1
-            gsub(/^[ \t]+|[ \t]+$/, "", name)
-        }
-        name == label {
-            for (i = 2; i <= 6; i++) {
-                gsub(/^[ \t]+|[ \t]+$/, "", $i)
-                printf "%s%s", $i, (i == 6 ? ORS : OFS)
-            }
-            exit
-        }
-    ' OFS=$'\t' "${csv_file}")
-
-    latency_line=$(awk -F, -v label="${result_label}" '
-        {
-            name = $1
-            gsub(/^[ \t]+|[ \t]+$/, "", name)
-        }
-        name == label {
-            count++
-            if (count == 2) {
-                for (i = 2; i <= 12; i++) {
-                    gsub(/^[ \t]+|[ \t]+$/, "", $i)
-                    printf "%s%s", $i, (i == 12 ? ORS : OFS)
-                }
-                exit
-            }
-        }
-    ' OFS=$'\t' "${csv_file}")
-
-    [ -n "${throughput_line}" ] || return 1
-    [ -n "${latency_line}" ] || return 1
-    IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
-    IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
-}
-
-check_benchmark_version() {
-    BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-    BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
-    BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
-    if [ -n "${BM_NEW}" ] && { [ ! -d "${BM_PATH}" ] || [ "${BM_OLD}" != "${BM_NEW}" ]; }; then
-        rm -rf "${BM_PATH}"
-        cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-    fi
-}
-
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     # 定义监控采集项初始值
     ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
@@ -154,18 +64,12 @@ init_items() {
     maxDiskIOOpsRead=0; maxDiskIOOpsWrite=0; maxDiskIOSizeRead=0; maxDiskIOSizeWrite=0
 }
 
+# 功能：保留或执行测试异常通知逻辑
 sendEmail() {
     sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
 
-check_benchmark_pid() { check_pid_and_kill "App" "BM程序"; }
-check_iotdb_pid() {
-    check_pid_and_kill "DataNode" "DataNode程序"
-    check_pid_and_kill "ConfigNode" "ConfigNode程序"
-    check_pid_and_kill "IoTDB" "IoTDB程序"
-    echo "程序检测和清理操作已完成！"
-}
-
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() {
     [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
     mkdir -p ${TEST_IOTDB_PATH}/activation
@@ -174,6 +78,7 @@ set_env() {
     cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env ${TEST_IOTDB_PATH}/.env
 }
 
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
     #修改IoTDB的配置
     sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
@@ -199,6 +104,7 @@ modify_iotdb_config() {
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() {
     local config_node=$1; local schema_region=$2; local data_region=$3
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
@@ -206,23 +112,27 @@ set_protocol_class() {
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
     sleep 10
     (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
 }
 
+# 功能：停止当前场景中的 IoTDB 服务
 stop_iotdb() {
     (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
     sleep 10
     (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 }
 
+# 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() {
     rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
     (cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local result_label="${1:-INGESTION}"
     local csv_file=""
@@ -250,6 +160,7 @@ monitor_test_status() {
     done
 }
 
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local ip=$1
     local metric_window=$((m_end_time-m_start_time))
@@ -275,6 +186,7 @@ collect_monitor_data() {
     maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${metric_window}s])" $m_end_time)
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local ts_type=$1
     local backup_dir="${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${protocol_class}"
@@ -285,12 +197,14 @@ backup_test_data() {
     sudo cp -rf ${BM_PATH}/data/csvOutput $backup_dir
 }
 
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() {
     local ts_type=$1
     rm -rf -- "${BM_PATH}/conf/config.properties"
     cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$ts_type ${BM_PATH}/conf/config.properties
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_class_input=$1
     local ts_type=$2
@@ -349,6 +263,7 @@ test_operation() {
 # -------------------- 主流程 --------------------
 check_password
 check_benchmark_version
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password
@@ -397,6 +312,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/standard_benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

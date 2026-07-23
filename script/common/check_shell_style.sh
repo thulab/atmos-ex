@@ -7,6 +7,7 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 status=0
 
+# 功能：扫描 Shell 文件并报告违反指定规则的匹配项
 report_matches() {
     local description="$1"
     local pattern="$2"

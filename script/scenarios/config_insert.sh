@@ -40,6 +40,7 @@ readonly -a API_LIST=(
     max_cross_compaction_candidate_file_size_21474836480
 )
 
+# 功能：返回指定配置测试编号对应的配置项名称
 config_case_name() {
     local case_id="$1"
 
@@ -55,6 +56,7 @@ config_case_name() {
     esac
 }
 
+# 功能：返回指定配置测试编号对应的配置项取值
 config_case_value() {
     local case_id="$1"
 
@@ -70,6 +72,7 @@ config_case_value() {
     esac
 }
 
+# 功能：向配置、结果或备注中追加当前值
 append_iotdb_property() {
     local key="$1"
     local value="$2"
@@ -78,12 +81,14 @@ append_iotdb_property() {
     printf '%s=%s\n' "${key}" "${value}" >> "${properties_file}"
 }
 
+# 功能：启用当前测试场景要求的功能配置
 enable_compaction_for_config_case() {
     append_iotdb_property "enable_seq_space_compaction" "true"
     append_iotdb_property "enable_unseq_space_compaction" "true"
     append_iotdb_property "enable_cross_space_compaction" "true"
 }
 
+# 功能：应用指定配置用例的 IoTDB 参数并执行扩展钩子
 modify_iotdb_config_for_case() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -125,6 +130,7 @@ modify_iotdb_config_for_case() {
     esac
 }
 
+# 功能：构造并写入当前场景的结果记录
 insert_custom_result_row() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -190,6 +196,7 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_custom_throughput_monitor() {
     local commit_date_time="$1"
     local throughput="$2"

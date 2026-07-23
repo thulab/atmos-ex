@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# 功能：执行结果数据库访问操作
 mysql_exec() {
     local sql="$1"
     MYSQL_PWD="${MYSQL_PASSWORD}" mysql -N -B \
@@ -7,6 +8,7 @@ mysql_exec() {
         "${DBNAME}" -e "${sql}"
 }
 
+# 功能：处理或执行 SQL 相关值和命令
 sql_quote() {
     local value="${1:-}"
     value="${value//\\/\\\\}"
@@ -14,15 +16,18 @@ sql_quote() {
     printf "'%s'" "${value}"
 }
 
+# 功能：更新当前提交在任务表中的测试状态
 update_task_status() {
     local status="$1"
     mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
 }
 
+# 功能：更新当前任务或测试的状态标记
 mark_older_commits_skip() {
     mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
 }
 
+# 功能：查询并返回当前场景需要的数据或状态
 query_next_commit() {
     local status_filter="$1"
     local author_filter="${TASK_AUTHOR_FILTER_SQL:-}"
@@ -36,6 +41,7 @@ query_next_commit() {
     fi
 }
 
+# 功能：优先获取重测任务，否则获取最新待测试提交
 fetch_next_commit() {
     local row=""
     local raw_commit_date_time=""

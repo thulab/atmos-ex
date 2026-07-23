@@ -61,26 +61,7 @@ maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
 
-dir_size_gb() {
-	local target_dir="$1"
-
-	if [ ! -d "${target_dir}" ]; then
-		printf '0\n'
-	else
-		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
-	fi
-}
-
-count_tsfiles() {
-	local target_dir="$1"
-
-	if [ ! -d "${target_dir}" ]; then
-		printf '0\n'
-	else
-		find "${target_dir}" -name "*.tsfile" | wc -l | tr -d '[:space:]'
-	fi
-}
-
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 	cost_time=0
 	numOfSe0Level_before=0
@@ -98,53 +79,7 @@ init_items() {
 	errorLogSize=0
 }
 
-check_iotdb_pid() {
-	check_pid_and_kill "DataNode" "DataNode"
-	check_pid_and_kill "ConfigNode" "ConfigNode"
-	check_pid_and_kill "IoTDB" "IoTDB"
-}
-
-process_pids() {
-	local process_name="$1"
-	jps | awk -v process_name="${process_name}" '$2 == process_name {print $1}'
-}
-
-refresh_max_process_metrics() {
-	local process_name=""
-	local pid=""
-	local open_files=0
-	local threads=0
-	local total_open_files=0
-	local total_threads=0
-
-	for process_name in DataNode ConfigNode IoTDB; do
-		while IFS= read -r pid; do
-			[ -n "${pid}" ] || continue
-			open_files="$(lsof -p "${pid}" 2>/dev/null | wc -l | tr -d '[:space:]')"
-			threads="$(ps -o nlwp= -p "${pid}" 2>/dev/null | awk '{sum += $1} END {print sum + 0}')"
-			total_open_files=$((total_open_files + open_files))
-			total_threads=$((total_threads + threads))
-		done < <(process_pids "${process_name}")
-	done
-
-	if [ "${maxNumofOpenFiles}" -lt "${total_open_files}" ]; then
-		maxNumofOpenFiles="${total_open_files}"
-	fi
-	if [ "${maxNumofThread}" -lt "${total_threads}" ]; then
-		maxNumofThread="${total_threads}"
-	fi
-}
-
-set_env() {
-	local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-
-	[ -d "${source_path}" ] || die "missing IoTDB build: ${source_path}"
-	safe_rm "${TEST_IOTDB_PATH}"
-	mkdir -p "${TEST_IOTDB_PATH}/activation"
-	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-	copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-}
-
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
 	local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
 
@@ -164,31 +99,7 @@ modify_iotdb_config() {
 	set_iotdb_property "dn_metric_prometheus_reporter_port" "9091"
 }
 
-start_iotdb() {
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/start-confignode.sh >/dev/null 2>&1 &
-	)
-	sleep "${STARTUP_GRACE_SECONDS}"
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-	)
-}
-
-stop_iotdb() {
-	[ -d "${TEST_IOTDB_PATH}" ] || return 0
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/stop-datanode.sh >/dev/null 2>&1 &
-	)
-	sleep "${STARTUP_GRACE_SECONDS}"
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/stop-confignode.sh >/dev/null 2>&1 &
-	)
-}
-
+# 功能：从命令输出、日志或结果文件中提取目标值
 extract_log_timestamp() {
 	local log_file="$1"
 	local pattern="${2:-}"
@@ -208,6 +119,7 @@ extract_log_timestamp() {
 	printf '%s\n' "${timestamp}"
 }
 
+# 功能：计算当前测试所需的时间、大小或统计值
 calculate_startup_cost() {
 	if [ -z "${start_time}" ] || [ -z "${end_time}" ] || [ "${end_time}" = "-1" ]; then
 		printf '%s\n' "-100"
@@ -222,6 +134,7 @@ calculate_startup_cost() {
 	printf '%s\n' "$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))"
 }
 
+# 功能：检查 IoTDB 启动后是否能够成功执行查询
 can_query_iotdb_after_startup() {
 	local iotdb_state=""
 
@@ -229,6 +142,7 @@ can_query_iotdb_after_startup() {
 	[ "${iotdb_state}" = "Total line number = 2" ]
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
 	local monitor_start_epoch=0
 	local elapsed=0
@@ -274,6 +188,7 @@ monitor_test_status() {
 	done
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_data_before() {
 	local collect_path="${1%/}"
 
@@ -283,6 +198,7 @@ collect_data_before() {
 	WALSize_before="$(dir_size_gb "${collect_path}/data/datanode/wal")"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_data_after() {
 	local collect_path="${1%/}"
 
@@ -298,6 +214,7 @@ collect_data_after() {
 	fi
 }
 
+# 功能：将当前场景采集的指标写入结果数据库
 insert_database() {
 	local remark_value="$1"
 	local insert_sql=""
@@ -339,6 +256,7 @@ EOF
 	log "${insert_sql}"
 }
 
+# 功能：归档当前测试产生的日志和运行文件
 archive_logs() {
 	local archive_dir_name="$1"
 	local archive_dir="${TEST_IOTDB_PATH}/${archive_dir_name}"
@@ -351,6 +269,7 @@ archive_logs() {
 	mv "${TEST_IOTDB_PATH}/logs" "${archive_dir}/"
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local current_ts_type="$1"
 	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
@@ -364,6 +283,7 @@ backup_test_data() {
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_restart_case() {
 	local remark_value="$1"
 	local archive_dir="$2"
@@ -387,6 +307,7 @@ run_restart_case() {
 	return "${case_failed}"
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_test_data() {
 	local source_data="${DATA_PATH}/data"
 
@@ -394,6 +315,7 @@ prepare_test_data() {
 	cp -rf "${source_data}" "${TEST_IOTDB_PATH}/"
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	protocol_id="$1"
 	ts_type="$2"
@@ -417,6 +339,7 @@ test_operation() {
 	return "${task_failed}"
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	local protocol=""
 	local ts=""
@@ -464,5 +387,7 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_distribution_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
 
 main "$@"

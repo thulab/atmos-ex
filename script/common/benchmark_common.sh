@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_runtime() {
     safe_rm "${BM_PATH}/logs"
     safe_rm "${BM_PATH}/data"
 }
 
+# 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() {
     prepare_benchmark_runtime
     (
@@ -13,6 +15,7 @@ start_benchmark() {
     )
 }
 
+# 功能：定位 Benchmark 生成的结果 CSV 文件
 find_result_csv() {
     local output_dir="${1:-${BM_PATH}/data/csvOutput}"
     local had_nullglob=0

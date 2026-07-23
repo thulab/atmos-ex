@@ -132,6 +132,7 @@ disk_id_regex="^${DEFAULT_DISK_ID}$"
 # 负责访问 QA_ATM、读取待测 commit、更新任务状态和安全拼接 SQL 字符串。
 # -------------------- 公共 Benchmark 版本同步函数 --------------------
 # 默认同步 iot-benchmark；last_cache_query 等特殊脚本可在 source 后覆盖同名函数。
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     local bm_new=""
     local bm_old=""
@@ -154,6 +155,7 @@ check_benchmark_version() {
 # -------------------- 告警通知函数 --------------------
 # -------------------- 公共告警通知函数 --------------------
 # 默认供吞吐监控使用，入口脚本通常不直接调用。
+# 功能：保留或执行测试监控告警逻辑
 sendMsg() {
     # Atmos性能测试告警功能已按要求注释掉；保留函数壳避免历史调用报错。
     return 0
@@ -213,6 +215,7 @@ ATMOS_PERF_ALERT_DISABLED
 # -------------------- 监控控制函数 --------------------
 # -------------------- 公共吞吐监控函数 --------------------
 # 默认以 ts_type/api_type/protocol 为历史基线；config_insert 可通过预留 hook 替换为配置项维度。
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_throughput_monitor() {
     local commit_date_time="$1"
     local throughput="$2"
@@ -295,6 +298,7 @@ check_throughput_monitor() {
 }
 # -------------------- 公共测试指标初始化函数 --------------------
 # 每个 case 开始前重置全局指标，避免上一个 case 的结果污染本次入库数据。
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     okPoint=0
     okOperation=0
@@ -334,20 +338,7 @@ init_items() {
 
 # -------------------- 公共进程清理函数 --------------------
 # 统一清理 Benchmark 和 IoTDB 相关 Java 进程，供正常流程和异常流程复用。
-check_benchmark_pid() {
-    check_pid_and_kill "App" "BM程序"
-}
-
-check_iotdb_pid() {
-    check_pid_and_kill "DataNode" "DataNode程序"
-    check_pid_and_kill "ConfigNode" "ConfigNode程序"
-    check_pid_and_kill "IoTDB" "IoTDB程序"
-}
-
-# -------------------- 公共 IoTDB / Benchmark 生命周期函数 --------------------
-# 负责准备待测版本、修改基础配置、设置共识协议、启动/停止服务和等待可用。
-# -------------------- 公共 Benchmark 结果定位和状态监控函数 --------------------
-# 通过 IoT-Benchmark 输出 CSV 判断写入是否完成；超时时生成兜底结果，保证后续入库有失败记录。
+# 功能：为超时或卡死场景生成失败占位结果
 create_stuck_result_csv() {
     local csv_file="$1"
     local index=0
@@ -359,6 +350,7 @@ create_stuck_result_csv() {
     done
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local current_ts_type="$1"
     local csv_file=""
@@ -391,6 +383,7 @@ monitor_test_status() {
 
 # -------------------- 公共 Prometheus 指标采集函数 --------------------
 # 采集文件数、线程数、WAL、CPU、磁盘 IO 等通用性能指标，供结果入库使用。
+# 功能：规范化输入值以便后续比较或存储
 normalize_decimal() {
     awk -v value="${1:-0}" 'BEGIN {
         value += 0
@@ -404,6 +397,7 @@ normalize_decimal() {
     }'
 }
 
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local ip="$1"
     local metric_window=$((m_end_time - m_start_time))
@@ -440,6 +434,7 @@ collect_monitor_data() {
 # 默认用于 se_insert/unse_insert/api_insert/api_insert_cts。
 # insert_records.sh 会在 source 后覆盖 backup_test_data，以按 seq_w/unseq_w 目录结构备份。
 # last_cache_query.sh 也会覆盖 backup_test_data，以保存后台写入和查询 benchmark 的特定产物。
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -462,6 +457,7 @@ backup_test_data() {
 # -------------------- 公共默认配置文件切换函数；特定脚本可覆盖 --------------------
 # 默认按 conf/${TEST_TYPE}/${ts_type}_${api_type} 选择 Benchmark 配置。
 # insert_records.sh 会覆盖 mv_config_file，以支持 common_seq_w/common_unseq_w 等拆分目录。
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -478,6 +474,7 @@ mv_config_file() {
 # parse_benchmark_result 解析通用 INGESTION 结果。
 # insert_result_row 是默认入库实现；config_insert 可实现 insert_custom_result_row hook 改写入库字段。
 # last_cache_query.sh 会在 source 后覆盖 insert_result_row，写入查询类的 last cache 结果字段。
+# 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
     local csv_file="$1"
     local throughput_line=""
@@ -521,6 +518,7 @@ parse_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
+# 功能：将当前测试结果写入结果数据库
 insert_result_row() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -586,13 +584,7 @@ EOF
 }
 
 # -------------------- 公共收尾函数 --------------------
-cleanup_processes() {
-    check_benchmark_pid
-    check_iotdb_pid
-}
-
-# -------------------- 特定脚本预留扩展点：config_insert 吞吐监控 hook --------------------
-# config_insert.sh 可定义 check_custom_throughput_monitor，用配置项名称和值作为历史基线维度。
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_current_throughput_monitor() {
     local commit_date_time="$1"
     local throughput="$2"
@@ -610,6 +602,7 @@ check_current_throughput_monitor() {
 
 # -------------------- 特定脚本预留扩展点：config_insert IoTDB 配置 hook --------------------
 # config_insert.sh 可定义 modify_iotdb_config_for_case，在基础配置之后按当前 case 追加配置项。
+# 功能：应用当前场景提供的配置或扩展钩子
 apply_iotdb_config_hook() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -623,6 +616,7 @@ apply_iotdb_config_hook() {
 # -------------------- 公共默认单 case 执行流程；特定脚本可覆盖 --------------------
 # 默认流程覆盖“准备 IoTDB -> 写入 Benchmark -> 解析结果 -> 采集指标 -> 备份数据”。
 # last_cache_query.sh 会在 source 后覆盖 test_operation，因为它需要同时运行写入和查询两个 Benchmark。
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -718,6 +712,7 @@ test_operation() {
 # Scheduler reads this file to decide which test suite should run next.
 # -------------------- 公共主流程入口 --------------------
 # 由各入口脚本在 source 后调用 main "$@"，统一完成依赖检查、取 commit、遍历协议/类型/API 并更新任务状态。
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     local protocol=""
     local ts=""

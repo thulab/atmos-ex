@@ -165,6 +165,7 @@ write_fail_point=0
 write_ok_operation=0
 write_fail_operation=0
 
+# 功能：向配置、结果或备注中追加当前值
 append_iotdb_properties() {
     local properties_file="$1"
 
@@ -175,6 +176,7 @@ enable_cross_space_compaction=false
 EOF
 }
 
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     local bm_new=""
     local bm_old=""
@@ -195,6 +197,7 @@ check_benchmark_version() {
     fi
 }
 
+# 功能：重置删除测试各阶段共享的指标和断言状态
 init_common_items() {
     okPoint=0
     okOperation=0
@@ -226,6 +229,7 @@ init_common_items() {
     m_end_time=0
 }
 
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     init_common_items
     disk_id_regex="^${DEFAULT_DISK_ID}$"
@@ -237,21 +241,7 @@ init_items() {
     maxDiskIOSizeWrite=0
 }
 
-check_benchmark_pid() {
-    check_pid_and_kill "App" "benchmark"
-}
-
-check_iotdb_pid() {
-    check_pid_and_kill "DataNode" "DataNode"
-    check_pid_and_kill "ConfigNode" "ConfigNode"
-    check_pid_and_kill "IoTDB" "IoTDB"
-}
-
-cleanup_processes() {
-    check_benchmark_pid
-    check_iotdb_pid
-}
-
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
     local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
@@ -278,6 +268,7 @@ EOF
     append_iotdb_properties "${properties_file}"
 }
 
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() {
     local protocol_code="$1"
     local config_node="${protocol_code:0:1}"
@@ -297,6 +288,7 @@ data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
 EOF
 }
 
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() {
     (
         cd "${TEST_IOTDB_PATH}" || exit 1
@@ -309,6 +301,7 @@ start_iotdb() {
     )
 }
 
+# 功能：停止当前场景中的 IoTDB 服务
 stop_iotdb() {
     if [ ! -d "${TEST_IOTDB_PATH}" ]; then
         return 0
@@ -325,6 +318,7 @@ stop_iotdb() {
     )
 }
 
+# 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() {
     safe_rm "${BM_PATH}/logs"
     safe_rm "${BM_PATH}/data"
@@ -334,6 +328,7 @@ start_benchmark() {
     )
 }
 
+# 功能：轮询 IoTDB 直到服务达到可查询状态
 wait_for_iotdb_ready() {
     local attempt=0
     local iotdb_state=""
@@ -361,6 +356,7 @@ wait_for_iotdb_ready() {
     return 1
 }
 
+# 功能：定位 Benchmark 生成的结果 CSV 文件
 find_result_csv() {
     local had_nullglob=0
     local files=()
@@ -382,6 +378,7 @@ find_result_csv() {
     fi
 }
 
+# 功能：为超时或卡死场景生成失败占位结果
 create_stuck_result_csv() {
     local csv_file="$1"
     local result_label="$2"
@@ -394,6 +391,7 @@ create_stuck_result_csv() {
     done
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local current_name="$1"
     local result_label="$2"
@@ -422,6 +420,7 @@ monitor_test_status() {
     done
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_error_log_size() {
     local datanode_error_log_file="${TEST_IOTDB_PATH}/logs/log_datanode_error.log"
     local confignode_error_log_file="${TEST_IOTDB_PATH}/logs/log_confignode_error.log"
@@ -433,6 +432,7 @@ collect_error_log_size() {
     printf '%s\n' "$(( ${datanode_error_log_size:-0} + ${confignode_error_log_size:-0} ))"
 }
 
+# 功能：统计指定文件、数据点或运行对象数量
 count_data_files_by_name() {
     local file_name="$1"
     local data_dir="${TEST_IOTDB_PATH}/data/datanode/data"
@@ -445,14 +445,17 @@ count_data_files_by_name() {
     find "${data_dir}" -type f -name "${file_name}" 2>/dev/null | wc -l | awk '{print $1}'
 }
 
+# 功能：统计指定目录下的 TsFile 数量
 count_tsfiles() {
     count_data_files_by_name "*.tsfile"
 }
 
+# 功能：统计指定文件、数据点或运行对象数量
 count_mods_files() {
     count_data_files_by_name "*.mods2"
 }
 
+# 功能：统计指定文件、数据点或运行对象数量
 count_tsfiles_by_level() {
     local target_level="$1"
     local data_dir="${TEST_IOTDB_PATH}/data/datanode/data"
@@ -482,16 +485,19 @@ count_tsfiles_by_level() {
     '
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_file_stats_after_write() {
     write_tsfile_count="$(count_tsfiles)"
     log "write file stats: tsfile_count=${write_tsfile_count}"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_file_stats_after_delete() {
     delete_mods_file_count="$(count_mods_files)"
     log "delete file stats: mods_file_count=${delete_mods_file_count}"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_file_stats_after_compaction() {
     compacted_level0_tsfile_count="$(count_tsfiles_by_level 0)"
     compacted_level1_tsfile_count="$(count_tsfiles_by_level 1)"
@@ -499,6 +505,7 @@ collect_file_stats_after_compaction() {
     log "compacted file stats: level0_tsfile_count=${compacted_level0_tsfile_count} level1_tsfile_count=${compacted_level1_tsfile_count} mods_file_count=${compacted_mods_file_count}"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_monitor_snapshot() {
     local ip="${1:-${TEST_IP}}"
     local metric_time="${2:-$(date +%s)}"
@@ -509,6 +516,7 @@ collect_monitor_snapshot() {
     numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${metric_time}")"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_monitor_window_data() {
     local ip="${1:-${TEST_IP}}"
     local window_start_time="${2:-${m_start_time}}"
@@ -531,6 +539,7 @@ collect_monitor_window_data() {
     errorLogSize="$(collect_error_log_size)"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_resource_monitor_data() {
     local ip="${1:-${TEST_IP}}"
     local disk_id_pattern="${2:-}"
@@ -559,6 +568,7 @@ collect_resource_monitor_data() {
     fi
 }
 
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local ip="${1:-${TEST_IP}}"
 
@@ -566,6 +576,7 @@ collect_monitor_data() {
     collect_resource_monitor_data "${ip}" "${disk_id_regex}" "${m_start_time}" "${m_end_time}"
 }
 
+# 功能：复制当前测试所需的配置、数据或运行文件
 copy_benchmark_config() {
     local config_source="$1"
     local config_target="${BM_PATH}/conf/config.properties"
@@ -575,6 +586,7 @@ copy_benchmark_config() {
     cp -rf "${config_source}" "${config_target}"
 }
 
+# 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
     if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0
@@ -583,6 +595,7 @@ change_root_password() {
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
+# 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
     local csv_file="$1"
     local throughput_line=""
@@ -624,6 +637,7 @@ parse_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
+# 功能：向配置、结果或备注中追加当前值
 append_remark() {
     local message="$1"
     if [ -z "${remark}" ]; then
@@ -633,6 +647,7 @@ append_remark() {
     fi
 }
 
+# 功能：处理或执行 SQL 相关值和命令
 sql_number() {
     local value="${1:-0}"
     if [[ "${value}" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
@@ -642,10 +657,12 @@ sql_number() {
     fi
 }
 
+# 功能：返回当前 Unix 毫秒时间戳
 current_epoch_ms() {
     date +%s%3N
 }
 
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() {
     local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
     local delete_conf_path="${ATMOS_PATH}/conf/${TEST_TYPE}"
@@ -673,12 +690,14 @@ set_env() {
     fi
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_config() {
     local phase_config="$1"
 
     copy_benchmark_config "${phase_config}"
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_benchmark_write() {
     local phase_name="$1"
     local phase_config="$2"
@@ -725,6 +744,7 @@ run_benchmark_write() {
     return 1
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_iotdb_sql() {
     local sql="$1"
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" \
@@ -735,6 +755,7 @@ run_iotdb_sql() {
         -e "${sql}" 2>&1
 }
 
+# 功能：从命令输出、日志或结果文件中提取目标值
 extract_last_value() {
     awk -F'|' '
         /^\|/ {
@@ -760,6 +781,7 @@ extract_last_value() {
     '
 }
 
+# 功能：查询并返回当前场景需要的数据或状态
 query_value() {
     local sql="$1"
     local output=""
@@ -775,6 +797,7 @@ query_value() {
     printf '%s\n' "${value}"
 }
 
+# 功能：执行 SQL 并保存输出、返回码和错误信息
 execute_sql() {
     local label="$1"
     local sql="$2"
@@ -792,6 +815,7 @@ execute_sql() {
     return 1
 }
 
+# 功能：执行 SQL 并记录开始时间、结束时间和耗时
 execute_timed_sql() {
     local label="$1"
     local sql="$2"
@@ -817,6 +841,7 @@ execute_timed_sql() {
     return 1
 }
 
+# 功能：比较实际值和期望值，并累计断言失败信息
 assert_value() {
     local label="$1"
     local sql="$2"
@@ -839,6 +864,7 @@ assert_value() {
     return 1
 }
 
+# 功能：断言查询返回的计数等于指定常量
 assert_count_literal() {
     local label="$1"
     local begin_ms="$2"
@@ -852,6 +878,7 @@ assert_count_literal() {
         "${result_var}"
 }
 
+# 功能：查询并断言指定序列的数据点数量
 assert_point_count() {
     local label="$1"
     local point_ms="$2"
@@ -864,6 +891,7 @@ assert_point_count() {
         "${scratch_var}"
 }
 
+# 功能：查询并断言指定时间点的值
 assert_point_value() {
     local label="$1"
     local point_ms="$2"
@@ -876,6 +904,7 @@ assert_point_value() {
         "${scratch_var}"
 }
 
+# 功能：轮询等待指定条件成立或达到超时
 wait_for_iotdb_ready_with_auth() {
     local attempt=0
     local iotdb_state=""
@@ -898,6 +927,7 @@ wait_for_iotdb_ready_with_auth() {
     return 1
 }
 
+# 功能：重启 IoTDB 并等待带认证的就绪检查通过
 restart_iotdb_and_wait() {
     stop_iotdb
     sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
@@ -907,6 +937,7 @@ restart_iotdb_and_wait() {
     wait_for_iotdb_ready_with_auth
 }
 
+# 功能：启用当前测试场景要求的功能配置
 enable_compaction_config() {
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
 
@@ -917,6 +948,7 @@ enable_cross_space_compaction=true
 EOF
 }
 
+# 功能：轮询等待指定条件成立或达到超时
 wait_for_compaction_quiet() {
     local data_dir="${TEST_IOTDB_PATH}/data/datanode/data"
     local log_file="${TEST_IOTDB_PATH}/logs/log_datanode_compaction.log"
@@ -962,6 +994,7 @@ wait_for_compaction_quiet() {
     done
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_consistency_checks_after_first_delete() {
     assert_count_literal "delete window after delete" "${DELETE1_START_MS}" "${DELETE1_END_MS}" 0 delete1_window_count
     assert_count_literal "before delete window" "${RANGE_START_MS}" "${DELETE1_START_MS}" "${EXPECT_TWO_DAYS}" before_delete_window_count
@@ -972,6 +1005,7 @@ run_consistency_checks_after_first_delete() {
     assert_point_count "boundary after delete exists" "${BOUNDARY_AFTER_DELETE_MS}" 1
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_reinsert_checks() {
     execute_sql "reinsert first deleted point" "insert into root.test.g_0.d_0(timestamp, s_0) values(${REINSERT1_MS}, true)"
     execute_sql "reinsert second deleted point" "insert into root.test.g_0.d_0(timestamp, s_0) values(${REINSERT2_MS}, true)"
@@ -979,6 +1013,7 @@ run_reinsert_checks() {
     assert_point_value "reinsert second point visible" "${REINSERT2_MS}" true
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_restart_checks() {
     assert_count_literal "restart delete window count" "${DELETE1_START_MS}" "${DELETE1_END_MS}" 2 restart_delete1_window_count
     assert_point_count "restart boundary before delete exists" "${BOUNDARY_BEFORE_DELETE_MS}" 1
@@ -988,6 +1023,7 @@ run_restart_checks() {
     assert_point_value "restart reinsert second point visible" "${REINSERT2_MS}" true
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_compaction_checks() {
     assert_count_literal "compacted delete window count" "${DELETE1_START_MS}" "${DELETE1_END_MS}" 2 compacted_delete1_window_count
     assert_count_literal "compacted before count" "${RANGE_START_MS}" "${DELETE1_START_MS}" "${EXPECT_TWO_DAYS}" compacted_before_count
@@ -995,6 +1031,7 @@ run_compaction_checks() {
     assert_count_literal "compacted total count" "${RANGE_START_MS}" "${RANGE_END_MS}" "${EXPECT_COMPACTED_TOTAL}" compacted_total_count
 }
 
+# 功能：构造并写入当前场景的结果记录
 insert_delete_result_row() {
     local protocol_code="$1"
     local insert_sql=""
@@ -1063,6 +1100,7 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
 
@@ -1175,6 +1213,7 @@ test_operation() {
     [ "${fail_num}" -eq 0 ]
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     local protocol=""
     local task_failed=0

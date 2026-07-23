@@ -1,19 +1,10 @@
 #!/usr/bin/env bash
 
-prepare_iotdb_distribution() {
-    local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-    [ -d "${source_path}" ] || die "missing tested IoTDB path: ${source_path}"
-    safe_rm "${TEST_IOTDB_PATH}"
-    mkdir -p "${TEST_IOTDB_PATH}/activation"
-    cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
-}
+COPY_IOTDB_ENV="${COPY_IOTDB_ENV:-1}"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/iotdb_distribution_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/iotdb_service_common.sh"
 
-set_env() {
-    prepare_iotdb_distribution
-}
-
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
     local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
@@ -41,6 +32,7 @@ EOF
     fi
 }
 
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() {
     local protocol_code="$1"
     local config_node="${protocol_code:0:1}"
@@ -58,51 +50,7 @@ data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
 EOF
 }
 
-start_iotdb() {
-    if declare -F before_iotdb_start >/dev/null 2>&1; then
-        before_iotdb_start
-    fi
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
-    sleep "${STARTUP_GRACE_SECONDS:-10}"
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
-}
-
-stop_iotdb_once() {
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
-    sleep "${IOTDB_STOP_DATANODE_WAIT_SECONDS:-${STARTUP_GRACE_SECONDS:-10}}"
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
-    sleep "${IOTDB_STOP_CONFIGNODE_WAIT_SECONDS:-0}"
-}
-
-iotdb_processes_stopped() {
-    [ -z "$(process_pids_by_name DataNode)" ] && [ -z "$(process_pids_by_name ConfigNode)" ]
-}
-
-stop_iotdb() {
-    local attempt=0
-    local retries="${IOTDB_STOP_RETRIES:-0}"
-    [ -d "${TEST_IOTDB_PATH}" ] || return 0
-    for ((attempt = 0; attempt <= retries; attempt++)); do
-        stop_iotdb_once
-        [ "${retries}" -eq 0 ] && return 0
-        iotdb_processes_stopped && return 0
-    done
-    return 1
-}
-
-iotdb_is_ready() {
-    local output=""
-    local -a cli_args=()
-    [ -z "${IOTDB_READY_USER:-}" ] || cli_args+=(-u "${IOTDB_READY_USER}")
-    [ -z "${IOTDB_READY_PASSWORD:-}" ] || cli_args+=(-pw "${IOTDB_READY_PASSWORD}")
-    output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${cli_args[@]}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-    [ "${output}" = "Total line number = 2" ]
-}
-
-wait_for_iotdb_ready() {
-    wait_for_attempts "${IOTDB_READY_RETRIES:-10}" "${IOTDB_READY_INTERVAL_SECONDS:-5}" iotdb_is_ready
-}
-
+# 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
     if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0

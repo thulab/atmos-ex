@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=script/common/insert_common.sh
 source "${SCRIPT_DIR}/../common/insert_common.sh"
 
+# 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
     local target_path="$1"
     local source_version=""
@@ -41,15 +42,18 @@ sync_benchmark_path() {
     fi
 }
 
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     sync_benchmark_path "${BM_PATH}"
     sync_benchmark_path "${QUERY_BM_PATH}"
 }
 
+# 功能：启用当前测试场景要求的功能配置
 enable_last_cache() {
     printf 'enable_last_cache=true\n' >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
 }
 
+# 功能：复制当前测试所需的配置、数据或运行文件
 copy_benchmark_config() {
     local source_config="$1"
     local target_benchmark_path="$2"
@@ -60,11 +64,13 @@ copy_benchmark_config() {
     cp -rf -- "${source_config}" "${target_config}"
 }
 
+# 功能：生成或修改当前测试步骤所需的配置
 configure_background_benchmark() {
     local current_ts_type="$1"
     copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}" "${BM_PATH}"
 }
 
+# 功能：生成或修改当前测试步骤所需的配置
 configure_query_benchmark() {
     local current_ts_type="$1"
     local target_config="${QUERY_BM_PATH}/conf/config.properties"
@@ -75,6 +81,7 @@ configure_query_benchmark() {
     fi
 }
 
+# 功能：启动指定服务、工具或测试步骤
 start_query_benchmark() {
     safe_rm "${QUERY_BM_PATH}/logs"
     safe_rm "${QUERY_BM_PATH}/data"
@@ -84,6 +91,7 @@ start_query_benchmark() {
     )
 }
 
+# 功能：定位后台查询 Benchmark 生成的结果 CSV
 find_query_result_csv() {
     local had_nullglob=0
     local files=()
@@ -105,6 +113,7 @@ find_query_result_csv() {
     fi
 }
 
+# 功能：创建当前测试需要的数据、文件或数据库对象
 create_query_stuck_result_csv() {
     local csv_file="$1"
     local index=0
@@ -116,6 +125,7 @@ create_query_stuck_result_csv() {
     done
 }
 
+# 功能：监控后台查询 Benchmark 直到完成或超时
 monitor_query_status() {
     local current_ts_type="$1"
     local csv_file=""
@@ -143,6 +153,7 @@ monitor_query_status() {
     done
 }
 
+# 功能：解析外部输出并转换为脚本使用的结果字段
 parse_query_benchmark_result() {
     local csv_file="$1"
     local throughput_line=""
@@ -192,6 +203,7 @@ parse_query_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
+# 功能：将当前测试结果写入结果数据库
 insert_result_row() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -249,6 +261,7 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -272,6 +285,7 @@ backup_test_data() {
     fi
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
     local current_ts_type="$2"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# 功能：读取并返回指定配置、路径或指标值
 get_monitor_disk_fallback_path() {
     local data_path="${TEST_IOTDB_PATH}/data"
     if [ -d "${data_path}" ]; then
@@ -9,6 +10,7 @@ get_monitor_disk_fallback_path() {
     fi
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_iotdb_property_value() {
     local properties_file="$1"
     local property_key="$2"
@@ -26,6 +28,7 @@ get_iotdb_property_value() {
     ' "${properties_file}"
 }
 
+# 功能：拆分 IoTDB 配置中的逗号或分号分隔路径列表
 split_iotdb_path_list() {
     local value="$1"
     local item=""
@@ -39,6 +42,7 @@ split_iotdb_path_list() {
     done
 }
 
+# 功能：规范化输入值以便后续比较或存储
 normalize_monitor_target_path() {
     local path="$(trim "$1")"
     path="${path%/}"
@@ -48,6 +52,7 @@ normalize_monitor_target_path() {
     esac
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_monitor_disk_target_paths() {
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
     local property_key=""
@@ -70,6 +75,7 @@ get_monitor_disk_target_paths() {
     [ "${found}" -ne 0 ] || get_monitor_disk_fallback_path
 }
 
+# 功能：从候选监控目录中返回第一个实际存在的路径
 find_existing_monitor_path() {
     local path="$1"
     while [ ! -e "${path}" ] && [ "${path}" != / ]; do
@@ -80,6 +86,7 @@ find_existing_monitor_path() {
     printf '%s\n' "${path}"
 }
 
+# 功能：判断集合中是否包含指定值
 contains_value() {
     local expected="$1"
     shift
@@ -90,6 +97,7 @@ contains_value() {
     return 1
 }
 
+# 功能：根据当前配置构造路径、表达式或参数
 build_disk_id_regex() {
     local regex=""
     local disk_id=""
@@ -99,6 +107,7 @@ build_disk_id_regex() {
     printf '^(%s)$\n' "${regex:-${DEFAULT_DISK_ID:-sdb}}"
 }
 
+# 功能：探测当前主机、磁盘或运行环境信息
 detect_disk_id_from_path() {
     local target_path="$1"
     local existing_path=""
@@ -123,6 +132,7 @@ detect_disk_id_from_path() {
     printf '%s\n' "${resolved_device##*/}"
 }
 
+# 功能：根据候选路径或配置解析最终使用值
 resolve_monitor_disk_id() {
     local target_path=""
     local detected_disk_id=""
@@ -146,6 +156,7 @@ resolve_monitor_disk_id() {
     fi
 }
 
+# 功能：查询并转换 Prometheus 指标值
 prometheus_value() {
     local query="$1"
     local metric_time="$2"
@@ -154,18 +165,22 @@ prometheus_value() {
         jq -r '.data.result[0].value[1] // 0'
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_single_index() {
     prometheus_value "$1" "$2"
 }
 
+# 功能：将字节数转换为 GiB 数值
 bytes_to_gib() {
     awk -v value="${1:-0}" 'BEGIN {printf "%.6f", value / 1024 / 1024 / 1024}'
 }
 
+# 功能：将输入值规范化为整数
 to_int() {
     awk -v value="${1:-0}" 'BEGIN {printf "%d", value + 0}'
 }
 
+# 功能：返回指定文件的字节大小
 file_size_bytes() {
     local path="$1"
     [ -f "${path}" ] && wc -c < "${path}" || printf '0\n'

@@ -75,6 +75,7 @@ maxNumofOpenFiles=0
 maxNumofThread=0
 errorLogSize=0
 
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
 	local bm_new=""
 	local bm_old=""
@@ -97,26 +98,7 @@ check_benchmark_version() {
 	fi
 }
 
-dir_size_gb() {
-	local target_dir="$1"
-
-	if [ ! -d "${target_dir}" ]; then
-		printf '0\n'
-	else
-		du -sk "${target_dir}" 2>/dev/null | awk '{printf "%.2f\n", $1 / 1048576}'
-	fi
-}
-
-count_tsfiles() {
-	local target_dir="$1"
-
-	if [ ! -d "${target_dir}" ]; then
-		printf '0\n'
-	else
-		find "${target_dir}" -name "*.tsfile" | wc -l | tr -d '[:space:]'
-	fi
-}
-
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 	cost_time=0
 	numOfSe0Level_before=0
@@ -135,63 +117,12 @@ init_items() {
 	errorLogSize=0
 }
 
-check_benchmark_pid() {
-	check_pid_and_kill "App" "benchmark"
-}
-
-check_iotdb_pid() {
-	check_pid_and_kill "DataNode" "DataNode"
-	check_pid_and_kill "ConfigNode" "ConfigNode"
-	check_pid_and_kill "IoTDB" "IoTDB"
-}
-
-cleanup_processes() {
-	check_benchmark_pid
-	check_iotdb_pid
-}
-
-process_pids() {
-	local process_name="$1"
-	jps | awk -v process_name="${process_name}" '$2 == process_name {print $1}'
-}
-
-refresh_max_process_metrics() {
-	local process_name=""
-	local pid=""
-	local open_files=0
-	local threads=0
-	local total_open_files=0
-	local total_threads=0
-
-	for process_name in DataNode ConfigNode IoTDB; do
-		while IFS= read -r pid; do
-			[ -n "${pid}" ] || continue
-			open_files="$(lsof -p "${pid}" 2>/dev/null | wc -l | tr -d '[:space:]')"
-			threads="$(ps -o nlwp= -p "${pid}" 2>/dev/null | awk '{sum += $1} END {print sum + 0}')"
-			total_open_files=$((total_open_files + open_files))
-			total_threads=$((total_threads + threads))
-		done < <(process_pids "${process_name}")
-	done
-
-	if [ "${maxNumofOpenFiles}" -lt "${total_open_files}" ]; then
-		maxNumofOpenFiles="${total_open_files}"
-	fi
-	if [ "${maxNumofThread}" -lt "${total_threads}" ]; then
-		maxNumofThread="${total_threads}"
-	fi
-}
-
-set_env() {
-	local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-
-	[ -d "${source_path}" ] || die "missing IoTDB build: ${source_path}"
-	safe_rm "${TEST_IOTDB_PATH}"
-	mkdir -p "${TEST_IOTDB_PATH}/activation"
-	cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-	copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
+# 功能：在安装包准备完成后创建工具测试日志目录
+after_prepare_iotdb_distribution() {
 	mkdir -p "${TEST_IOTDB_PATH}/tools/testlog"
 }
 
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
 	local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
 
@@ -214,69 +145,17 @@ modify_iotdb_config() {
 	set_iotdb_property "dn_metric_prometheus_reporter_port" "9091"
 }
 
-set_protocol_class() {
-	local protocol_code="$1"
-	local config_node="${protocol_code:0:1}"
-	local schema_region="${protocol_code:1:1}"
-	local data_region="${protocol_code:2:1}"
-
-	[ "${#protocol_code}" -eq 3 ] || return 1
-	[ -n "${protocol_class[${config_node}]:-}" ] || return 1
-	[ -n "${protocol_class[${schema_region}]:-}" ] || return 1
-	[ -n "${protocol_class[${data_region}]:-}" ] || return 1
-
-	set_iotdb_property "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
-	set_iotdb_property "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
-	set_iotdb_property "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
-}
-
-start_iotdb() {
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/start-confignode.sh >/dev/null 2>&1 &
-	)
-	sleep "${STARTUP_GRACE_SECONDS}"
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-	)
-}
-
-stop_iotdb() {
-	[ -d "${TEST_IOTDB_PATH}" ] || return 0
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/stop-datanode.sh >/dev/null 2>&1 &
-	)
-	sleep "${STARTUP_GRACE_SECONDS}"
-	(
-		cd "${TEST_IOTDB_PATH}" || exit 1
-		./sbin/stop-confignode.sh >/dev/null 2>&1 &
-	)
-}
-
-wait_for_iotdb_ready() {
-	local attempt=0
-	local iotdb_state=""
-
-	for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-		iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-		if [ "${iotdb_state}" = "Total line number = 2" ]; then
-			return 0
-		fi
-		sleep "${IOTDB_READY_INTERVAL_SECONDS}"
-	done
-	return 1
-}
-
+# 功能：使用当前场景参数执行 IoTDB CLI 命令
 run_iotdb_cli() {
 	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -h 127.0.0.1 -p 6667 "$@"
 }
 
+# 功能：输出表模型 CLI 调用所需的公共参数
 table_cli_args() {
 	printf '%s\n' "-sql_dialect" "table"
 }
 
+# 功能：创建当前测试需要的数据、文件或数据库对象
 create_tablemode_schema() {
 	if [ "${ts_type}" != "tablemode" ]; then
 		return 0
@@ -289,6 +168,7 @@ create_tablemode_schema() {
 		-db test_g_0 >/dev/null 2>&1 || true
 }
 
+# 功能：监控导入或导出工具进程并处理超时和错误日志
 monitor_tool_status() {
 	local operation="$1"
 	local monitor_start_epoch=0
@@ -323,6 +203,7 @@ monitor_tool_status() {
 	done
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_data_before() {
 	local collect_path="${1%/}"
 
@@ -331,6 +212,7 @@ collect_data_before() {
 	numOfUnse0Level_before="$(count_tsfiles "${collect_path}/data/datanode/data/unsequence")"
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_data_after() {
 	local collect_path="${1%/}"
 
@@ -344,6 +226,7 @@ collect_data_after() {
 	fi
 }
 
+# 功能：从命令输出、日志或结果文件中提取目标值
 extract_count_result() {
 	awk '
 		/^[|]/ {
@@ -362,6 +245,7 @@ extract_count_result() {
 	'
 }
 
+# 功能：采集当前测试阶段产生的指标或文件信息
 collect_point_count() {
 	local count_result=""
 
@@ -377,6 +261,7 @@ collect_point_count() {
 	ts_numOfPoints="${count_result}"
 }
 
+# 功能：将当前场景采集的指标写入结果数据库
 insert_database() {
 	local remark_value="$1"
 	local insert_sql=""
@@ -419,6 +304,7 @@ EOF
 	log "${insert_sql}"
 }
 
+# 功能：写入当前测试的日志、状态或失败结果
 write_startup_error_result() {
 	local remark_value="$1"
 
@@ -429,6 +315,7 @@ write_startup_error_result() {
 	update_task_status "RError"
 }
 
+# 功能：启动指定服务、工具或测试步骤
 start_iotdb_or_record_error() {
 	local remark_value="$1"
 
@@ -447,10 +334,12 @@ start_iotdb_or_record_error() {
 	return 1
 }
 
+# 功能：解析并返回当前操作使用的源文件路径
 source_tsfile_path() {
 	printf '%s\n' "${DATA_PATH}/${data_type}/${ts_type}"
 }
 
+# 功能：确保当前测试依赖的资源或结果存在
 ensure_source_tsfile_path() {
 	local source_path=""
 
@@ -458,6 +347,7 @@ ensure_source_tsfile_path() {
 	[ -d "${source_path}" ] || die "missing tsfile data: ${source_path}"
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_load_tsfile_tool() {
 	local source_path=""
 	local log_file="${TEST_IOTDB_PATH}/tools/testlog/log.txt"
@@ -494,6 +384,7 @@ run_load_tsfile_tool() {
 	fi
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_export_tsfile_tool() {
 	local target_dir="${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence"
 	local log_file="${TEST_IOTDB_PATH}/tools/testlog/log.txt"
@@ -527,6 +418,7 @@ run_export_tsfile_tool() {
 	fi
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_export_csv_tool() {
 	local target_dir="${TEST_IOTDB_PATH}/tools/data/datanode/data/sequence"
 	local log_file="${TEST_IOTDB_PATH}/tools/testlog/log.txt"
@@ -561,6 +453,7 @@ run_export_csv_tool() {
 	fi
 }
 
+# 功能：归档当前测试产生的日志和运行文件
 archive_tool_log() {
 	local archive_name="$1"
 	local log_file="${TEST_IOTDB_PATH}/tools/testlog/log.txt"
@@ -571,6 +464,7 @@ archive_tool_log() {
 	fi
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_tool_operation() {
 	local remark_value="$1"
 	local collect_before_path="$2"
@@ -610,6 +504,7 @@ run_tool_operation() {
 	return "${monitor_failed}"
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local current_ts_type="$1"
 	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
@@ -627,6 +522,7 @@ backup_test_data() {
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	protocol_id="$1"
 	ts_type="$2"
@@ -659,6 +555,7 @@ test_operation() {
 	return "${task_failed}"
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	local protocol=""
 	local ts=""
@@ -707,5 +604,8 @@ main() {
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_distribution_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/protocol_common.sh"
 
 main "$@"

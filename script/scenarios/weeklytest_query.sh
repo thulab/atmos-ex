@@ -12,6 +12,7 @@ TEST_IP="11.101.17.113"
 ACCOUNT=atmos
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-weeklytest_query}"
+BENCHMARK_DEFAULT_RESULT_LABEL="PRECISE_POINT"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
@@ -59,104 +60,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 
-check_benchmark_version() {
-	local bm_repos_path=/nasdata/repository/iot-benchmark
-	local bm_new=""
-	local bm_old=""
-
-	bm_new=$(git_commit_abbrev "${bm_repos_path}/git.properties")
-	bm_old=$(git_commit_abbrev "${BM_PATH}/git.properties")
-	if [ -n "${bm_new}" ] && { [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; }; then
-		rm -rf "${BM_PATH}"
-		cp -rf "${bm_repos_path}" "${BM_PATH}"
-	fi
-}
-
-find_result_csv() {
-	find "${BM_PATH}/data/csvOutput" -type f -name "*result.csv" -print -quit 2>/dev/null
-}
-
-create_stuck_result_csv() {
-	local result_label="${1:-PRECISE_POINT}"
-	local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
-	local index=0
-
-	result_label="${result_label%,}"
-	mkdir -p "${csv_file%/*}"
-	: > "${csv_file}"
-	for ((index = 0; index < 100; index++)); do
-		echo "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
-	done
-}
-
-set_negative_benchmark_metrics() {
-	local value=$1
-	okPoint=${value}
-	okOperation=${value}
-	failPoint=${value}
-	failOperation=${value}
-	throughput=${value}
-	Latency=${value}
-	MIN=${value}
-	P10=${value}
-	P25=${value}
-	MEDIAN=${value}
-	P75=${value}
-	P90=${value}
-	P95=${value}
-	P99=${value}
-	P999=${value}
-	MAX=${value}
-}
-
-parse_benchmark_result() {
-	local csv_file=$1
-	local result_label="${2:-PRECISE_POINT}"
-	local throughput_line=""
-	local latency_line=""
-
-	[ -f "${csv_file}" ] || return 1
-	result_label="${result_label%,}"
-	throughput_line=$(awk -F, -v label="${result_label}" '
-		{
-			name = $1
-			gsub(/^[ \t]+|[ \t]+$/, "", name)
-		}
-		name == label {
-			for (i = 2; i <= 6; i++) {
-				gsub(/^[ \t]+|[ \t]+$/, "", $i)
-				printf "%s%s", $i, (i == 6 ? ORS : OFS)
-			}
-			exit
-		}
-	' OFS=$'\t' "${csv_file}")
-
-	latency_line=$(awk -F, -v label="${result_label}" '
-		{
-			name = $1
-			gsub(/^[ \t]+|[ \t]+$/, "", name)
-		}
-		name == label {
-			count++
-			if (count == 2) {
-				for (i = 2; i <= 12; i++) {
-					gsub(/^[ \t]+|[ \t]+$/, "", $i)
-					printf "%s%s", $i, (i == 12 ? ORS : OFS)
-				}
-				exit
-			}
-		}
-	' OFS=$'\t' "${csv_file}")
-
-	[ -n "${throughput_line}" ] || return 1
-	[ -n "${latency_line}" ] || return 1
-	IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
-	IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
-}
-
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
-check_benchmark_version
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -194,50 +98,11 @@ walFileSize=0
 ############定义监控采集项初始值##########################
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+# 功能：保留或执行测试异常通知逻辑
 sendEmail() {
 sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 }
-check_benchmark_pid() { # 检查benchmark-moitor的pid，有就停止
-	monitor_pid=$(jps | awk '$2 == "App" {print $1}')
-	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
-	else
-		kill -TERM "${monitor_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${monitor_pid}" 2>/dev/null || true
-		echo "BM程序已停止！"
-	fi
-}
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | awk '$2 == "DataNode" {print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | awk '$2 == "ConfigNode" {print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | awk '$2 == "IoTDB" {print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p ${TEST_IOTDB_PATH}
@@ -249,6 +114,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
@@ -275,6 +141,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
 	config_node=$1
 	schema_region=$2
@@ -284,20 +151,24 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() { # 启动iotdb
 	(cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
 	sleep 10
 	(cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
 }
+# 功能：停止当前场景中的 IoTDB 服务
 stop_iotdb() { # 停止iotdb
 	(cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
 	sleep 10
 	(cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
 }
+# 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() { # 启动benchmark
 	rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
 	(cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
 }
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	local result_label="${1:-PRECISE_POINT}"
 	local csv_file=""
@@ -324,6 +195,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
 	done
 }
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	#TEST_IP=$1
 	local metric_window=0
@@ -350,6 +222,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[${metric_window}s])" $m_end_time)
 	walFileSize=$(bytes_to_gib "${walFileSize}")
 }
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
 	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
 	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
@@ -357,6 +230,7 @@ backup_test_data() { # 备份测试数据
 	sudo mv ${TEST_IOTDB_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 	sudo cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
 }
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	rm -rf -- "${BM_PATH}/conf/config.properties"
 	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
@@ -364,6 +238,7 @@ mv_config_file() { # 移动配置文件
 		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
 	fi
 }
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	protocol_class=$1
 	#查询测试
@@ -481,6 +356,7 @@ test_operation() {
 }
 
 ##准备开始测试
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password
@@ -526,6 +402,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/standard_benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

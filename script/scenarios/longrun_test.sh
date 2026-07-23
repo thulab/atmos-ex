@@ -143,6 +143,7 @@ QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
 LONGRUN_TTL_MS=0
 
+# 功能：探测当前主机、磁盘或运行环境信息
 detect_local_ips() {
     {
         hostname -I 2>/dev/null || true
@@ -150,6 +151,7 @@ detect_local_ips() {
     } | tr ' ' '\n' | awk 'NF && !seen[$0]++'
 }
 
+# 功能：根据本机地址选择长稳测试的数据表和任务过滤条件
 init_longrun_route() {
     local local_ips=""
     local first_ip=""
@@ -172,6 +174,7 @@ init_longrun_route() {
     log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
 }
 
+# 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
     local target_path="$1"
     local source_version=""
@@ -192,6 +195,7 @@ sync_benchmark_path() {
     fi
 }
 
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     sync_benchmark_path "${BM_PATH_TREE}"
     sync_benchmark_path "${BM_PATH_TABLE}"
@@ -199,6 +203,7 @@ check_benchmark_version() {
     sync_benchmark_path "${BM_PATH_TABLE_QUERY}"
 }
 
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     okPoint=0
     okOperation=0
@@ -241,6 +246,7 @@ init_items() {
     LONGRUN_TTL_MS=0
 }
 
+# 功能：重置当前测试使用的指标或运行状态
 reset_benchmark_metrics() {
     okPoint=0
     okOperation=0
@@ -260,6 +266,7 @@ reset_benchmark_metrics() {
     MAX=0
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_negative_benchmark_metrics() {
     local value="$1"
     okPoint="${value}"
@@ -280,13 +287,7 @@ set_negative_benchmark_metrics() {
     MAX="${value}"
 }
 
-cleanup_processes() {
-    check_pid_and_kill "App" "Benchmark"
-    check_pid_and_kill "DataNode" "DataNode"
-    check_pid_and_kill "ConfigNode" "ConfigNode"
-    check_pid_and_kill "IoTDB" "IoTDB"
-}
-
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() {
     local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
 
@@ -299,6 +300,7 @@ set_env() {
     mkdir -p "${IOTDB_HDD_DATA_DIR}" "${IOTDB_SSD_DATA_DIR}" "${IOTDB_CONF_DIR}"
 }
 
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() {
     local datanode_env="${TEST_IOTDB_PATH}/conf/datanode-env.sh"
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
@@ -339,6 +341,7 @@ dn_metric_prometheus_reporter_port=9091
 EOF
 }
 
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() {
     local protocol_code="$1"
     local config_node="${protocol_code:0:1}"
@@ -358,6 +361,7 @@ data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
 EOF
 }
 
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() {
     (
         cd "${TEST_IOTDB_PATH}" || exit 1
@@ -370,6 +374,7 @@ start_iotdb() {
     )
 }
 
+# 功能：停止当前场景中的 IoTDB 服务
 stop_iotdb() {
     if [ ! -d "${TEST_IOTDB_PATH}" ]; then
         return 0
@@ -386,6 +391,7 @@ stop_iotdb() {
     )
 }
 
+# 功能：轮询 IoTDB 直到服务达到可查询状态
 wait_for_iotdb_ready() {
     local attempt=0
     local cli_password=""
@@ -406,6 +412,7 @@ wait_for_iotdb_ready() {
     return 1
 }
 
+# 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
     if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
         return 0
@@ -414,6 +421,7 @@ change_root_password() {
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
+# 功能：记录长稳测试当前使用的 Benchmark 起始时间
 longrun_start_time_log() {
     local log_line=""
 
@@ -423,6 +431,7 @@ longrun_start_time_log() {
     printf '%s\n' "${log_line}" >&2
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_benchmark_config_value() {
     local config_file="$1"
     local config_key="$2"
@@ -442,6 +451,7 @@ get_benchmark_config_value() {
     ' "${config_file}"
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_benchmark_config_value_or_default() {
     local config_file="$1"
     local config_key="$2"
@@ -456,6 +466,7 @@ get_benchmark_config_value_or_default() {
     fi
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_iotdb_timestamp_precision() {
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
     local timestamp_precision=""
@@ -483,6 +494,7 @@ get_iotdb_timestamp_precision() {
     printf '%s\n' "${timestamp_precision}"
 }
 
+# 功能：查询并返回当前场景需要的数据或状态
 query_last_sensor_time() {
     local config_file="$1"
     local db_name=""
@@ -532,6 +544,7 @@ query_last_sensor_time() {
     printf '%s\n' "${query_result}"
 }
 
+# 功能：检查或处理 IoTDB 服务状态与时间配置
 iotdb_time_to_epoch() {
     local raw_timestamp="$1"
     local timestamp_precision="$2"
@@ -548,6 +561,7 @@ iotdb_time_to_epoch() {
     fi
 }
 
+# 功能：将输入值格式化为目标展示或配置格式
 format_iotdb_time() {
     local raw_timestamp="$1"
     local timestamp_precision="$2"
@@ -561,6 +575,7 @@ format_iotdb_time() {
     date -d "@${target_epoch}" "${output_format}"
 }
 
+# 功能：计算当前测试所需的时间、大小或统计值
 calculate_ttl_ms() {
     local raw_timestamp="$1"
     local timestamp_precision="$2"
@@ -579,6 +594,7 @@ calculate_ttl_ms() {
     printf '%s\n' $((ttl_seconds * 1000))
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_result_max_time() {
     local formatted_max_time="$1"
 
@@ -587,6 +603,7 @@ set_result_max_time() {
     QUERY_MAX_TIME="${formatted_max_time}"
 }
 
+# 功能：读取并返回指定配置、路径或指标值
 get_result_max_time() {
     case "$1" in
         table) printf '%s\n' "${TABLE_QUERY_MAX_TIME}" ;;
@@ -594,6 +611,7 @@ get_result_max_time() {
     esac
 }
 
+# 功能：根据上次写入终点计算并更新下一轮 Benchmark 起始时间
 update_benchmark_start_time() {
     local benchmark_path="$1"
     local config_file="${benchmark_path}/conf/config.properties"
@@ -659,6 +677,7 @@ update_benchmark_start_time() {
     longrun_start_time_log "update benchmark start time end, BENCHMARK_START_TIME=${BENCHMARK_START_TIME}, QUERY_MAX_TIME=${formatted_max_time}"
 }
 
+# 功能：应用当前场景提供的配置或扩展钩子
 apply_benchmark_start_time() {
     local benchmark_path="$1"
     local config_file="${benchmark_path}/conf/config.properties"
@@ -667,6 +686,7 @@ apply_benchmark_start_time() {
     sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_iotdb_sql_for_ttl() {
     local dialect="$1"
     local sql="$2"
@@ -688,6 +708,7 @@ run_iotdb_sql_for_ttl() {
     return 1
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_tree_ttl() {
     local db_name="$1"
     local ttl_ms="$2"
@@ -702,6 +723,7 @@ set_tree_ttl() {
     run_iotdb_sql_for_ttl "tree" "SET TTL TO ${ttl_path} ${ttl_ms}"
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_table_ttl() {
     local db_name="$1"
     local ttl_ms="$2"
@@ -728,6 +750,7 @@ set_table_ttl() {
     return 1
 }
 
+# 功能：设置当前测试使用的配置值或运行状态
 set_longrun_ttl() {
     local tree_config="${BM_PATH_TREE}/conf/config.properties"
     local table_config="${BM_PATH_TABLE}/conf/config.properties"
@@ -762,6 +785,7 @@ set_longrun_ttl() {
     return "${failed}"
 }
 
+# 功能：复制当前测试所需的配置、数据或运行文件
 copy_benchmark_config() {
     local source_config="$1"
     local target_benchmark_path="$2"
@@ -772,6 +796,7 @@ copy_benchmark_config() {
     cp -rf -- "${source_config}" "${target_config}"
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_configs() {
     copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/aligned" "${BM_PATH_TREE}"
     copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode" "${BM_PATH_TABLE}"
@@ -779,12 +804,14 @@ prepare_benchmark_configs() {
     copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode_query" "${BM_PATH_TABLE_QUERY}"
 }
 
+# 功能：清理指定 Benchmark 实例的日志和输出数据
 clean_benchmark_runtime() {
     local benchmark_path="$1"
     safe_rm "${benchmark_path}/logs"
     safe_rm "${benchmark_path}/data"
 }
 
+# 功能：执行指定测试阶段或外部工具命令
 run_benchmark() {
     local benchmark_path="$1"
 
@@ -794,6 +821,7 @@ run_benchmark() {
     )
 }
 
+# 功能：启动指定服务、工具或测试步骤
 start_benchmarks() {
     clean_benchmark_runtime "${BM_PATH_TREE}"
     clean_benchmark_runtime "${BM_PATH_TABLE}"
@@ -812,6 +840,7 @@ start_benchmarks() {
     run_benchmark "${BM_PATH_TABLE_QUERY}"
 }
 
+# 功能：为超时或卡死场景生成失败占位结果
 create_stuck_result_csv() {
     local csv_file="$1"
     shift
@@ -825,6 +854,7 @@ create_stuck_result_csv() {
     done
 }
 
+# 功能：确保当前测试依赖的资源或结果存在
 ensure_output_or_stuck() {
     local benchmark_path="$1"
     local output_dir="${benchmark_path}/data/csvOutput"
@@ -835,6 +865,7 @@ ensure_output_or_stuck() {
     fi
 }
 
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local output_tree="${BM_PATH_TREE}/data/csvOutput"
     local output_table="${BM_PATH_TABLE}/data/csvOutput"
@@ -866,6 +897,7 @@ monitor_test_status() {
     done
 }
 
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
     local ip="$1"
     local metric_window=$((m_end_time - m_start_time))
@@ -902,6 +934,7 @@ collect_monitor_data() {
     fi
 }
 
+# 功能：定位 Benchmark 生成的结果 CSV 文件
 find_result_csv() {
     local benchmark_path="$1"
     local had_nullglob=0
@@ -924,6 +957,7 @@ find_result_csv() {
     fi
 }
 
+# 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
     local csv_file="$1"
     local result_label="$2"
@@ -974,6 +1008,7 @@ parse_benchmark_result() {
     IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
+# 功能：将当前测试结果写入结果数据库
 insert_result_row() {
     local protocol_code="$1"
     local current_ts_type="$2"
@@ -1037,6 +1072,7 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# 功能：构造并写入当前场景的结果记录
 insert_result_from_csv() {
     local protocol_code="$1"
     local benchmark_path="$2"
@@ -1061,6 +1097,7 @@ insert_result_from_csv() {
     insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
 }
 
+# 功能：构造并写入当前场景的结果记录
 insert_all_results() {
     local protocol_code="$1"
     local failed=0
@@ -1080,6 +1117,7 @@ insert_all_results() {
     return "${failed}"
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local backup_dir="${BACKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_code}"
@@ -1112,6 +1150,7 @@ backup_test_data() {
     done
 }
 
+# 功能：写入当前测试的日志、状态或失败结果
 write_start_failure_result() {
     local protocol_code="$1"
     local failure_value="$2"
@@ -1125,6 +1164,7 @@ write_start_failure_result() {
     insert_result_row "${protocol_code}" "tree" "${DATA_TYPE}" "INGESTION" "${result_max_time}"
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
     local monitor_failed=0
@@ -1187,6 +1227,7 @@ test_operation() {
     [ "${monitor_failed}" -eq 0 ] && [ "${result_failed}" -eq 0 ]
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     local protocol=""
     local task_failed=0

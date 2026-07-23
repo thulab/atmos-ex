@@ -48,10 +48,12 @@ query_list=(Q1 Q2-1 Q2-2 Q2-3 Q3-1 Q3-2 Q3-3 Q4-a1 Q4-a2 Q4-a3 Q4-b1 Q4-b2 Q4-b3
 query_type=(PRECISE_POINT, TIME_RANGE, TIME_RANGE, TIME_RANGE, VALUE_RANGE, VALUE_RANGE, VALUE_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_RANGE, AGG_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, AGG_RANGE_VALUE, GROUP_BY, GROUP_BY, GROUP_BY, GROUP_BY, LATEST_POINT, RANGE_QUERY_DESC, VALUE_RANGE_QUERY_DESC,)
 
 ############公用函数##########################
+# 功能：执行指定测试阶段或外部工具命令
 run_mysql() {
 	MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USERNAME}" "${DBNAME}" -e "$1"
 }
 
+# 功能：探测当前主机、磁盘或运行环境信息
 detect_local_ips() {
 	{
 		hostname -I 2>/dev/null || true
@@ -59,6 +61,7 @@ detect_local_ips() {
 	} | tr ' ' '\n' | awk 'NF && !seen[$0]++'
 }
 
+# 功能：根据本机地址选择例行测试的数据表和作者过滤条件
 init_routine_route() {
 	local local_ips=""
 	local first_ip=""
@@ -81,14 +84,17 @@ init_routine_route() {
 	echo "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
 }
 
+# 功能：将输入值格式化为目标展示或配置格式
 format_gb() {
 	awk -v value="$1" 'BEGIN{printf "%.2f\n", value / 1048576 / 1024}'
 }
 
+# 功能：使用当前场景参数执行 IoTDB CLI 命令
 run_iotdb_cli() {
 	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
 }
 
+# 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
 	local result_label=$1
 	local csv_file
@@ -101,6 +107,7 @@ parse_benchmark_result() {
 	read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<"$(awk -F, -v label="${result_label}" 'index($0, label) == 1 {count++; if (count == 2) {print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12; exit}}' "${csv_file}")"
 }
 
+# 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
 	echo "检查iot-benchmark版本"
 	BM_REPOS_PATH=/nasdata/repository/iot-benchmark
@@ -113,6 +120,7 @@ check_benchmark_version() {
 	fi
 }
 
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 test_date_time=0
@@ -154,9 +162,11 @@ maxDiskIOSizeWrite=0
 ############定义监控采集项初始值##########################
 }
 local_ip=$(ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
+# 功能：保留或执行测试异常通知逻辑
 sendEmail() {
 "${TOOLS_PATH}/sendEmail.sh" "$1" >/dev/null 2>&1 &
 }
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
@@ -168,36 +178,7 @@ check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 		echo "BM程序已停止！"
 	fi
 }
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
+# 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
 		mkdir -p "${TEST_IOTDB_PATH}"
@@ -210,6 +191,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/"
 	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_INIT_PATH}/apache-iotdb/.env"
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
@@ -234,6 +216,7 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
 	local config_node=$1
 	local schema_region=$2
@@ -243,6 +226,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() { # 启动iotdb
 	cd "${TEST_IOTDB_PATH}" || return 1
 	./sbin/start-confignode.sh >/dev/null 2>&1 &
@@ -250,6 +234,7 @@ start_iotdb() { # 启动iotdb
 	./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
 	cd ~/
 }
+# 功能：停止当前场景中的 IoTDB 服务
 stop_iotdb() { # 停止iotdb
 	cd "${TEST_IOTDB_PATH}" || return 1
 	./sbin/stop-datanode.sh >/dev/null 2>&1 &
@@ -257,12 +242,14 @@ stop_iotdb() { # 停止iotdb
 	./sbin/stop-confignode.sh >/dev/null 2>&1 &
 	cd ~/
 }
+# 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() { # 启动benchmark
 	cd "${BM_PATH}" || return 1
 	rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
 	"${BM_PATH}/benchmark.sh" >/dev/null 2>&1 &
 	cd ~/
 }
+# 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	while true; do
 		csvOutput=${BM_PATH}/data/csvOutput
@@ -291,6 +278,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		fi
 	done
 }
+# 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	local ip="${1:-${TEST_IP}}"
 	local range_seconds=$((m_end_time - m_start_time))
@@ -316,6 +304,7 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[${range_seconds}s])" "${m_end_time}")
 	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${range_seconds}s])" "${m_end_time}")
 }
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
 	local data_type=$1
 	local protocol_id=$2
@@ -326,14 +315,17 @@ backup_test_data() { # 备份测试数据
 	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
 	sudo cp -rf "${BM_PATH}/data/csvOutput" "${backup_dir}"
 }
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	local config_name=$1
 	rm -rf "${BM_PATH}/conf/config.properties"
 	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/${config_name}" "${BM_PATH}/conf/config.properties"
 }
+# 功能：清理超过保留期限的历史测试文件
 clear_expired_file() { # 清理超过七天的文件
 	find "$1" -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	local protocol_class_input=$1
 	#写入测试
@@ -482,6 +474,7 @@ test_operation() {
 	done
 }
 ##准备开始测试
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	ensure_runtime_dependencies
 	check_password

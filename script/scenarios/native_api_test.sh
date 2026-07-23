@@ -47,6 +47,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
 tests_num=0
@@ -59,6 +60,7 @@ start_time=0
 end_time=0
 flag=0
 }
+# 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() {
 	config_node=$1
 	schema_region=$2
@@ -68,6 +70,7 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
+# 功能：设置当前测试使用的配置值或运行状态
 set_iotdb_env() {
 	# 拷贝编译好的iotdb到测试路径
 	if [ ! -d "${TEST_IOTDB_PATH}" ]; then
@@ -80,10 +83,12 @@ set_iotdb_env() {
 	#mkdir -p ${TEST_IOTDB_PATH}/activation
 	#cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
 }
+# 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，开启MQTT
 	#修改IoTDB的配置
 	sed -i "s/^#MAX_HEAP_SIZE=\"2G\".*$/MAX_HEAP_SIZE=\"6G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
 }
+# 功能：检查当前场景的前置条件、进程状态或结果有效性
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep InterFace | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
@@ -95,36 +100,7 @@ check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 		echo "InterFace程序已停止！"
 	fi
 }
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -TERM "${iotdb_pid}" 2>/dev/null || true
-		sleep 2
-		kill -KILL "${iotdb_pid}" 2>/dev/null || true
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
-}
+# 功能：启动当前场景中的 IoTDB 服务
 start_iotdb() { # 启动iotdb
 	cd "${TEST_DATANODE_PATH}" || return 1
 	conf_start=$(./sbin/start-confignode.sh >/dev/null 2>&1 &)
@@ -132,6 +108,7 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
+# 功能：编译当前提交的 IoTDB 并准备 API 测试安装包
 compile_iotdb() {  # 编译IoTDB
   #代码编译
   cd "${IOTDB_PATH}" || return 1
@@ -161,6 +138,7 @@ compile_iotdb() {  # 编译IoTDB
 		done
   fi
 }
+# 功能：执行指定语言、接口或测试场景
 test_java_native_api_test() { # 测试Java原生接口
 	# 拷贝Java工具到测试路径
 	if [ ! -d "${TEST_JAVA_TOOL_PATH}" ]; then
@@ -272,6 +250,7 @@ EOF
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
 }
+# 功能：执行指定语言、接口或测试场景
 test_cpp_native_api_test() {
 	# C++代码编译
 	# 新版 C++ 客户端改为发布预打包的 Session SDK：构建 iotdb-client/client-cpp 模块，
@@ -404,6 +383,7 @@ EOF
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
 }
+# 功能：执行指定语言、接口或测试场景
 test_c_native_api_test() {
 	# C 原生接口测试（SessionC.h，C 驱动）。复用 cpp 已编译的 client-cpp 产物，不重复编译。
 	# 依赖填充对齐 cpp：从 install/ 拷头文件(含 SessionC.h)与库；gtest 由仓库 setup_client.sh 备用路径补。
@@ -513,6 +493,7 @@ EOF
 	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
 	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
+# 功能：执行指定语言、接口或测试场景
 test_python_native_api_test() { # 测试Python原生接口
 	# Python代码编译
 	echo "编译python客户端"
@@ -668,6 +649,7 @@ EOF
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
 }
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password

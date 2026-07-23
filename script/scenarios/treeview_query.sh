@@ -102,6 +102,7 @@ query_suite_type=""
 sensor_type=""
 query_num=1
 
+# 功能：处理或执行 SQL 相关值和命令
 sql_maybe_quote() {
     local value="${1:-}"
 
@@ -112,6 +113,7 @@ sql_maybe_quote() {
     fi
 }
 
+# 功能：输出当前配置对应的候选值列表
 emit_query_name_candidates() {
     local current_name="$1"
     local alternate_name=""
@@ -128,6 +130,7 @@ emit_query_name_candidates() {
     fi
 }
 
+# 功能：规范化输入值以便后续比较或存储
 normalize_query_name() {
     local current_name="$1"
 
@@ -139,6 +142,7 @@ normalize_query_name() {
     printf '%s\n' "${current_name}"
 }
 
+# 功能：根据候选路径或配置解析最终使用值
 resolve_config_from_roots() {
     local config_name="$1"
     shift
@@ -161,6 +165,7 @@ resolve_config_from_roots() {
     return 1
 }
 
+# 功能：根据当前配置构造路径、表达式或参数
 build_scoped_path() {
     local base_path="${1%/}"
     shift
@@ -178,6 +183,7 @@ build_scoped_path() {
     printf '%s\n' "${path}"
 }
 
+# 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     reset_benchmark_metrics
     numOfSe0Level=0
@@ -201,21 +207,13 @@ init_items() {
     query_num=1
 }
 
+# 功能：校验当前场景的配置参数和运行条件
 validate_query_settings() {
     [[ "${QUERY_REPEAT_COUNT}" =~ ^[1-9][0-9]*$ ]] || die "QUERY_REPEAT_COUNT must be a positive integer"
     [ "${#QUERY_LIST[@]}" -eq "${#QUERY_RESULT_LABELS[@]}" ] || die "QUERY_LIST and QUERY_RESULT_LABELS length mismatch"
 }
 
-check_benchmark_pid() {
-    check_pid_and_kill "App" "benchmark"
-}
-
-check_iotdb_pid() {
-    check_pid_and_kill "DataNode" "DataNode"
-    check_pid_and_kill "ConfigNode" "ConfigNode"
-    check_pid_and_kill "IoTDB" "IoTDB"
-}
-
+# 功能：复制当前测试所需的配置、数据或运行文件
 copy_benchmark_config() {
     local config_source="$1"
     local config_target="${BM_PATH}/conf/config.properties"
@@ -225,6 +223,7 @@ copy_benchmark_config() {
     cp -rf -- "${config_source}" "${config_target}"
 }
 
+# 功能：更新 Benchmark 配置属性；不存在时追加
 upsert_benchmark_property() {
     local key="$1"
     local value="$2"
@@ -249,6 +248,7 @@ upsert_benchmark_property() {
     mv -- "${tmp_file}" "${config_file}"
 }
 
+# 功能：复制当前测试所需的配置、数据或运行文件
 copy_query_dataset() {
     local protocol_code="$1"
     local current_suite_type="$2"
@@ -259,6 +259,7 @@ copy_query_dataset() {
     cp -rf -- "${source_path}" "${TEST_IOTDB_PATH}/"
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_backup_directory() {
     local backup_dir="$1"
     local backup_parent="${backup_dir%/*}"
@@ -270,6 +271,7 @@ prepare_backup_directory() {
     sudo mkdir -p -- "${backup_dir}"
 }
 
+# 功能：归档当前测试产生的日志和运行文件
 archive_test_runtime_artifacts() {
     local backup_dir="$1"
     local csv_source="${BM_PATH}/data/csvOutput"
@@ -286,6 +288,7 @@ archive_test_runtime_artifacts() {
     fi
 }
 
+# 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local current_suite_type="$2"
@@ -299,6 +302,7 @@ backup_test_data() {
     archive_test_runtime_artifacts "${backup_dir}"
 }
 
+# 功能：处理 TreeView 查询场景的配置、数据或用例集合
 treeview_base_suite() {
     local current_suite_type="$1"
 
@@ -318,6 +322,7 @@ treeview_base_suite() {
     esac
 }
 
+# 功能：处理 TreeView 查询场景的配置、数据或用例集合
 treeview_config_suite() {
     local current_suite_type="$1"
 
@@ -334,6 +339,7 @@ treeview_config_suite() {
     esac
 }
 
+# 功能：处理 TreeView 查询场景的配置、数据或用例集合
 treeview_dataset_root() {
     local current_suite_type="$1"
 
@@ -350,6 +356,7 @@ treeview_dataset_root() {
     esac
 }
 
+# 功能：处理 TreeView 查询场景的配置、数据或用例集合
 treeview_source_data_type() {
     local current_suite_type="$1"
 
@@ -366,6 +373,7 @@ treeview_source_data_type() {
     esac
 }
 
+# 功能：根据候选路径或配置解析最终使用值
 resolve_query_dataset_source() {
     local protocol_code="$1"
     local current_suite_type="$2"
@@ -377,6 +385,7 @@ resolve_query_dataset_source() {
     printf '%s/%s/%s/data\n' "${dataset_root}" "${protocol_code}" "${base_suite}"
 }
 
+# 功能：根据候选路径或配置解析最终使用值
 resolve_query_config_source() {
     local current_suite_type="$1"
     local current_query="$2"
@@ -392,6 +401,7 @@ resolve_query_config_source() {
     printf '%s\n' "${resolved_path}"
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_query_context() {
     local current_suite_type="$1"
     local current_query="$2"
@@ -410,6 +420,7 @@ prepare_query_context() {
     query_num="${current_repeat}"
 }
 
+# 功能：向配置、结果或备注中追加当前值
 append_tablemode_config_if_needed() {
     upsert_benchmark_property "IoTDB_DIALECT_MODE" "table"
     upsert_benchmark_property "DB_NAME" "${TREEVIEW_DB_NAME}"
@@ -418,6 +429,7 @@ append_tablemode_config_if_needed() {
     upsert_benchmark_property "IoTDB_TABLE_NUMBER" "1"
 }
 
+# 功能：处理 TreeView 查询场景的配置、数据或用例集合
 treeview_cli_sql() {
     local sql="$1"
     local output=""
@@ -442,6 +454,7 @@ treeview_cli_sql() {
     printf '%s\n' "${output}"
 }
 
+# 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_tree_to_table_view() {
     local current_suite_type="$1"
     local view_name="${TREEVIEW_TABLE_DATABASE}.${TREEVIEW_TABLE_NAME}"
@@ -454,6 +467,7 @@ prepare_tree_to_table_view() {
     treeview_cli_sql "SELECT count(s_0) FROM ${view_name} WHERE device_id = 'd_0'" >/dev/null || return 1
 }
 
+# 功能：选择并安装当前用例对应的配置文件
 mv_config_file() {
     local current_suite_type="$1"
     local current_query="$2"
@@ -464,6 +478,7 @@ mv_config_file() {
     append_tablemode_config_if_needed
 }
 
+# 功能：查询并返回当前场景需要的数据或状态
 query_log_dir_suffix() {
     local current_query="$1"
 
@@ -474,6 +489,7 @@ query_log_dir_suffix() {
     fi
 }
 
+# 功能：将当前测试结果写入结果数据库
 insert_result_row() {
     local protocol_code="$1"
     local insert_sql=""
@@ -541,6 +557,7 @@ EOF
     mysql_exec "${insert_sql}"
 }
 
+# 功能：归档当前测试产生的日志和运行文件
 archive_query_logs() {
     local current_query="$1"
     local log_suffix=""
@@ -559,6 +576,7 @@ archive_query_logs() {
     mv -- "${live_log_dir}" "${archived_log_dir}"
 }
 
+# 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     local protocol_code="$1"
     local current_suite_type=""
@@ -678,6 +696,7 @@ test_operation() {
     return "${operation_failed}"
 }
 
+# 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     local protocol=""
     local task_failed=0
