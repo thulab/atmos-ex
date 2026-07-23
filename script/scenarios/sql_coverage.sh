@@ -213,14 +213,14 @@ main() {
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
+result_string=$(mysql_exec "${query_sql}")
 commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 ##查询是否有复测任务
 if [ "${commit_id}" = "" ]; then
 	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${query_sql}")
+	result_string=$(mysql_exec "${query_sql}")
 	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
 	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
@@ -238,7 +238,7 @@ else
 	# 获取更新后git commit对比判定是否启动测试
 	#commit_id1=$(git log --pretty=format:"%h" -1)
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+	result_string=$(mysql_exec "${update_sql}")
 	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 	test_date_time=$(date +%Y%m%d%H%M%S)
 	#开始测试
@@ -276,15 +276,15 @@ else
 		fail_num=0
 		F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -e "drop database root.**")
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${F_start_time}','${F_now_time}',${cost_time},'FirstInsertSQL')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+		mysql_exec "${insert_sql}"
 	else
 		echo "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		fail_num=-3
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+		mysql_exec "${insert_sql}"
 		update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+		result_string=$(mysql_exec "${update_sql}")
 		continue
 	fi
 	# 拷贝测试依赖到各自文件夹
@@ -337,7 +337,7 @@ else
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
 		#echo "${insert_sql}"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+		mysql_exec "${insert_sql}"
 	else
 		#收集测试结果
 		cd "${TEST_TOOL_PATH}" || return 1
@@ -347,7 +347,7 @@ else
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
 		#echo "${insert_sql}"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+		mysql_exec "${insert_sql}"
 	fi
 	#备份本次测试
 	backup_test_data tablemode
@@ -363,7 +363,7 @@ else
 		# 获取更新后git commit对比判定是否启动测试
 		#commit_id1=$(git log --pretty=format:"%h" -1)
 		update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+		result_string=$(mysql_exec "${update_sql}")
 		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		#开始测试
@@ -397,9 +397,9 @@ else
 			cost_time=-3
 			fail_num=-3
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql_exec "${insert_sql}"
 			update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-			result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+			result_string=$(mysql_exec "${update_sql}")
 			continue
 		fi
 		####判断IoTDB-AINode是否正常启动
@@ -427,7 +427,7 @@ else
 			fail_num=0
 			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -e "drop database root.**")
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${F_start_time}','${F_now_time}',${cost_time},'FirstInsertSQL')"
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql_exec "${insert_sql}"
 			# 拷贝测试依赖到各自文件夹
 			#cp -rf ${TC_PATH}/lib/trigger_jar/ext ${TEST_IOTDB_PATH}/ext/trigger/
 			#cp -rf ${TC_PATH}/lib/udf_jar/envelop ${TEST_IOTDB_PATH}/ext/udf/
@@ -477,7 +477,7 @@ else
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
 				#echo "${insert_sql}"
-				mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}"
 			else
 				#收集测试结果
 				cd "${TEST_TOOL_PATH}" || return 1
@@ -487,7 +487,7 @@ else
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
 				#echo "${insert_sql}"
-				mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}"
 			fi
 			#备份本次测试
 			backup_test_data ainode_tree
@@ -496,9 +496,9 @@ else
 			cost_time=-5
 			fail_num=-5
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql_exec "${insert_sql}"
 			update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-			result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+			result_string=$(mysql_exec "${update_sql}")
 			continue
 		fi
 	
@@ -512,7 +512,7 @@ else
 		# 获取更新后git commit对比判定是否启动测试
 		#commit_id1=$(git log --pretty=format:"%h" -1)
 		update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
-		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+		result_string=$(mysql_exec "${update_sql}")
 		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		#开始测试
@@ -546,9 +546,9 @@ else
 			cost_time=-3
 			fail_num=-3
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql_exec "${insert_sql}"
 			update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-			result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+			result_string=$(mysql_exec "${update_sql}")
 			continue
 		fi
 		####判断IoTDB-AINode是否正常启动
@@ -616,7 +616,7 @@ else
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
 				#echo "${insert_sql}"
-				mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}"
 			else
 				#收集测试结果
 				cd "${TEST_TOOL_PATH}" || return 1
@@ -626,7 +626,7 @@ else
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 				insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
 				#echo "${insert_sql}"
-				mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}"
 			fi
 			#备份本次测试
 			backup_test_data ainode_table
@@ -635,19 +635,19 @@ else
 			cost_time=-5
 			fail_num=-5
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql}"
+			mysql_exec "${insert_sql}"
 			update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-			result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+			result_string=$(mysql_exec "${update_sql}")
 			continue
 		fi
 	fi
 	###############################测试完成###############################
 	echo "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql}")
+	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
 	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${update_sql02}")
+		result_string=$(mysql_exec "${update_sql02}")
 	fi
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"

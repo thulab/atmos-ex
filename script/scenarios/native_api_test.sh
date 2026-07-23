@@ -162,7 +162,7 @@ test_java_native_api_test() { # 测试Java原生接口
 		skipped_num=-2
 		successRate=-2
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql_exec "${insert_sql_java}"
 		return 1
 	fi
 	echo "开始测试Java原生接口"
@@ -202,7 +202,7 @@ test_java_native_api_test() { # 测试Java原生接口
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql_exec "${insert_sql_java}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -217,7 +217,7 @@ test_java_native_api_test() { # 测试Java原生接口
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA',"${insert_sql_java}")
 EOF
 			)
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
+			mysql_exec "$sql"
       		echo "备份Java原生接口测试报告"
       		mkdir -p /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
       		cp -rf  ${TEST_JAVA_TOOL_PATH}/details/target/site /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
@@ -234,7 +234,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql_exec "${insert_sql_java}"
 	fi
 	#备份本次测试
 	echo "备份Java原生接口测试报告"
@@ -268,7 +268,7 @@ test_cpp_native_api_test() {
 		skipped_num=-2
 		successRate=-2
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql_exec "${insert_sql_cpp}"
 		return 1
 	fi
 	# 拷贝Cpp工具到测试路径
@@ -298,7 +298,7 @@ test_cpp_native_api_test() {
 		skipped_num=-3
 		successRate=-3
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql_exec "${insert_sql_cpp}"
 		return 1
 	fi
 	echo "开始Cpp原生接口测试"
@@ -336,7 +336,7 @@ test_cpp_native_api_test() {
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql_exec "${insert_sql_cpp}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -351,7 +351,7 @@ test_cpp_native_api_test() {
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP',"${insert_sql_cpp}")
 EOF
 			)
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
+			mysql_exec "$sql"
 			echo "备份Cpp原生接口测试报告"
       		mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
       		cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}/
@@ -368,7 +368,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql_exec "${insert_sql_cpp}"
 	fi
 	#备份本次测试
 	echo "备份Cpp原生接口测试报告"
@@ -416,7 +416,7 @@ test_c_native_api_test() {
 		skipped_num=-3
 		successRate=-3
 		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+		mysql_exec "${insert_sql_c}"
 		return 1
 	fi
 	echo "开始C原生接口测试"
@@ -454,7 +454,7 @@ test_c_native_api_test() {
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+		mysql_exec "${insert_sql_c}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			tests_num=-5
@@ -467,7 +467,7 @@ test_c_native_api_test() {
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C',"${insert_sql_c}")
 EOF
 			)
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
+			mysql_exec "$sql"
 			echo "备份C原生接口测试报告"
 			mkdir -p /data/qa/backup/c/${last_cid_iotdb}_${failures_num}
 			cp -rf ${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json /data/qa/backup/c/${last_cid_iotdb}_${failures_num}/
@@ -482,7 +482,7 @@ EOF
 		successRate=-4
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_c="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'C')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_c}"
+		mysql_exec "${insert_sql_c}"
 	fi
 	#备份本次测试
 	echo "备份C原生接口测试报告"
@@ -511,7 +511,7 @@ test_python_native_api_test() { # 测试Python原生接口
 		skipped_num=-2
 		successRate=-2
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql_exec "${insert_sql_python}"
 		return 1
 	fi
 	# 拷贝Python工具到测试路径
@@ -543,7 +543,7 @@ test_python_native_api_test() { # 测试Python原生接口
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql_exec "${insert_sql_python}"
 		deactivate
 		return 1
 	fi
@@ -602,7 +602,7 @@ test_python_native_api_test() { # 测试Python原生接口
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql_exec "${insert_sql_python}"
 		if [ $? -ne 0 ]; then
 			echo "执行mysql命令失败"
 			#收集测试结果
@@ -617,7 +617,7 @@ test_python_native_api_test() { # 测试Python原生接口
 			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON',"${insert_sql_python}")
 EOF
 			)
-			mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "$sql"
+			mysql_exec "$sql"
 			echo "备份Python原生接口测试报告"
       		mkdir -p /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
       		cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
@@ -634,7 +634,7 @@ EOF
 		#结果写入mysql
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql_exec "${insert_sql_python}"
 	fi
 	#备份本次测试
 	echo "备份Python原生接口测试报告"
@@ -686,11 +686,11 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		skipped_num=-1
 		successRate=-1
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_java}"
+		mysql_exec "${insert_sql_java}"
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_cpp}"
+		mysql_exec "${insert_sql_cpp}"
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
-		mysql -h${MYSQL_HOST} -P${MYSQL_PORT} -u${MYSQL_USERNAME} -p${MYSQL_PASSWORD} ${DBNAME} -e "${insert_sql_python}"
+		mysql_exec "${insert_sql_python}"
 	else
 		# 编译成功，开始测试
 		#清理环境，确保无旧程序影响
