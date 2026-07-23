@@ -458,7 +458,7 @@ fi
 printf 'native_api_test\n' > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/api_test_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/api_test_common.sh"
 
 main "$@"

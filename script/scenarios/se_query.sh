@@ -9,11 +9,12 @@ fi
 set -u
 set -o pipefail
 
-readonly TEST_IP="11.101.17.136"
-readonly TEST_TYPE="unse_insert"
+readonly TEST_IP="11.101.17.152"
+readonly TEST_TYPE="se_query"
+readonly QUERY_DATA_TYPE="sequence"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/insert_common.sh
-source "${SCRIPT_DIR}/insert_common.sh"
+# shellcheck source=script/common/query_common.sh
+source "${SCRIPT_DIR}/../common/query_common.sh"
 
 main "$@"

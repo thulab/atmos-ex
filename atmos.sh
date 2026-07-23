@@ -30,25 +30,25 @@ do
 	if [ "$test_type" = "ontesting" ]; then
 		echo “测试执行中。。。”
 	elif [ "$test_type" = "api_test" ]; then
-		nohup bash ${ATMOS_PATH}/script/api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "config_insert" ]; then
-		nohup bash ${ATMOS_PATH}/script/config_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/config_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "routine_test" ]; then
-		nohup bash ${ATMOS_PATH}/script/routine_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/routine_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "se_insert" ]; then
-		nohup bash ${ATMOS_PATH}/script/se_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/se_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "se_query" ]; then
-		nohup bash ${ATMOS_PATH}/script/se_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/se_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "unse_insert" ]; then
-		nohup bash ${ATMOS_PATH}/script/unse_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/unse_insert.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "unse_query" ]; then
-		nohup bash ${ATMOS_PATH}/script/unse_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/unse_query.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "native_api_test" ]; then
-		nohup bash ${ATMOS_PATH}/script/native_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/native_api_test.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	elif [ "$test_type" = "compile" ]; then
 		nohup bash ${ATMOS_PATH}/tools/compile.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	else
-		nohup bash ${ATMOS_PATH}/script/${test_type}.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
+		nohup bash ${ATMOS_PATH}/script/scenarios/${test_type}.sh >> ${INIT_PATH}/log_${test_type} 2>&1 &
 	fi
 	sleep 300s
 done

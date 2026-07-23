@@ -16,7 +16,7 @@ readonly -a QUERY_TS_LIST=(tablemode tempaligned)
 readonly QUERY_CREATE_QA_USER=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/query_common.sh
-source "${SCRIPT_DIR}/query_common.sh"
+# shellcheck source=script/common/query_common.sh
+source "${SCRIPT_DIR}/../common/query_common.sh"
 
 main "$@"

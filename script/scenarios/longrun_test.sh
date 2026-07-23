@@ -1223,7 +1223,7 @@ main() {
     fi
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

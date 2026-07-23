@@ -635,8 +635,8 @@ fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     main "$@"

@@ -60,8 +60,8 @@ readonly -a QUERY_RESULT_LABELS=(
 )
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/query_common.sh
-source "${SCRIPT_DIR}/query_common.sh"
+# shellcheck source=script/common/query_common.sh
+source "${SCRIPT_DIR}/../common/query_common.sh"
 
 readonly SE_QUERY_DATASET_PATH="${TREEVIEW_SE_QUERY_DATASET_PATH:-/nasdata/se_query/DataSet}"
 readonly UNSE_QUERY_DATASET_PATH="${TREEVIEW_UNSE_QUERY_DATASET_PATH:-/nasdata/unse_query/DataSet}"

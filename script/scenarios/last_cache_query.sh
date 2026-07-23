@@ -18,8 +18,8 @@ readonly QUERY_BM_PATH="/data/atmos/zk_test/query-benchmark"
 readonly QUERY_RESULT_LABEL="LATEST_POINT"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/insert_common.sh
-source "${SCRIPT_DIR}/insert_common.sh"
+# shellcheck source=script/common/insert_common.sh
+source "${SCRIPT_DIR}/../common/insert_common.sh"
 
 sync_benchmark_path() {
     local target_path="$1"

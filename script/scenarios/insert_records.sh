@@ -23,8 +23,8 @@ readonly -a TS_LIST=(
 readonly -a API_LIST=(SESSION_BY_RECORDS)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/insert_common.sh
-source "${SCRIPT_DIR}/insert_common.sh"
+# shellcheck source=script/common/insert_common.sh
+source "${SCRIPT_DIR}/../common/insert_common.sh"
 
 insert_records_config_path() {
     local current_ts_type="$1"

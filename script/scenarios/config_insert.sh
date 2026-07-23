@@ -269,7 +269,7 @@ check_custom_throughput_monitor() {
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/insert_common.sh
-source "${SCRIPT_DIR}/insert_common.sh"
+# shellcheck source=script/common/insert_common.sh
+source "${SCRIPT_DIR}/../common/insert_common.sh"
 
 main "$@"

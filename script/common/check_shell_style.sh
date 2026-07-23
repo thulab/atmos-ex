@@ -4,6 +4,7 @@ set -u
 set -o pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 status=0
 
 report_matches() {
@@ -11,7 +12,7 @@ report_matches() {
     local pattern="$2"
     local matches=""
 
-    matches="$(grep -RInE --include='*.sh' "${pattern}" "${SCRIPT_DIR}" || true)"
+    matches="$(grep -RInE --include='*.sh' "${pattern}" "${SCRIPT_ROOT}" || true)"
     if [ -n "${matches}" ]; then
         printf '[ERROR] %s\n%s\n' "${description}" "${matches}" >&2
         status=1
@@ -30,7 +31,7 @@ while IFS= read -r -d '' script_file; do
     if ! bash -n "${script_file}"; then
         status=1
     fi
-done < <(find "${SCRIPT_DIR}" -type f -name '*.sh' -print0)
+done < <(find "${SCRIPT_ROOT}" -type f -name '*.sh' -print0)
 
 report_matches 'do not use the function keyword' '^[[:space:]]*function[[:space:]]+'
 report_matches 'do not invoke repository scripts with sh' '(^|[;&][[:space:]]*)sh[[:space:]]+.*script/'

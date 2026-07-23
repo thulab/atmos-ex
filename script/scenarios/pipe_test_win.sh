@@ -633,8 +633,8 @@ fi
 	echo "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/monitor_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/platform_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"
 
 main "$@"

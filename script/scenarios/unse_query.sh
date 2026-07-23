@@ -10,17 +10,11 @@ set -u
 set -o pipefail
 
 readonly TEST_IP="11.101.17.143"
-readonly TEST_TYPE="api_insert_cts"
-readonly -a TS_LIST=(tempaligned)
-readonly -a API_LIST=(
-    SESSION_BY_TABLET
-    SESSION_BY_RECORDS
-    SESSION_BY_RECORD
-    JDBC
-)
+readonly TEST_TYPE="unse_query"
+readonly QUERY_DATA_TYPE="unsequence"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=script/insert_common.sh
-source "${SCRIPT_DIR}/insert_common.sh"
+# shellcheck source=script/common/query_common.sh
+source "${SCRIPT_DIR}/../common/query_common.sh"
 
 main "$@"
