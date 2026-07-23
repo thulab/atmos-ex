@@ -202,7 +202,7 @@ setup_env_linux() {
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		ssh ${ACCOUNT}@${TEST_IP} "sudo reboot"
+		remote_reboot "${TEST_IP}"
 	done
 	sleep 120
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
@@ -211,8 +211,7 @@ setup_env_linux() {
 		TEST_IP=${IP_list[$i]}
 		echo "setting env to ${TEST_IP} ..."
 		#删除原有路径下所有
-		ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_INIT_PATH}"
-		ssh ${ACCOUNT}@${TEST_IP} "mkdir -p ${TEST_INIT_PATH}"
+		remote_reset_dir "${TEST_IP}" "${TEST_INIT_PATH}"
 		#修改IoTDB的配置		
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_rpc_address" "${TEST_IP}"
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_internal_address" "${TEST_IP}"
@@ -227,7 +226,7 @@ setup_env_linux() {
 		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/activation/license
 		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env_${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/.env
 		#复制三项到客户机
-		scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/
+		remote_copy_contents "${TEST_INIT_PATH}" "${TEST_IP}" "${TEST_INIT_PATH}"
 		#scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/  > /dev/null 2>&1 &
 	done	
 	sleep 3
@@ -236,18 +235,17 @@ setup_env_linux() {
 		TEST_IP=${IP_list[$i]}
 		#启动ConfigNode节点
 		echo "starting IoTDB ConfigNode on ${TEST_IP} ..."
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-confignode.sh  > /dev/null 2>&1 &")
+		remote_start_background "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh"
 		#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 		sleep 5
 		#启动DataNode节点
 		echo "starting IoTDB DataNode on ${TEST_IP} ..."
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof   > /dev/null 2>&1 &")
+		remote_start_background "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof"
 		#等待60s，让服务器完成前期准备
 		sleep 10
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
-		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"show cluster\" | grep 'Total line number = 2'")
-		  if [ "$str1" = "Total line number = 2" ]; then
+		  if remote_iotdb_cluster_ready "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" 2; then
 			echo "All Nodes is ready"
 			flag=1
 			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}';\"")
@@ -482,7 +480,7 @@ backup_test_data() { # 备份测试数据
 	do
 		TEST_IP=${IP_list[$j]}
 		sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_IOTDB_PATH}/data" 2>/dev/null)
+		remote_safe_rm "${TEST_IP}" "${TEST_IOTDB_PATH}/data"
 		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH}/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
 	done
 	sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
@@ -631,6 +629,7 @@ fi
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"
 
 main "$@"

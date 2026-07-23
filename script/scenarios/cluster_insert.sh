@@ -5,6 +5,7 @@ set -o pipefail
 ACCOUNT=root
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-cluster_insert}"
+CLUSTER_CREATE_QA_USER="${CLUSTER_CREATE_QA_USER:-1}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
@@ -236,44 +237,43 @@ echo "开始重置环境！"
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
-	ssh ${ACCOUNT}@${IP_list[${i}]} "sudo reboot"
+	remote_reboot "${IP_list[${i}]}"
 done
 sleep 180
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	echo "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
-	ssh ${ACCOUNT}@${IP_list[${i}]} "rm -rf ${TEST_PATH}"
-	ssh ${ACCOUNT}@${IP_list[${i}]} "mkdir -p ${TEST_PATH}"
+	remote_reset_dir "${IP_list[${i}]}" "${TEST_PATH}"
+	remote_clear_configured_roots "${IP_list[${i}]}"
 	#复制三项到客户机
-	scp -r ${TEST_PATH}/* ${ACCOUNT}@${IP_list[${i}]}:${TEST_PATH}/
+	remote_copy_contents "${TEST_PATH}" "${IP_list[${i}]}" "${TEST_PATH}"
 done
 for ((j = 1; j <= $bm_num; j++)); do
-	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/logs"
-	ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/data"
+	remote_clean_benchmark_runtime "${B_IP_list[${j}]}" "${BM_PATH}"
 done
 echo "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
 	#修改IoTDB ConfigNode的配置
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_internal_address=${C_IP_list[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"cn_seed_config_node=${config_node_config_nodes[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"schema_replication_factor=${config_schema_replication_factor[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${C_IP_list[${i}]} "echo \"data_replication_factor=${config_data_replication_factor[${i}]}\" >> ${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties"	
+	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "cn_internal_address" "${C_IP_list[${i}]}"
+	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "cn_seed_config_node" "${config_node_config_nodes[${i}]}"
+	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "schema_replication_factor" "${config_schema_replication_factor[${i}]}"
+	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "data_replication_factor" "${config_data_replication_factor[${i}]}"
 done
 echo "开始部署DataNode！"
 for (( i = 1; i <= $data_num; i++ ))
 do
 	#修改IoTDB DataNode的配置
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_rpc_address=${D_IP_list[${i}]}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_internal_address=${D_IP_list[${i}]}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
-	ssh ${ACCOUNT}@${D_IP_list[${i}]} "echo \"dn_seed_config_node=${dcn_str}\" >> ${TEST_DATANODE_PATH}/conf/iotdb-system.properties"
+	remote_append_property "${D_IP_list[${i}]}" "${TEST_DATANODE_PATH}/conf/iotdb-system.properties" "dn_rpc_address" "${D_IP_list[${i}]}"
+	remote_append_property "${D_IP_list[${i}]}" "${TEST_DATANODE_PATH}/conf/iotdb-system.properties" "dn_internal_address" "${D_IP_list[${i}]}"
+	remote_append_property "${D_IP_list[${i}]}" "${TEST_DATANODE_PATH}/conf/iotdb-system.properties" "dn_seed_config_node" "${dcn_str}"
 done
 #启动config_num个IoTDB ConfigNode节点
 for (( j = 1; j <= $config_num; j++ ))
 do
 	echo "starting IoTDB ConfigNode on ${C_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh -H ${TEST_CONFIGNODE_PATH}/cn_dump.hprof> /dev/null 2>&1 &")
+	remote_start_background "${C_IP_list[${j}]}" "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh -H ${TEST_CONFIGNODE_PATH}/cn_dump.hprof"
 	#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 	sleep 10
 done
@@ -281,7 +281,7 @@ done
 for (( j = 1; j <= $data_num; j++ ))
 do
 	echo "starting IoTDB DataNode on ${D_IP_list[${j}]} ..."
-	pid3=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-datanode.sh -H ${TEST_DATANODE_PATH}/dn_dump.hprof    > /dev/null 2>&1 &")
+	remote_start_background "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/sbin/start-datanode.sh -H ${TEST_DATANODE_PATH}/dn_dump.hprof"
 done
 #等待60s，让服务器完成前期准备
 sleep 60
@@ -291,7 +291,7 @@ for (( j = 1; j <= $config_num; j++ ))
 do
 	for (( t_wait = 0; t_wait <= 3; t_wait++ ))
 	do
-	  str1=$(ssh ${ACCOUNT}@${C_IP_list[${j}]} "jps | grep -w ConfigNode | grep -v grep | wc -l")
+	  str1=$(remote_java_process_count "${C_IP_list[${j}]}" "ConfigNode")
 	  if [ "$str1" = "1" ]; then
 		echo "ConfigNode has been started on PC:${C_IP_list[${j}]}"
 		check_config_num=$[${check_config_num}+1]
@@ -309,7 +309,7 @@ for (( j = 1; j <= $data_num; j++ ))
 do
 	for (( t_wait = 0; t_wait <= 3; t_wait++ ))
 	do
-	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "jps | grep -w DataNode | grep -v grep | wc -l")
+	  str1=$(remote_java_process_count "${D_IP_list[${j}]}" "DataNode")
 	  if [ "$str1" = "1" ]; then
 		echo "DataNode has been started on PC:${D_IP_list[${j}]}"
 		check_data_num=$[${check_data_num}+1]
@@ -325,20 +325,9 @@ done
 total_nodes=$(($config_num+$data_num))
 for (( j = 1; j <= $data_num; j++ ))
 do
-	for (( t_wait = 0; t_wait <= 20; t_wait++ ))
-	do
-	  str1=$(ssh ${ACCOUNT}@${D_IP_list[${j}]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[${j}]} -p 6667 -e \"show cluster\" | grep 'Total line number = ${total_nodes}'")
-	  if [ "$str1" = "Total line number = 6" ]; then
-		echo "All Nodes is ready"
-		flag=1
-		break
-	  else
-		echo "All Nodes is not ready.Please wait ..."
-		sleep 3
-		continue
-	  fi
-	done
-	if [ "$flag" = "0" ]; then
+	if wait_for_remote_iotdb_cluster "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh" "${total_nodes}"; then
+	  echo "All Nodes is ready"
+	else
 	  echo "All Nodes is not ready!"
 	  exit -1
 	fi
@@ -346,21 +335,19 @@ done
 change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'\"")
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
 	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
-	##添加用户和权限
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user 'test123456789';\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\"")
-	add_user=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -sql_dialect table -e \"GRANT ALL TO USER qa_user;\"")
+	if [ "${CLUSTER_CREATE_QA_USER}" = "1" ]; then
+		remote_exec "${D_IP_list[1]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user 'test123456789';\""
+		remote_exec "${D_IP_list[1]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\""
+		remote_exec "${D_IP_list[1]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -sql_dialect table -e \"GRANT ALL TO USER qa_user;\""
+	fi
 	#启动benchmark
 	sleep 60
 	if [ "$bm_num" != '' ];
 	then
 		for ((j = 1; j <= $bm_num; j++)); do
-			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}"
-			scp -r ${BM_PATH} ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}
-			ssh ${ACCOUNT}@${B_IP_list[${j}]} "rm -rf ${BM_PATH}/conf/config.properties"
-			scp -r ${BM_PATH}/conf/config.properties ${ACCOUNT}@${B_IP_list[${j}]}:${BM_PATH}/conf/config.properties
+			remote_deploy_benchmark "${B_IP_list[${j}]}" "${BM_PATH}"
 			#echo "启动BM： ${B_IP_list[${j}]} ..."
-			ssh ${ACCOUNT}@${B_IP_list[${j}]} "cd ${BM_PATH};${BM_PATH}/benchmark.sh > /dev/null 2>&1 &" &
+			remote_start_benchmark "${B_IP_list[${j}]}" "${BM_PATH}" &
 		done
 		wait
 		echo "All BMs have been started"
@@ -390,11 +377,10 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			ssh ${ACCOUNT}@${B_IP_list[1]} "test -f ${BM_PATH}/data/*result.csv"
 			if [ $? -eq 0 ]; then
 				echo "文件存在"
-				ssh ${ACCOUNT}@${B_IP_list[1]} "rm -rf ${BM_PATH}/data/csvOutput"
+				remote_safe_rm "${B_IP_list[1]}" "${BM_PATH}/data/csvOutput"
 			else
 				echo "文件不存在"
-				ssh ${ACCOUNT}@${B_IP_list[1]} "rm -rf ${BM_PATH}/data/csvOutput"
-				ssh ${ACCOUNT}@${B_IP_list[1]} "mkdir -p ${BM_PATH}/data/csvOutput"
+				remote_reset_dir "${B_IP_list[1]}" "${BM_PATH}/data/csvOutput"
 				ssh ${ACCOUNT}@${B_IP_list[1]} "touch ${BM_PATH}/data/csvOutput/Stuck_result.csv"
 				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
 				for ((i=0;i<100;i++))
@@ -636,6 +622,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

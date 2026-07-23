@@ -173,7 +173,7 @@ setup_env_windows() {
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		ssh ${ACCOUNT}@${TEST_IP} "shutdown /f /r /t 0"
+		remote_windows_reboot "${TEST_IP}"
 	done
 	sleep 120
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
@@ -182,7 +182,7 @@ setup_env_windows() {
 		rflag=0
 		while true; do
 			echo "当前连接：${ACCOUNT}@${TEST_IP}"
-			ssh ${ACCOUNT}@${TEST_IP} "dir D:" >/dev/null 2>&1
+			remote_windows_is_available "${TEST_IP}" "D:"
 			if [ $? -eq 0 ];then
 				echo "${TEST_IP}已启动"
 				break
@@ -204,8 +204,7 @@ setup_env_windows() {
 		TEST_IP=${IP_list[$i]}
 		echo "setting env to ${TEST_IP} ..."
 		#删除原有路径下所有
-		ssh ${ACCOUNT}@${TEST_IP} "rmdir /s /q ${TEST_IOTDB_PATH_W}"
-		ssh ${ACCOUNT}@${TEST_IP} "md ${TEST_IOTDB_PATH_W}"
+		remote_windows_reset_dir "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 		#修改IoTDB的配置		
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_rpc_address" "${TEST_IP}"
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_internal_address" "${TEST_IP}"
@@ -220,14 +219,14 @@ setup_env_windows() {
 		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license/${TEST_IP} ${TEST_IOTDB_PATH}/activation/license
 		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env/${TEST_IP} ${TEST_IOTDB_PATH}/.env
 		#复制三项到客户机
-		scp -r ${TEST_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}
+		remote_windows_copy_contents "${TEST_PATH}" "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 	done	
 	sleep 3
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		TEST_IP=${IP_list[$i]}
 		echo "starting IoTDB on ${TEST_IP} ..."
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "schtasks /Run /TN  run_iotdb")
+		pid3=$(remote_windows_run_task "${TEST_IP}" "run_iotdb")
 		sleep 10
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
@@ -483,7 +482,6 @@ backup_test_data() { # 备份测试数据
 	do
 		TEST_IP=${IP_list[$j]}
 		sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		#str1=$(ssh ${ACCOUNT}@${TEST_IP} "rmdir /s /q ${TEST_IOTDB_PATH_W}/apache-iotdb/data" 2>/dev/null)
 		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/log* ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
 		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/iot-benchmark/data ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
 	done
@@ -527,7 +525,7 @@ test_operation() {
 	do
 		TEST_IP=${IP_list[$j]}
 		echo "开始写入！"
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "schtasks /Run /TN  run_test")
+		pid3=$(remote_windows_run_task "${TEST_IP}" "run_test")
 	done
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
@@ -635,6 +633,7 @@ fi
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"
 
 main "$@"

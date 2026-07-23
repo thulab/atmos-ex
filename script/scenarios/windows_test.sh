@@ -255,13 +255,13 @@ set_protocol_class() {
 setup_env_windows() {
 	TEST_IP=$1
 	echo "开始重置环境！"
-	ssh ${ACCOUNT}@${TEST_IP} "shutdown /f /r /t 0"
+	remote_windows_reboot "${TEST_IP}"
 	sleep 120
 	rflag=0
 	boot_ready=0
 	while true; do
 		echo "当前连接：${ACCOUNT}@${TEST_IP}"
-		ssh ${ACCOUNT}@${TEST_IP} "dir D:" >/dev/null 2>&1
+		remote_windows_is_available "${TEST_IP}" "D:"
 		if [ $? -eq 0 ];then
 			boot_ready=1
 			echo "${TEST_IP}已启动"
@@ -271,7 +271,7 @@ setup_env_windows() {
 			if [ $rflag -ge 5 ]; then
 				break
 			else
-				ssh ${ACCOUNT}@${TEST_IP} "shutdown /f /r /t 0"
+				remote_windows_reboot "${TEST_IP}"
 				rflag=$((rflag+1))
 			fi
 			sleep 180
@@ -283,13 +283,12 @@ setup_env_windows() {
 	fi
 	echo "setting env to ${TEST_IP} ..."
 	#删除原有路径下所有
-	ssh ${ACCOUNT}@${TEST_IP} "rmdir /s /q ${TEST_IOTDB_PATH_W}"
-	ssh ${ACCOUNT}@${TEST_IP} "md ${TEST_IOTDB_PATH_W}"
+	remote_windows_reset_dir "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 	#复制三项到客户机
-	scp -r ${TEST_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}
+	remote_windows_copy_contents "${TEST_PATH}" "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 	#启动IoTDB
 	echo "starting IoTDB on ${TEST_IP} ..."
-	pid3=$(ssh ${ACCOUNT}@${TEST_IP} "schtasks /Run /TN  run_iotdb")
+	pid3=$(remote_windows_run_task "${TEST_IP}" "run_iotdb")
 	sleep 10
 	flag=0
 	for (( t_wait = 0; t_wait <= 50; t_wait++ ))
@@ -510,6 +509,7 @@ fi
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"
 
 main "$@"
