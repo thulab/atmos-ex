@@ -578,6 +578,11 @@ archive_query_logs() {
 
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮 Tree View 查询测试；由 test_operation 隔离运行状态
+test_operation_impl() {
     local protocol_code="$1"
     local current_suite_type=""
     local current_query=""

@@ -285,6 +285,11 @@ backup_test_data() {
 
 # 功能：执行指定测试阶段或外部工具命令
 run_restart_case() {
+	run_isolated_case run_restart_case_impl "$@"
+}
+
+# 功能：执行单轮重启测试；由 run_restart_case 隔离运行状态
+run_restart_case_impl() {
 	local remark_value="$1"
 	local archive_dir="$2"
 	local case_failed=0

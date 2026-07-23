@@ -1102,6 +1102,11 @@ EOF
 
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮删除测试；由 test_operation 隔离完整测试链路的运行状态
+test_operation_impl() {
     local protocol_code="$1"
 
     log "start delete consistency test, protocol=${protocol_code}"

@@ -691,6 +691,11 @@ run_ts_type() {
 # 单个协议下遍历 QUERY_TS_LIST；se_query_test.sh 通过覆盖 QUERY_TS_LIST 缩小测试范围。
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮查询测试；由 test_operation 在子 Shell 中隔离运行状态
+test_operation_impl() {
     local protocol_code="$1"
     local current_ts_type=""
     local task_failed=0

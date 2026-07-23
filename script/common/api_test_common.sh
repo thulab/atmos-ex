@@ -2,6 +2,11 @@
 
 # 功能：执行指定测试阶段或外部工具命令
 run_api_test_step() {
+    run_isolated_case run_api_test_step_impl "$@"
+}
+
+# 功能：在隔离环境中执行指定 API 测试阶段
+run_api_test_step_impl() {
     local label="$1"
     local test_function="$2"
 

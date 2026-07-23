@@ -1166,6 +1166,11 @@ write_start_failure_result() {
 
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮长稳测试；由 test_operation 隔离运行状态
+test_operation_impl() {
     local protocol_code="$1"
     local monitor_failed=0
     local result_failed=0

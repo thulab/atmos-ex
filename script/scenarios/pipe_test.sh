@@ -466,6 +466,11 @@ clear_expired_file() { # 清理超过七天的文件
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+	run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮 Pipe 测试；由 test_operation 隔离运行状态
+test_operation_impl() {
 	protocol_class=$1
 	ts_type=$2
 	pipflag=0

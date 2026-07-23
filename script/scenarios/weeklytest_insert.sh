@@ -206,6 +206,11 @@ mv_config_file() {
 
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮周测写入；由 test_operation 隔离运行状态
+test_operation_impl() {
     local protocol_class_input=$1
     local ts_type=$2
     log "开始测试${ts_type}时间序列！"

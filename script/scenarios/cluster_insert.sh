@@ -411,6 +411,11 @@ mv_config_file() { # 移动配置文件
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+	run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮集群写入测试；由 test_operation 隔离运行状态
+test_operation_impl() {
 	ts_type=$1
 	data_type=$2
 	protocol_class=$3

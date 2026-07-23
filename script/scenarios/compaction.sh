@@ -370,6 +370,11 @@ mark_restart_error() {
 
 # 功能：执行指定测试阶段或外部工具命令
 run_compaction_case() {
+	run_isolated_case run_compaction_case_impl "$@"
+}
+
+# 功能：执行单轮合并测试；由 run_compaction_case 隔离运行状态
+run_compaction_case_impl() {
 	local current_comp_type="$1"
 	local seq_enabled="$2"
 	local unseq_enabled="$3"

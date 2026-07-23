@@ -240,6 +240,11 @@ mv_config_file() { # 移动配置文件
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+	run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮周测查询；由 test_operation 隔离运行状态
+test_operation_impl() {
 	protocol_class=$1
 	#查询测试
 	for (( j = 0; j < ${#query_data_type[*]}; j++ ))

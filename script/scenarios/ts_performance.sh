@@ -466,6 +466,11 @@ archive_tool_log() {
 
 # 功能：执行指定测试阶段或外部工具命令
 run_tool_operation() {
+	run_isolated_case run_tool_operation_impl "$@"
+}
+
+# 功能：执行单轮 TsFile 工具测试；由 run_tool_operation 隔离运行状态
+run_tool_operation_impl() {
 	local remark_value="$1"
 	local collect_before_path="$2"
 	local collect_after_path="$3"

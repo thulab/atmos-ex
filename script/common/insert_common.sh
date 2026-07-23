@@ -618,6 +618,11 @@ apply_iotdb_config_hook() {
 # last_cache_query.sh 会在 source 后覆盖 test_operation，因为它需要同时运行写入和查询两个 Benchmark。
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
+    run_isolated_case test_operation_impl "$@"
+}
+
+# 功能：执行单轮写入测试；由 test_operation 在子 Shell 中隔离运行状态
+test_operation_impl() {
     local protocol_code="$1"
     local current_ts_type="$2"
     local current_api_type="$3"
