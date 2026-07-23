@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -o pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+
 #登录用户名
 ACCOUNT=root
 TEST_TYPE="${TEST_TYPE:-python_api}"
@@ -36,7 +38,7 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
-echo "检查iot-benchmark版本"
+log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
@@ -88,12 +90,12 @@ modify_iotdb_config() { # iotdb调整内存，开启MQTT
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep InterFace | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到InterFace程序！"
+		log "未检测到InterFace程序！"
 	else
 		kill -TERM "${monitor_pid}" 2>/dev/null || true
 		sleep 2
 		kill -KILL "${monitor_pid}" 2>/dev/null || true
-		echo "InterFace程序已停止！"
+		log "InterFace程序已停止！"
 	fi
 }
 # 功能：启动当前场景中的 IoTDB 服务
@@ -124,20 +126,20 @@ while true; do
 	commit_id=$(git log --pretty=format:"%h" -1)
 	#对比判定是否启动测试
 	if [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
-		echo "无代码更新，当前版本${commit_id}已经执行过测试"
+		log "无代码更新，当前版本${commit_id}已经执行过测试"
 		sleep 300s
 		continue
 	else
-		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+		log "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		rm -rf -- "${INIT_PATH}/log_python_api"
 		#代码编译
 		comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
 		then
-			echo "编译完成，准备开始测试！"
+			log "编译完成，准备开始测试！"
 		else
-			echo "编译失败，写入负值测试结果！"
+			log "编译失败，写入负值测试结果！"
 			InsertRecord=-1
 			InsertRecords=-1
 			InsertTablet=-1
@@ -166,7 +168,7 @@ while true; do
 		sleep 20
 		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > ${INIT_PATH}/log_python_api)
-		echo "开始监控。。。"
+		log "开始监控。。。"
 		for (( t_wait = 0; t_wait <= 20; ))
 		do
 			#监控执行情况  
@@ -175,7 +177,7 @@ while true; do
 				now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 				if [ $t_time -ge 7200 ]; then
-					echo "测试失败"  #倒序输入形成负数结果
+					log "测试失败"  #倒序输入形成负数结果
 					end_time=-1
 					cost_time=-100
 					flag=1
@@ -183,7 +185,7 @@ while true; do
 				fi
 				continue
 			else
-				echo "测试已完成"
+				log "测试已完成"
 				break
 			fi
 		done
@@ -199,7 +201,7 @@ while true; do
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-			echo ${insert_sql}
+			log ${insert_sql}
 			mysql_exec "${insert_sql}"
 		else
 			#收集测试结果
@@ -216,14 +218,13 @@ while true; do
 		#备份本次测试
 		#backup_test_data
 		###############################测试完成###############################
-		echo "本轮测试${test_date_time}已结束."
+		log "本轮测试${test_date_time}已结束."
 		#清理过期文件 - 当前策略保留4天
 		#find ${BACKUP_PATH}/ -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	fi
 done
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

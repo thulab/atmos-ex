@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -o pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+
 #登录用户名
 ACCOUNT=atmos
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -45,7 +47,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
+log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
@@ -73,12 +75,12 @@ sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
 check_sql_test_pid() { # 检查benchmark的pid，有就停止
 	monitor_pid=$(jps | grep InterFace | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到InterFace程序！"
+		log "未检测到InterFace程序！"
 	else
 		kill -TERM "${monitor_pid}" 2>/dev/null || true
 		sleep 2
 		kill -KILL "${monitor_pid}" 2>/dev/null || true
-		echo "InterFace程序已停止！"
+		log "InterFace程序已停止！"
 	fi
 }
 # 功能：准备当前测试所需的本地安装目录与运行环境
@@ -171,13 +173,13 @@ start_iotdb_ainode() { # 启动iotdb
 	do
 		ai_status=$(lsof -i:10810)
 		if [ "${ai_status}" = "" ]; then
-			echo "更新依赖中。。。"
+			log "更新依赖中。。。"
 			sleep 60s
 		else
-			echo "AINode已启动。。。"
+			log "AINode已启动。。。"
 			break
 		fi
-		echo "AINode启动失败。。。"
+		log "AINode启动失败。。。"
 	done
 	cd ~/
 }
@@ -239,7 +241,7 @@ else
 	#commit_id1=$(git log --pretty=format:"%h" -1)
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	test_date_time=$(date +%Y%m%d%H%M%S)
 	#开始测试
 	#清理环境，确保无旧程序影响
@@ -265,7 +267,7 @@ else
 	  fi
 	done
 	if [ "${iotdb_state}" = "Total line number = 2" ]; then
-		echo "IoTDB正常启动"
+		log "IoTDB正常启动"
 		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
 		F_start_time=$(date +%s%3N)
 		F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
@@ -278,7 +280,7 @@ else
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${F_start_time}','${F_now_time}',${cost_time},'FirstInsertSQL')"
 		mysql_exec "${insert_sql}"
 	else
-		echo "IoTDB未能正常启动，写入负值测试结果！"
+		log "IoTDB未能正常启动，写入负值测试结果！"
 		cost_time=-3
 		fail_num=-3
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'tablemode')"
@@ -313,13 +315,13 @@ else
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 7200 ]; then
-				echo "测试失败"
+				log "测试失败"
 				flag=1
 				break
 			fi
 			continue
 		else
-			echo "测试完成"
+			log "测试完成"
 			break
 		fi
 	done
@@ -364,7 +366,7 @@ else
 		#commit_id1=$(git log --pretty=format:"%h" -1)
 		update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 		result_string=$(mysql_exec "${update_sql}")
-		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+		log "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		#开始测试
 		#清理环境，确保无旧程序影响
@@ -390,10 +392,10 @@ else
 		  fi
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
-			echo "IoTDB正常启动"
+			log "IoTDB正常启动"
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
 		else
-			echo "IoTDB未能正常启动，写入负值测试结果！"
+			log "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
 			fail_num=-3
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
@@ -416,7 +418,7 @@ else
 		  fi
 		done
 		if [ "${iotdb_state}" = "Total line number = 3" ]; then
-			echo "IoTDB-AINode正常启动，准备开始测试"
+			log "IoTDB-AINode正常启动，准备开始测试"
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
 			F_start_time=$(date +%s%3N)
 			F_str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -e "insert into root.ln.wf02.wt02(timestamp, status, hardware) VALUES (3, false, 'v3'),(4, true, 'v4')")
@@ -453,13 +455,13 @@ else
 					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 					if [ $t_time -ge 7200 ]; then
-						echo "测试失败"
+						log "测试失败"
 						flag=1
 						break
 					fi
 					continue
 				else
-					echo "测试完成"
+					log "测试完成"
 					break
 				fi
 			done
@@ -492,7 +494,7 @@ else
 			#备份本次测试
 			backup_test_data ainode_tree
 		else
-			echo "IoTDB未能正常启动，写入负值测试结果！"
+			log "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-5
 			fail_num=-5
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_tree')"
@@ -513,7 +515,7 @@ else
 		#commit_id1=$(git log --pretty=format:"%h" -1)
 		update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 		result_string=$(mysql_exec "${update_sql}")
-		echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+		log "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		#开始测试
 		#清理环境，确保无旧程序影响
@@ -539,10 +541,10 @@ else
 		  fi
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
-			echo "IoTDB正常启动"
+			log "IoTDB正常启动"
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
 		else
-			echo "IoTDB未能正常启动，写入负值测试结果！"
+			log "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
 			fail_num=-3
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
@@ -565,7 +567,7 @@ else
 		  fi
 		done
 		if [ "${iotdb_state}" = "Total line number = 3" ]; then
-			echo "IoTDB-AINode正常启动，准备开始测试"
+			log "IoTDB-AINode正常启动，准备开始测试"
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
 			# 拷贝测试依赖到各自文件夹
 			#cp -rf ${TC_PATH}/lib/trigger_jar/ext ${TEST_IOTDB_PATH}/ext/trigger/
@@ -592,13 +594,13 @@ else
 					now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 					if [ $t_time -ge 7200 ]; then
-						echo "测试失败"
+						log "测试失败"
 						flag=1
 						break
 					fi
 					continue
 				else
-					echo "测试完成"
+					log "测试完成"
 					break
 				fi
 			done
@@ -631,7 +633,7 @@ else
 			#备份本次测试
 			backup_test_data ainode_table
 		else
-			echo "IoTDB未能正常启动，写入负值测试结果！"
+			log "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-5
 			fail_num=-5
 			insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,pass_num,fail_num,start_time,end_time,cost_time,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${pass_num},${fail_num},'${start_time}','${end_time}',${cost_time},'AINode_table')"
@@ -642,7 +644,7 @@ else
 		fi
 	fi
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
@@ -653,7 +655,6 @@ fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 
 main "$@"

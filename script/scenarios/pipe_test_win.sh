@@ -9,6 +9,8 @@ fi
 set -o pipefail
 readonly TEST_PLATFORM="windows"
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+
 #登录用户名
 ACCOUNT=Administrator
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -61,7 +63,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
+log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 # 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
@@ -175,7 +177,7 @@ set_protocol_class() {
 }
 # 功能：部署并初始化当前测试运行环境
 setup_env_windows() {
-	echo "开始重置环境！"
+	log "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
@@ -187,13 +189,13 @@ setup_env_windows() {
 		TEST_IP=${IP_list[$j]}
 		rflag=0
 		while true; do
-			echo "当前连接：${ACCOUNT}@${TEST_IP}"
+			log "当前连接：${ACCOUNT}@${TEST_IP}"
 			remote_windows_is_available "${TEST_IP}" "D:"
 			if [ $? -eq 0 ];then
-				echo "${TEST_IP}已启动"
+				log "${TEST_IP}已启动"
 				break
 			else
-				echo "${TEST_IP}未启动"
+				log "${TEST_IP}未启动"
 				if [ $rflag -ge 5 ]; then
 					break
 				else
@@ -206,9 +208,9 @@ setup_env_windows() {
 
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
-		echo "开始部署${IP_list[$i]}！"
+		log "开始部署${IP_list[$i]}！"
 		TEST_IP=${IP_list[$i]}
-		echo "setting env to ${TEST_IP} ..."
+		log "setting env to ${TEST_IP} ..."
 		#删除原有路径下所有
 		remote_windows_reset_dir "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 		#修改IoTDB的配置		
@@ -231,31 +233,31 @@ setup_env_windows() {
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
 		TEST_IP=${IP_list[$i]}
-		echo "starting IoTDB on ${TEST_IP} ..."
+		log "starting IoTDB on ${TEST_IP} ..."
 		pid3=$(remote_windows_run_task "${TEST_IP}" "run_iotdb")
 		sleep 10
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
 		  str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "show cluster" | grep 'Total line number = 2')
 		  if [ "$str1" = "Total line number = 2" ]; then
-			echo "All Nodes is ready"
+			log "All Nodes is ready"
 			flag=1
 			change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}';")
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show cluster" | grep 'Total line number = 2')
 			if [ "$str1" = "Total line number = 2" ]; then
-				echo "密码修改已生效"
+				log "密码修改已生效"
 			else
-				echo "密码修改未生效"
+				log "密码修改未生效"
 			fi
 			break
 		  else
-			echo "All Nodes is not ready.Please wait ..."
+			log "All Nodes is not ready.Please wait ..."
 			sleep 3
 			continue
 		  fi
 		done
 		if [ "$flag" = "0" ]; then
-		  echo "All Nodes is not ready!"
+		  log "All Nodes is not ready!"
 		  exit -1
 		fi
 	done
@@ -265,16 +267,16 @@ setup_env_windows() {
 		do
 			TEST_IP=${IP_list[$i]}
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
-			echo $str1
+			log $str1
 			sleep 3
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "start pipe test;")
-			echo $str1
+			log $str1
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 1')
 			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect table -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 2')
-			echo $str1
-			echo $str2
+			log $str1
+			log $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
-				echo "PIPE is ready"
+				log "PIPE is ready"
 				pipeflag=$[${pipeflag}+1]
 			fi
 		done
@@ -283,21 +285,21 @@ setup_env_windows() {
 		do
 			TEST_IP=${IP_list[$i]}
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');")
-			echo $str1
+			log $str1
 			sleep 3
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "start pipe test;")
-			echo $str1
+			log $str1
 			str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 1')
 			str2=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -sql_dialect tree -h ${TEST_IP} -p 6667 -u root -pw ${IOTDB_PASSWORD} -e "show pipes;" | grep 'Total line number = 2')
-			echo $str1
-			echo $str2
+			log $str1
+			log $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]]; then
-				echo "PIPE is ready"
+				log "PIPE is ready"
 				pipeflag=$[${pipeflag}+1]
 			fi
 		done
 	fi
-	echo $pipeflag
+	log $pipeflag
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
@@ -315,7 +317,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		do
 			TEST_IP=${IP_list[$m]}
 			if [ $t_time -ge 7200 ]; then
-				echo "测试失败"  #倒序输入形成负数结果
+				log "测试失败"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				flagBM=-1
 				cost_time=-1
@@ -323,16 +325,16 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			fi
 			rflag=0
 			while true; do
-				echo "当前连接：${ACCOUNT}@${TEST_IP}"
+				log "当前连接：${ACCOUNT}@${TEST_IP}"
 				ssh ${ACCOUNT}@${TEST_IP} "dir D:\\first-rest-test\\iot-benchmark\\data" >/dev/null 2>&1
 				if [ $? -eq 0 ];then
-					echo "${TEST_IP}测试结果已生成"
-					echo $?
+					log "${TEST_IP}测试结果已生成"
+					log $?
 					flagBM=$[${flagBM}+1]
 					break
 				else
-					echo "${TEST_IP}测试结果未生成"
-					echo $?
+					log "${TEST_IP}测试结果未生成"
+					log $?
 					if [ $rflag -ge 5 ]; then
 						break
 					else
@@ -391,7 +393,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			done
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${last_update_time}")))
 			if [ $t_time -ge 600 ]; then
-				echo "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
+				log "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				cost_time=$(($(date +%s -d "${last_update_time}") - $(date +%s -d "${start_time}")))
 				minPointNum=222222
@@ -510,7 +512,7 @@ test_operation() {
 	protocol_class=$1
 	ts_type=$2
 	pipeflag=0
-	echo "开始测试${ts_type}时间序列！"
+	log "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
 	#修改IoTDB的配置
@@ -526,7 +528,7 @@ test_operation() {
     elif [ "${protocol_class}" = "224" ]; then
         set_protocol_class 2 2 4
 	else
-		echo "协议设置错误！"
+		log "协议设置错误！"
 		return
 	fi
 	#启动iotdb
@@ -536,7 +538,7 @@ test_operation() {
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		echo "开始写入！"
+		log "开始写入！"
 		pid3=$(remote_windows_run_task "${TEST_IP}" "run_test")
 	done
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
@@ -616,7 +618,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 	else
@@ -624,16 +626,16 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`	
-	echo "开始测试223协议下的tablemode时间序列！"
+	log "开始测试223协议下的tablemode时间序列！"
 	test_operation 223 tablemode
-	echo "开始测试223协议下的common时间序列！"
+	log "开始测试223协议下的common时间序列！"
 	test_operation 223 common
-	echo "开始测试223协议下的aligned时间序列！"
+	log "开始测试223协议下的aligned时间序列！"
 	test_operation 223 aligned
-	echo "开始测试224协议下的aligned时间序列！"
+	log "开始测试224协议下的aligned时间序列！"
 	test_operation 224 aligned
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
@@ -644,7 +646,6 @@ fi
 	echo "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"

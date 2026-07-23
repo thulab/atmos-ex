@@ -76,7 +76,7 @@ init_routine_route() {
 		fi
 	fi
 
-	echo "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
+	log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
 }
 
 # 功能：将输入值格式化为目标展示或配置格式
@@ -104,7 +104,7 @@ parse_benchmark_result() {
 
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
-	echo "检查iot-benchmark版本"
+	log "检查iot-benchmark版本"
 	BM_REPOS_PATH=/nasdata/repository/iot-benchmark
 	BM_NEW=$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")
 	BM_OLD=$(git_commit_abbrev "${BM_PATH}/git.properties")
@@ -165,12 +165,12 @@ sendEmail() {
 check_monitor_pid() { # 检查benchmark-moitor的pid，有就停止
 	monitor_pid=$(jps | grep App | awk '{print $1}')
 	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
+		log "未检测到监控程序！"
 	else
 		kill -TERM "${monitor_pid}" 2>/dev/null || true
 		sleep 2
 		kill -KILL "${monitor_pid}" 2>/dev/null || true
-		echo "BM程序已停止！"
+		log "BM程序已停止！"
 	fi
 }
 # 功能：准备当前测试所需的本地安装目录与运行环境
@@ -252,7 +252,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 100000 ]; then
-				echo "测试失败"
+				log "测试失败"
 				mkdir -p "${BM_PATH}/data/csvOutput"
 				cd "${BM_PATH}/data/csvOutput" || break
 				touch Stuck_result.csv
@@ -268,7 +268,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			continue
 		else
 			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			echo "${ts_type}写入已完成！"
+			log "${ts_type}写入已完成！"
 			break
 		fi
 	done
@@ -327,7 +327,7 @@ test_operation() {
 	ts_type='common'
 	for (( i = 0; i < ${#insert_list[*]}; i++ ))
 	do
-		echo "开始${insert_list[${i}]}写入！"
+		log "开始${insert_list[${i}]}写入！"
 		data_type=${insert_list[${i}]}
 		#清理环境，确保无就程序影响
 		check_monitor_pid
@@ -345,7 +345,7 @@ test_operation() {
 		elif [ "${protocol_class_input}" = "211" ]; then
 			set_protocol_class 2 1 1
 		else
-			echo "协议设置错误！"
+			log "协议设置错误！"
 			return
 		fi
 		#启动iotdb和monitor监控
@@ -366,10 +366,10 @@ test_operation() {
 		  fi
 		done
 		if [ "${iotdb_state}" = "Total line number = 2" ]; then
-			echo "IoTDB正常启动，准备开始测试"
+			log "IoTDB正常启动，准备开始测试"
 			"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null
 		else
-			echo "IoTDB未能正常启动，写入负值测试结果！"
+			log "IoTDB未能正常启动，写入负值测试结果！"
 			cost_time=-3
 			throughput=-3
 			insert_sql="insert into ${result_table} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${protocol_class_input}')"
@@ -402,7 +402,7 @@ test_operation() {
 
 		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 		insert_sql="insert into ${result_table} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${protocol_class_input}')"
-		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
+		log ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql_exec "${insert_sql}"
 		
 		#停止IoTDB程序和监控程序
@@ -412,7 +412,7 @@ test_operation() {
 		#查询测试
 		for (( j = 0; j < ${#query_list[*]}; j++ ))
 		do
-			echo "开始${query_list[${j}]}查询！"
+			log "开始${query_list[${j}]}查询！"
 			op_type=${query_list[${j}]}
 			check_iotdb_pid
 			sleep 1
@@ -430,9 +430,9 @@ test_operation() {
 			  fi
 			done
 			if [ "${iotdb_state}" = "Total line number = 2" ]; then
-				echo "IoTDB正常启动，准备开始测试"
+				log "IoTDB正常启动，准备开始测试"
 			else
-				echo "IoTDB未能正常启动，写入负值测试结果！"
+				log "IoTDB未能正常启动，写入负值测试结果！"
 				cost_time=-3
 				throughput=-3
 				insert_sql="insert into ${result_table} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${protocol_class_input}')"
@@ -456,7 +456,7 @@ test_operation() {
 				parse_benchmark_result "${query_type[${j}]}"
 				cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 				insert_sql="insert into ${result_table} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${protocol_class_input}')"
-				echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
+				log ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 				mysql_exec "${insert_sql}"
 			done
 			#停止IoTDB程序和监控程序
@@ -465,7 +465,7 @@ test_operation() {
             check_iotdb_pid
 		done
 		backup_test_data "${data_type}" "${protocol_class_input}"
-		echo "本轮${query_data_type[${j}]}时间序列查询测试已结束."
+		log "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 	done
 }
 ##准备开始测试
@@ -496,7 +496,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	mysql_exec "${update_sql}"
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	init_items
 	test_date_time=$(date +%Y%m%d%H%M%S)
 	p_index=$(($RANDOM % ${#protocol_list[*]}))
@@ -508,7 +508,7 @@ else
 	#test_operation 111 
 	#test_operation 211 
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	mysql_exec "${update_sql}"
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < '${commit_date_time}'"

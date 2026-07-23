@@ -151,20 +151,20 @@ set_protocol_class() {
 # 功能：部署并初始化当前测试运行环境
 setup_env_windows() {
 	TEST_IP=$1
-	echo "开始重置环境！"
+	log "开始重置环境！"
 	remote_windows_reboot "${TEST_IP}"
 	sleep 120
 	rflag=0
 	boot_ready=0
 	while true; do
-		echo "当前连接：${ACCOUNT}@${TEST_IP}"
+		log "当前连接：${ACCOUNT}@${TEST_IP}"
 		remote_windows_is_available "${TEST_IP}" "D:"
 		if [ $? -eq 0 ];then
 			boot_ready=1
-			echo "${TEST_IP}已启动"
+			log "${TEST_IP}已启动"
 			break
 		else
-			echo "${TEST_IP}未启动"
+			log "${TEST_IP}未启动"
 			if [ $rflag -ge 5 ]; then
 				break
 			else
@@ -175,16 +175,16 @@ setup_env_windows() {
 		fi
 	done
 	if [ "${boot_ready}" != "1" ]; then
-	  echo "${TEST_IP} boot check failed!"
+	  log "${TEST_IP} boot check failed!"
 	  exit -1
 	fi
-	echo "setting env to ${TEST_IP} ..."
+	log "setting env to ${TEST_IP} ..."
 	#删除原有路径下所有
 	remote_windows_reset_dir "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 	#复制三项到客户机
 	remote_windows_copy_contents "${TEST_PATH}" "${TEST_IP}" "${TEST_IOTDB_PATH_W}"
 	#启动IoTDB
-	echo "starting IoTDB on ${TEST_IP} ..."
+	log "starting IoTDB on ${TEST_IP} ..."
 	pid3=$(remote_windows_run_task "${TEST_IP}" "run_iotdb")
 	sleep 10
 	flag=0
@@ -192,17 +192,17 @@ setup_env_windows() {
 	do
 	  str1=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "show cluster" | grep 'Total line number = 2')
 	  if [ "$str1" = "Total line number = 2" ]; then
-		echo "All Nodes is ready"
+		log "All Nodes is ready"
 		flag=1
 		break
 	  else
-		echo "All Nodes is not ready.Please wait ..."
+		log "All Nodes is not ready.Please wait ..."
 		sleep 3
 		continue
 	  fi
 	done
 	if [ "$flag" = "0" ]; then
-	  echo "All Nodes is not ready!"
+	  log "All Nodes is not ready!"
 	  exit -1
 	fi
 }
@@ -222,7 +222,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		csv_file=$(find_result_csv || true)
 		if [ -n "${csv_file}" ]; then
 			end_time=$(current_datetime)
-			echo "${ts_type} benchmark completed."
+			log "${ts_type} benchmark completed."
 			return 0
 		fi
 
@@ -230,7 +230,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		elapsed=$((now_epoch - m_start_time))
 		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
 			end_time=$(current_datetime)
-			echo "${ts_type} benchmark timed out."
+			log "${ts_type} benchmark timed out."
 			create_stuck_result_csv "${result_label}"
 			return 1
 		fi
@@ -273,7 +273,7 @@ mv_config_file() { # 移动配置文件
 test_operation() {
 	TEST_IP=$1
 	protocol_class=$2
-	echo "开始测试！"
+	log "开始测试！"
 	for (( i = 0; i < ${#insert_list[*]}; i++ ))
 	do
 		#复制当前程序到执行位置
@@ -289,14 +289,14 @@ test_operation() {
 		elif [ "${protocol_class}" = "211" ]; then
 			set_protocol_class 2 1 1
 		else
-			echo "协议设置错误！"
+			log "协议设置错误！"
 			return
 		fi
 		#设置环境并启动IoTDB
 		check_benchmark_pid
 		setup_platform_env "${TEST_IP}"
 		change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
-		echo "写入测试开始！"
+		log "写入测试开始！"
 		start_time=$(current_datetime)
 		m_start_time=$(date +%s)
 		mv_config_file ${data_type}
@@ -314,8 +314,8 @@ test_operation() {
 
 		cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','INGESTION',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},'${protocol_class}')"
-		echo ${insert_sql}
-		echo ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
+		log ${insert_sql}
+		log ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql_exec "${insert_sql}"
 		#查询测试
 		mkdir -p ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
@@ -323,7 +323,7 @@ test_operation() {
 		if [[ "${data_type}" == "seq_w" || "${data_type}" == "unseq_w" ]]; then 
 			for (( j = 0; j < ${#query_list[*]}; j++ ))
 			do
-				echo "开始${query_list[${j}]}查询！"
+				log "开始${query_list[${j}]}查询！"
 				op_type=${query_list[${j}]}
 				mv_config_file ${op_type}
 				mkdir -p ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}
@@ -342,10 +342,10 @@ test_operation() {
 					#csvOutputfile=${BM_PATH}/data/csvOutput/*result.csv
 					csvOutputfile=$(find_result_csv || true)
 					if [ ! -f "$csvOutputfile" ]; then
-						echo "未找到CSV文件"
+						log "未找到CSV文件"
 						sleep 60
 					else
-						echo "$csvOutputfile"
+						log "$csvOutputfile"
 						sleep 10
 					fi
 					if ! parse_benchmark_result "${csvOutputfile}" "${query_type[${j}]}"; then
@@ -353,7 +353,7 @@ test_operation() {
 					fi
 					cost_time=$(($(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}")))
 					insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
-					echo ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
+					log ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 					mysql_exec "${insert_sql}"
 					cp -rf ${BM_PATH}/logs ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
 					cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
@@ -389,7 +389,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 	else
@@ -399,7 +399,7 @@ else
 	test_date_time=`date +%Y%m%d%H%M%S`
 	test_operation ${IoTDB_IP} 223 
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"

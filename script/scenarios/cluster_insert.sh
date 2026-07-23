@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -o pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+
 #登录用户名
 ACCOUNT=root
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -59,7 +61,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
+log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
@@ -185,7 +187,7 @@ done
 ###检查参数
 if [[ "$config_num" == '' ]] || [[ "$data_num" == '' ]] 
 then
-  echo "Enter the number of ConfigNodes and datanodes to start."
+  log "Enter the number of ConfigNodes and datanodes to start."
   exit -1
 fi
 #拼接config_node参数
@@ -198,7 +200,7 @@ do
 		dcn_str=${dcn_str},${data_node_config_nodes[${j}]}
 	fi
 done
-echo "开始重置环境！"
+log "开始重置环境！"
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
 	#ssh ${ACCOUNT}@${IP_list[${i}]} "killall -u ${ACCOUNT} > /dev/null 2>&1 &"
@@ -207,7 +209,7 @@ done
 sleep 180
 for (( i = 1; i < ${#IP_list[*]}; i++ ))
 do
-	echo "setting env to ${IP_list[${i}]} ..."
+	log "setting env to ${IP_list[${i}]} ..."
 	#删除原有路径下所有
 	remote_reset_dir "${IP_list[${i}]}" "${TEST_PATH}"
 	remote_clear_configured_roots "${IP_list[${i}]}"
@@ -217,7 +219,7 @@ done
 for ((j = 1; j <= $bm_num; j++)); do
 	remote_clean_benchmark_runtime "${B_IP_list[${j}]}" "${BM_PATH}"
 done
-echo "开始部署ConfigNode！"
+log "开始部署ConfigNode！"
 for (( i = 1; i <= $config_num; i++ ))
 do
 	#修改IoTDB ConfigNode的配置
@@ -226,7 +228,7 @@ do
 	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "schema_replication_factor" "${config_schema_replication_factor[${i}]}"
 	remote_append_property "${C_IP_list[${i}]}" "${TEST_CONFIGNODE_PATH}/conf/iotdb-system.properties" "data_replication_factor" "${config_data_replication_factor[${i}]}"
 done
-echo "开始部署DataNode！"
+log "开始部署DataNode！"
 for (( i = 1; i <= $data_num; i++ ))
 do
 	#修改IoTDB DataNode的配置
@@ -237,7 +239,7 @@ done
 #启动config_num个IoTDB ConfigNode节点
 for (( j = 1; j <= $config_num; j++ ))
 do
-	echo "starting IoTDB ConfigNode on ${C_IP_list[${j}]} ..."
+	log "starting IoTDB ConfigNode on ${C_IP_list[${j}]} ..."
 	remote_start_background "${C_IP_list[${j}]}" "${TEST_CONFIGNODE_PATH}/sbin/start-confignode.sh -H ${TEST_CONFIGNODE_PATH}/cn_dump.hprof"
 	#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 	sleep 10
@@ -245,7 +247,7 @@ done
 #启动data_num个IoTDB DataNode节点
 for (( j = 1; j <= $data_num; j++ ))
 do
-	echo "starting IoTDB DataNode on ${D_IP_list[${j}]} ..."
+	log "starting IoTDB DataNode on ${D_IP_list[${j}]} ..."
 	remote_start_background "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/sbin/start-datanode.sh -H ${TEST_DATANODE_PATH}/dn_dump.hprof"
 done
 #等待60s，让服务器完成前期准备
@@ -258,11 +260,11 @@ do
 	do
 	  str1=$(remote_java_process_count "${C_IP_list[${j}]}" "ConfigNode")
 	  if [ "$str1" = "1" ]; then
-		echo "ConfigNode has been started on PC:${C_IP_list[${j}]}"
+		log "ConfigNode has been started on PC:${C_IP_list[${j}]}"
 		check_config_num=$[${check_config_num}+1]
 		break
 	  else
-		echo "ConfigNode has not been started on PC:${C_IP_list[${j}]}"
+		log "ConfigNode has not been started on PC:${C_IP_list[${j}]}"
 		sleep 30
 		continue
 	  fi
@@ -276,11 +278,11 @@ do
 	do
 	  str1=$(remote_java_process_count "${D_IP_list[${j}]}" "DataNode")
 	  if [ "$str1" = "1" ]; then
-		echo "DataNode has been started on PC:${D_IP_list[${j}]}"
+		log "DataNode has been started on PC:${D_IP_list[${j}]}"
 		check_data_num=$[${check_data_num}+1]
 		break
 	  else
-		echo "DataNode has not been started on PC:${D_IP_list[${j}]}"
+		log "DataNode has not been started on PC:${D_IP_list[${j}]}"
 		sleep 30
 		continue
 	  fi
@@ -291,15 +293,15 @@ total_nodes=$(($config_num+$data_num))
 for (( j = 1; j <= $data_num; j++ ))
 do
 	if wait_for_remote_iotdb_cluster "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh" "${total_nodes}"; then
-	  echo "All Nodes is ready"
+	  log "All Nodes is ready"
 	else
-	  echo "All Nodes is not ready!"
+	  log "All Nodes is not ready!"
 	  exit -1
 	fi
 done
 change_pwd=$(ssh ${ACCOUNT}@${D_IP_list[1]} "${TEST_DATANODE_PATH}/sbin/start-cli.sh -h ${D_IP_list[1]} -p 6667 -e \"ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'\"")
 if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num" ]; then
-	echo "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
+	log "All ${check_config_num} ConfigNodes and ${check_data_num} DataNodes have been started"
 	if [ "${CLUSTER_CREATE_QA_USER}" = "1" ]; then
 		remote_exec "${D_IP_list[1]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"CREATE USER qa_user 'test123456789';\""
 		remote_exec "${D_IP_list[1]}" "${TEST_DATANODE_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${D_IP_list[1]} -p 6667 -e \"GRANT ALL ON root.** TO USER qa_user WITH GRANT OPTION;\""
@@ -315,7 +317,7 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 			remote_start_benchmark "${B_IP_list[${j}]}" "${BM_PATH}" &
 		done
 		wait
-		echo "All BMs have been started"
+		log "All BMs have been started"
 	fi	
 fi
 }
@@ -327,25 +329,25 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		do
 			str1=$(ssh ${ACCOUNT}@${B_IP_list[${j}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
-				echo "测试未结束:${B_IP_list[${j}]}"  > /dev/null 2>&1 &
+				log "测试未结束:${B_IP_list[${j}]}"  > /dev/null 2>&1 &
 				sleep 180
 			else
-				echo "测试已结束:${B_IP_list[${j}]}"
+				log "测试已结束:${B_IP_list[${j}]}"
 				flag=$[${flag}+1]
 			fi
 		done
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 		if [ $t_time -ge 6000 ]; then
-			echo "测试失败"
+			log "测试失败"
 			end_time=-1
 			cost_time=-1
 			ssh ${ACCOUNT}@${B_IP_list[1]} "test -f ${BM_PATH}/data/*result.csv"
 			if [ $? -eq 0 ]; then
-				echo "文件存在"
+				log "文件存在"
 				remote_safe_rm "${B_IP_list[1]}" "${BM_PATH}/data/csvOutput"
 			else
-				echo "文件不存在"
+				log "文件不存在"
 				remote_reset_dir "${B_IP_list[1]}" "${BM_PATH}/data/csvOutput"
 				ssh ${ACCOUNT}@${B_IP_list[1]} "touch ${BM_PATH}/data/csvOutput/Stuck_result.csv"
 				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
@@ -412,7 +414,7 @@ test_operation() {
 	ts_type=$1
 	data_type=$2
 	protocol_class=$3
-	echo "开始测试${ts_type}时间序列！"
+	log "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
 	modify_iotdb_config
@@ -429,14 +431,14 @@ test_operation() {
     elif [ "${protocol_class}" = "211" ]; then
         set_protocol_class 2 1 1
 	else
-		echo "协议设置错误！"
+		log "协议设置错误！"
 		return
 	fi
 	
 	mv_config_file ${ts_type} ${data_type}
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
 	setup_nCmD -c3 -d3 -t1	
-	echo "测试开始！"
+	log "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
 	#等待1分钟
@@ -513,7 +515,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 		TABLENAME_QUERY=${TABLENAME_QUERY}
@@ -524,20 +526,20 @@ else
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
 	########优先测试
-	echo "开始测试普通时间序列顺序写入！"
+	log "开始测试普通时间序列顺序写入！"
 	test_operation common seq_w 223
-	echo "开始测试对齐时间序列顺序写入！"
+	log "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
 	test_operation aligned seq_w 222
 	###############################非ROOT账户###############################
-	echo "开始测试非ROOT账户表模型顺序写入！"
+	log "开始测试非ROOT账户表模型顺序写入！"
 	test_operation tablemode seq_w_non 223
-	echo "开始测试非ROOT账户普通时间序列顺序写入！"
+	log "开始测试非ROOT账户普通时间序列顺序写入！"
 	test_operation common seq_w_non 223
 	###############################普通时间序列###############################
 	#echo "开始测试普通时间序列顺序写入！"
 	#test_operation common seq_w 223
-	echo "开始测试普通时间序列乱序写入！"
+	log "开始测试普通时间序列乱序写入！"
 	test_operation common unseq_w 223
 	#echo "开始测试普通时间序列顺序读写混合！"
 	#test_operation common seq_rw 223
@@ -547,12 +549,12 @@ else
 	#echo "开始测试对齐时间序列顺序写入！"
 	#test_operation aligned seq_w 223
 	#test_operation aligned seq_w 222
-	echo "开始测试对齐时间序列乱序写入！"
+	log "开始测试对齐时间序列乱序写入！"
 	test_operation aligned unseq_w 223
 	test_operation aligned unseq_w 222
-	echo "开始测试对齐时间序列顺序读写混合！"
+	log "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
-	echo "开始测试对齐时间序列乱序读写混合！"
+	log "开始测试对齐时间序列乱序读写混合！"
 	test_operation aligned unseq_rw 223
 	###############################模板时间序列###############################
 	#echo "开始测试模板时间序列顺序写入！"
@@ -573,16 +575,16 @@ else
 	#echo "开始测试对齐模板时间序列乱序读写混合！"
 	#test_operation tempaligned unseq_rw 223
 	###############################表模型###############################
-	echo "开始测试表模型顺序写入！"
+	log "开始测试表模型顺序写入！"
 	test_operation tablemode seq_w 223
-	echo "开始测试表模型乱序写入！"
+	log "开始测试表模型乱序写入！"
 	test_operation tablemode unseq_w 223
-	echo "开始测试表模型顺序读写混合！"
+	log "开始测试表模型顺序读写混合！"
 	test_operation tablemode seq_rw 223
-	echo "开始测试表模型乱序读写混合！"
+	log "开始测试表模型乱序读写混合！"
 	test_operation tablemode unseq_rw 223
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
@@ -593,7 +595,6 @@ fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 

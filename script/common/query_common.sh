@@ -8,11 +8,11 @@ set -o pipefail
 # - 本文件中的“预留配置/预留函数”主要面向 se_query_test.sh，用于缩小测试矩阵并创建 QA 查询用户。
 
 if [ -z "${BASH_VERSION:-}" ]; then
-    echo "query_common.sh requires bash" >&2
+    printf '%s\n' "query_common.sh requires bash" >&2
     return 1 2>/dev/null || exit 1
 fi
 if shopt -oq posix; then
-    echo "query_common.sh requires non-posix bash" >&2
+    printf '%s\n' "query_common.sh requires non-posix bash" >&2
     return 1 2>/dev/null || exit 1
 fi
 

@@ -65,9 +65,9 @@ test_java_tsfile_api_test() { # 测试Java
 	compile=$(timeout 300s mvn clean install -P with-java -DskipTests)
 	if [ $? -eq 0 ]
 	then
-		echo "编译Java完成，准备开始测试！"
+		log "编译Java完成，准备开始测试！"
 	else
-		echo "编译Java失败，写入负值测试结果！"
+		log "编译Java失败，写入负值测试结果！"
 		tests_num=-2
 		errors_num=-2
 		failures_num=-2
@@ -77,7 +77,7 @@ test_java_tsfile_api_test() { # 测试Java
 		mysql_exec "${insert_sql_java}"
 		return 1
 	fi
-	echo "开始测试Java接口"
+	log "开始测试Java接口"
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
 	for (( t_wait = 0; t_wait <= 20; ))
@@ -88,13 +88,13 @@ test_java_tsfile_api_test() { # 测试Java
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 14400 ]; then
-				echo "Java测试失败"
+				log "Java测试失败"
 				flag=1
 				break
 			fi
 			continue
 		else
-			echo "Java测试完成"
+			log "Java测试完成"
 			break
 		fi
 	done
@@ -116,7 +116,7 @@ test_java_tsfile_api_test() { # 测试Java
 		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
 		mysql_exec "${insert_sql_java}"
 		if [ $? -ne 0 ]; then
-			echo "执行mysql命令失败"
+			log "执行mysql命令失败"
 			#收集测试结果
 			tests_num=-4
 			errors_num=-4
@@ -130,7 +130,7 @@ test_java_tsfile_api_test() { # 测试Java
 EOF
 			)
 			mysql_exec "$sql"
-			echo "备份Java测试报告"
+			log "备份Java测试报告"
 			mkdir -p /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
 			cp -rf  ${TEST_JAVA_TOOL_PATH}/target/site /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
 			return 1
@@ -149,7 +149,7 @@ EOF
 		mysql_exec "${insert_sql_java}"
 	fi
 	#备份本次测试
-	echo "备份Java测试报告"
+	log "备份Java测试报告"
 	rm -rf -- "${BK_PATH:?}/java/"*
 	cp -rf ${TEST_JAVA_TOOL_PATH}/target/site ${BK_PATH}/java
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
@@ -162,13 +162,13 @@ EOF
 # 功能：执行指定语言、接口或测试场景
 test_cpp_tsfile_api_test() {
 	# C++代码编译
-	echo "编译C++"
+	log "编译C++"
 	cd "${TSFILE_PATH}" || return 1
 	comp_cpp=$(timeout 7200s  bash -c "mvn clean install -P with-cpp -DskipTests")
 	if [ $? -eq 0 ]; then
-		echo "编译C++完成，准备开始测试！"
+		log "编译C++完成，准备开始测试！"
 	else
-		echo "编译C++失败，写入负值测试结果！"
+		log "编译C++失败，写入负值测试结果！"
 		tests_num=-2
 		errors_num=-2
 		failures_num=-2
@@ -194,9 +194,9 @@ test_cpp_tsfile_api_test() {
 	cd "${TEST_CPP_TOOL_PATH}" || return 1
 	compile=$(timeout 300s bash -c "source /etc/profile && ./compile.sh")
 	if [ $? -eq 0 ]; then
-		echo "编译Cpp测试工具完成，准备开始测试！"
+		log "编译Cpp测试工具完成，准备开始测试！"
 	else
-		echo "编译Cpp工具失败，写入负值测试结果！"
+		log "编译Cpp工具失败，写入负值测试结果！"
 		tests_num=-3
 		errors_num=-3
 		failures_num=-3
@@ -206,7 +206,7 @@ test_cpp_tsfile_api_test() {
 		mysql_exec "${insert_sql_cpp}"
 		return 1
 	fi
-	echo "开始Cpp测试"
+	log "开始Cpp测试"
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(timeout 7200s bash -c "source /etc/profile && ./run.sh")
 	for (( t_wait = 0; t_wait <= 20; ))
@@ -217,13 +217,13 @@ test_cpp_tsfile_api_test() {
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 14400 ]; then
-				echo "Cpp测试失败"
+				log "Cpp测试失败"
 				flag=1
 				break
 			fi
 			continue
 		else
-			echo "Cpp测试完成"
+			log "Cpp测试完成"
 			break
 		fi
 	done
@@ -243,7 +243,7 @@ test_cpp_tsfile_api_test() {
 		insert_sql_cpp="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'CPP')"
 		mysql_exec "${insert_sql_cpp}"
 		if [ $? -ne 0 ]; then
-			echo "执行mysql命令失败"
+			log "执行mysql命令失败"
 			#收集测试结果
 			tests_num=-5
 			errors_num=-5
@@ -257,7 +257,7 @@ test_cpp_tsfile_api_test() {
 EOF
 			)
 			mysql_exec "$sql"
-			echo "备份Cpp测试报告"
+			log "备份Cpp测试报告"
 			mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
 			cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}/
 			return 1
@@ -276,7 +276,7 @@ EOF
 		mysql_exec "${insert_sql_cpp}"
 	fi
 	#备份本次测试
-	echo "备份Cpp测试报告"
+	log "备份Cpp测试报告"
 	rm -rf -- "${BK_PATH:?}/cpp/"*
 	cp -f ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json ${BK_PATH}/cpp/
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
@@ -289,13 +289,13 @@ EOF
 # 功能：执行指定语言、接口或测试场景
 test_python_tsfile_api_test() { # 测试Python
 	# Python代码编译
-	echo "编译python"
+	log "编译python"
 	cd "${TSFILE_PATH}" || return 1
 	comp_python=$(timeout 7200s  bash -c "mvn clean install -P with-python -DskipTests")
 	if [ $? -eq 0 ]; then
-		echo "编译Python完成，准备开始测试！"
+		log "编译Python完成，准备开始测试！"
 	else
-		echo "编译Python失败，写入负值测试结果！"
+		log "编译Python失败，写入负值测试结果！"
 		tests_num=-2
 		errors_num=-2
 		failures_num=-2
@@ -326,7 +326,7 @@ test_python_tsfile_api_test() { # 测试Python
 	pip3 install ${TSFILE_PATH}/python/dist/tsfile-*.whl
  # 引入TsFile依赖
 	if [ $? -eq 1 ]; then
-		echo "引入TsFile依赖失败"
+		log "引入TsFile依赖失败"
 		tests_num=-3
 		errors_num=-3
 		failures_num=-3
@@ -340,7 +340,7 @@ test_python_tsfile_api_test() { # 测试Python
 		return 1
 	fi
 	# 开始测试
-	echo "Python开始测试"
+	log "Python开始测试"
 	cd ${TEST_PYTHON_TOOL_PATH}/tests
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(timeout 7200s bash -c "pytest --html=../reports/report.html")
@@ -352,13 +352,13 @@ test_python_tsfile_api_test() { # 测试Python
 			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 			if [ $t_time -ge 14400 ]; then
-				echo "Python测试失败"
+				log "Python测试失败"
 				flag=1
 				break
 			fi
 			continue
 		else
-			echo "Python测试完成"
+			log "Python测试完成"
 			break
 		fi
 	done
@@ -381,7 +381,7 @@ test_python_tsfile_api_test() { # 测试Python
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
 		mysql_exec "${insert_sql_python}"
 		if [ $? -ne 0 ]; then
-			echo "执行mysql命令失败"
+			log "执行mysql命令失败"
 			#收集测试结果
 			tests_num=-5
 			errors_num=-5
@@ -395,7 +395,7 @@ test_python_tsfile_api_test() { # 测试Python
 EOF
 			)
 			mysql_exec "$sql"
-			echo "备份Python测试报告"
+			log "备份Python测试报告"
 			mkdir -p /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
 			cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
 			return 1
@@ -414,7 +414,7 @@ EOF
 		mysql_exec "${insert_sql_python}"
 	fi
 	#备份本次测试
-	echo "备份Python测试报告"
+	log "备份Python测试报告"
 	rm -rf -- "${BK_PATH:?}/python/"*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
 	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
@@ -454,10 +454,10 @@ if [ "${last_cid_TsFile}" != "${commit_id_TsFile}" ]; then
 		"Cpp:test_cpp_tsfile_api_test" \
 		"Python:test_python_tsfile_api_test" || true
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	sleep 300s
 else
-	echo "没有更新，都执行过测试"
+	log "没有更新，都执行过测试"
 	sleep 300s
 fi
 printf 'native_api_test\n' > "${INIT_PATH}/test_type_file"

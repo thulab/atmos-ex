@@ -143,7 +143,7 @@ monitor_test_status() {
         csv_file=$(find_result_csv || true)
         if [ -n "${csv_file}" ]; then
             end_time=$(current_datetime)
-            echo "${ts_type} benchmark completed."
+            log "${ts_type} benchmark completed."
             return 0
         fi
 
@@ -151,7 +151,7 @@ monitor_test_status() {
         elapsed=$((now_epoch - m_start_time))
         if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
             end_time=$(current_datetime)
-            echo "${ts_type} benchmark timed out."
+            log "${ts_type} benchmark timed out."
             create_stuck_result_csv "${result_label}"
             return 1
         fi
@@ -208,7 +208,7 @@ mv_config_file() {
 test_operation() {
     local protocol_class_input=$1
     local ts_type=$2
-    echo "开始测试${ts_type}时间序列！"
+    log "开始测试${ts_type}时间序列！"
     check_benchmark_pid
     check_iotdb_pid
     set_env
@@ -228,7 +228,7 @@ test_operation() {
         [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 5
     done
     if [ "${iotdb_state}" != "Total line number = 2" ]; then
-        echo "IoTDB未能正常启动，写入负值测试结果！"
+        log "IoTDB未能正常启动，写入负值测试结果！"
         cost_time=-3; throughput=-3
         insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
         mysql_exec "${insert_sql}"
@@ -286,7 +286,7 @@ if [ -z "${commit_id}" ]; then
 else
     update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
     mysql_exec "${update_sql}"
-    echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+    log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 	else
@@ -296,11 +296,11 @@ else
     for protocol in ${protocol_list[@]}; do
         for ts in ${ts_list[@]}; do
             init_items
-            echo "开始测试${protocol}协议下的${ts}写入！"
+            log "开始测试${protocol}协议下的${ts}写入！"
             test_operation $protocol $ts
         done
     done
-    echo "本轮测试${test_date_time}已结束."
+    log "本轮测试${test_date_time}已结束."
     update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
     mysql_exec "${update_sql}"
     update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"

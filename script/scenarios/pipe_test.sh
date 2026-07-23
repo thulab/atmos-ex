@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -o pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
+
 #登录用户名
 ACCOUNT=root
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
@@ -50,7 +52,7 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 #echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
+log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
 BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
@@ -163,7 +165,7 @@ set_protocol_class() {
 }
 # 功能：部署并初始化当前测试运行环境
 setup_env_linux() {
-	echo "开始重置环境！"
+	log "开始重置环境！"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
@@ -172,9 +174,9 @@ setup_env_linux() {
 	sleep 120
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
-		echo "开始部署${IP_list[$i]}！"
+		log "开始部署${IP_list[$i]}！"
 		TEST_IP=${IP_list[$i]}
-		echo "setting env to ${TEST_IP} ..."
+		log "setting env to ${TEST_IP} ..."
 		#删除原有路径下所有
 		remote_reset_dir "${TEST_IP}" "${TEST_INIT_PATH}"
 		#修改IoTDB的配置		
@@ -199,30 +201,30 @@ setup_env_linux() {
 	do
 		TEST_IP=${IP_list[$i]}
 		#启动ConfigNode节点
-		echo "starting IoTDB ConfigNode on ${TEST_IP} ..."
+		log "starting IoTDB ConfigNode on ${TEST_IP} ..."
 		remote_start_background "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh"
 		#主节点需要先启动，所以等待10秒是为了保证主节点启动完毕
 		sleep 5
 		#启动DataNode节点
-		echo "starting IoTDB DataNode on ${TEST_IP} ..."
+		log "starting IoTDB DataNode on ${TEST_IP} ..."
 		remote_start_background "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof"
 		#等待60s，让服务器完成前期准备
 		sleep 10
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
 		  if remote_iotdb_cluster_ready "${TEST_IP}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" 2; then
-			echo "All Nodes is ready"
+			log "All Nodes is ready"
 			flag=1
 			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}';\"")
 			break
 		  else
-			echo "All Nodes is not ready.Please wait ..."
+			log "All Nodes is not ready.Please wait ..."
 			sleep 3
 			continue
 		  fi
 		done
 		if [ "$flag" = "0" ]; then
-		  echo "All Nodes is not ready!"
+		  log "All Nodes is not ready!"
 		  exit -1
 		fi
 	done
@@ -232,16 +234,16 @@ setup_env_linux() {
 		do
 			TEST_IP=${IP_list[$i]}
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"create pipe test with source ('source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink','username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
-			echo $str1
+			log $str1
 			sleep 3
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
-			echo $str1
+			log $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
 			str2=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
-			echo $str1
-			echo $str2
+			log $str1
+			log $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]] ; then
-				echo "PIPE is ready"
+				log "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
 		done
@@ -250,21 +252,21 @@ setup_env_linux() {
 		do
 			TEST_IP=${IP_list[$i]}
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${TEST_IP} -p 6667 -e \"create pipe test with source ('source.pattern'='root', 'source.realtime.mode'='stream','source.realtime.enable'='true','source.forwarding-pipe-requests'='false','source.batch.enable'='true','source.history.enable'='true') with sink ('sink'='iotdb-thrift-sink', 'username'='root','password'='${IOTDB_PASSWORD}', 'sink.node-urls'='${PIPE_list[$i]}:6667');\"")
-			echo $str1
+			log $str1
 			sleep 3
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${TEST_IP} -p 6667 -e \"start pipe test;\"")
-			echo $str1
+			log $str1
 			str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 1'")
 			str2=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${TEST_IP} -p 6667 -e \"show pipes;\" | grep 'Total line number = 2'")
-			echo $str1
-			echo $str2
+			log $str1
+			log $str2
 			if [[ "$str1" = "Total line number = 1" ]]  || [[ "$str2" = "Total line number = 2" ]] ; then
-				echo "PIPE is ready"
+				log "PIPE is ready"
 				pipflag=$[${pipflag}+1]
 			fi
 		done
 	fi
-	echo $pipflag
+	log $pipflag
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
@@ -281,7 +283,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		for (( m = 1; m <= 2; m++ ))
 		do
 			if [ $t_time -ge 3600 ]; then
-				echo "测试失败"  #倒序输入形成负数结果
+				log "测试失败"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				flagBM=-1
 				cost_time=-1
@@ -289,9 +291,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			fi
 			str1=$(ssh ${ACCOUNT}@${IP_list[${m}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
-				echo "BM写入未结束:${IP_list[${m}]}"  > /dev/null 2>&1 &
+				log "BM写入未结束:${IP_list[${m}]}"  > /dev/null 2>&1 &
 			else
-				echo "BM写入已结束:${IP_list[${m}]}"
+				log "BM写入已结束:${IP_list[${m}]}"
 				flagBM=$[${flagBM}+1]
 			fi
 		done
@@ -348,7 +350,7 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			done
 			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${last_update_time}")))
 			if [ $t_time -ge 600 ]; then
-				echo "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
+				log "10分钟无数据更新同步，结束等待"  #倒序输入形成负数结果
 				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				cost_time=$(($(date +%s -d "${last_update_time}") - $(date +%s -d "${start_time}")))
 				minPointNum=222222
@@ -467,7 +469,7 @@ test_operation() {
 	protocol_class=$1
 	ts_type=$2
 	pipflag=0
-	echo "开始测试${ts_type}时间序列！"
+	log "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
 	#修改IoTDB的配置
@@ -483,7 +485,7 @@ test_operation() {
     elif [ "${protocol_class}" = "224" ]; then
         set_protocol_class 2 2 4
 	else
-		echo "协议设置错误！"
+		log "协议设置错误！"
 		return
 	fi
 	#启动iotdb
@@ -493,7 +495,7 @@ test_operation() {
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		echo "开始写入！"
+		log "开始写入！"
 		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &")
 	done
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
@@ -571,7 +573,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 	else
@@ -579,16 +581,16 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`	
-	echo "开始测试223协议下的tablemode时间序列！"
+	log "开始测试223协议下的tablemode时间序列！"
 	test_operation 223 tablemode
-	echo "开始测试223协议下的common时间序列！"
+	log "开始测试223协议下的common时间序列！"
 	test_operation 223 common
-	echo "开始测试223协议下的aligned时间序列！"
+	log "开始测试223协议下的aligned时间序列！"
 	test_operation 223 aligned
-	echo "开始测试224协议下的aligned时间序列！"
+	log "开始测试224协议下的aligned时间序列！"
 	test_operation 224 aligned
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
@@ -599,7 +601,6 @@ fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"

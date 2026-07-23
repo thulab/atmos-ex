@@ -64,16 +64,16 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		do
 			str1=$(ssh ${ACCOUNT}@${B_IP_list[${j}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
 			if [ "$str1" = "1" ]; then
-				echo "测试未结束:${B_IP_list[${j}]}"  > /dev/null 2>&1 &
+				log "测试未结束:${B_IP_list[${j}]}"  > /dev/null 2>&1 &
 			else
-				echo "测试已结束:${B_IP_list[${j}]}"
+				log "测试已结束:${B_IP_list[${j}]}"
 				flag=$[${flag}+1]
 			fi
 		done
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
 		if [ $t_time -ge 6000 ]; then
-			echo "测试失败"
+			log "测试失败"
 			end_time=-1
 			cost_time=-1
 			remote_reset_dir "${B_IP_list[1]}" "${BM_PATH}/data/csvOutput"
@@ -98,7 +98,7 @@ test_operation() {
 	ts_type=$1
 	data_type=$2
 	protocol_class=$3
-	echo "开始测试${ts_type}时间序列！"
+	log "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
 	set_env
 	modify_iotdb_config
@@ -113,7 +113,7 @@ test_operation() {
     elif [ "${protocol_class}" = "224" ]; then
         set_protocol_class 2 2 4
 	else
-		echo "协议设置错误！"
+		log "协议设置错误！"
 		return
 	fi
 	
@@ -121,7 +121,7 @@ test_operation() {
 	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
 	setup_nCmD -c3 -d5 -t1
 		
-	echo "测试开始！"
+	log "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
 	m_start_time=$(date +%s)
 
@@ -194,7 +194,7 @@ if [ "${commit_id}" = "" ]; then
 else
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'ontesting' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
-	echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+	log "当前版本${commit_id}未执行过测试，即将编译后启动"
 	if [ "${author}" != "Timecho" ]; then
 		TABLENAME=${TABLENAME}
 		TABLENAME_QUERY=${TABLENAME_QUERY}
@@ -205,18 +205,18 @@ else
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
 	########优先测试
-	echo "开始测试普通时间序列顺序写入！"
+	log "开始测试普通时间序列顺序写入！"
 	test_operation common seq_w 223
-	echo "开始测试对齐时间序列顺序写入！"
+	log "开始测试对齐时间序列顺序写入！"
 	test_operation aligned seq_w 223
 	#test_operation aligned seq_w 222
 	test_operation aligned seq_w 224
-	echo "开始测试表模型时间序列顺序写入！"
+	log "开始测试表模型时间序列顺序写入！"
 	test_operation tablemode seq_w 223
 	###############################普通时间序列###############################
 	#echo "开始测试普通时间序列顺序写入！"
 	#test_operation common seq_w 223
-	echo "开始测试普通时间序列乱序写入！"
+	log "开始测试普通时间序列乱序写入！"
 	test_operation common unseq_w 223
 	#echo "开始测试普通时间序列顺序读写混合！"
 	#test_operation common seq_rw 223
@@ -226,13 +226,13 @@ else
 	#echo "开始测试对齐时间序列顺序写入！"
 	#test_operation aligned seq_w 223
 	#test_operation aligned seq_w 222
-	echo "开始测试对齐时间序列乱序写入！"
+	log "开始测试对齐时间序列乱序写入！"
 	test_operation aligned unseq_w 223
 	#test_operation aligned unseq_w 222
 	test_operation aligned unseq_w 224
-	echo "开始测试对齐时间序列顺序读写混合！"
+	log "开始测试对齐时间序列顺序读写混合！"
 	test_operation aligned seq_rw 223
-	echo "开始测试对齐时间序列乱序读写混合！"
+	log "开始测试对齐时间序列乱序读写混合！"
 	test_operation aligned unseq_rw 223
 	###############################模板时间序列###############################
 	#echo "开始测试模板时间序列顺序写入！"
@@ -255,14 +255,14 @@ else
 	###############################表模型时间序列###############################
 	#echo "开始测试表模型时间序列顺序写入！"
 	#test_operation tablemode seq_w 223
-	echo "开始测试表模型时间序列乱序写入！"
+	log "开始测试表模型时间序列乱序写入！"
 	test_operation tablemode unseq_w 223
-	echo "开始测试表模型时间序列顺序读写混合！"
+	log "开始测试表模型时间序列顺序读写混合！"
 	test_operation tablemode seq_rw 223
-	echo "开始测试表模型时间序列乱序读写混合！"
+	log "开始测试表模型时间序列乱序读写混合！"
 	test_operation tablemode unseq_rw 223
 	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
+	log "本轮测试${test_date_time}已结束."
 	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
 	result_string=$(mysql_exec "${update_sql}")
 	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"

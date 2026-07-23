@@ -8,11 +8,11 @@ set -o pipefail
 # - 本文件中的“预留扩展点”面向特定脚本，入口脚本可通过定义 hook 函数或在 source 后覆盖同名函数来定制行为。
 
 if [ -z "${BASH_VERSION:-}" ]; then
-    echo "insert_common.sh requires bash" >&2
+    printf '%s\n' "insert_common.sh requires bash" >&2
     return 1 2>/dev/null || exit 1
 fi
 if shopt -oq posix; then
-    echo "insert_common.sh requires non-posix bash" >&2
+    printf '%s\n' "insert_common.sh requires non-posix bash" >&2
     return 1 2>/dev/null || exit 1
 fi
 
