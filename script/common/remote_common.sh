@@ -197,7 +197,11 @@ remote_deploy_benchmark() {
 remote_start_benchmark() {
     local host="$1"
     local benchmark_path="${2:-${BM_PATH}}"
-    remote_start_background "${host}" "cd $(printf '%q' "${benchmark_path}") && ./benchmark.sh"
+    local quoted_path=""
+
+    quoted_path="$(printf '%q' "${benchmark_path}")"
+    remote_exec "${host}" \
+        "cd ${quoted_path} || exit 1; test -f ./benchmark.sh || exit 1; mkdir -p logs || exit 1; nohup bash ./benchmark.sh > logs/atmos-startup.log 2>&1 </dev/null &"
 }
 
 # 功能：在远程主机上执行受控的部署或检查操作

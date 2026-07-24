@@ -313,10 +313,12 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 	then
 		for ((j = 1; j <= $bm_num; j++)); do
 			remote_deploy_benchmark "${B_IP_list[${j}]}" "${BM_PATH}"
-			#echo "启动BM： ${B_IP_list[${j}]} ..."
-			remote_start_benchmark "${B_IP_list[${j}]}" "${BM_PATH}" &
+			log "正在启动Benchmark:${B_IP_list[${j}]}，启动日志:${BM_PATH}/logs/atmos-startup.log"
+			if ! remote_start_benchmark "${B_IP_list[${j}]}" "${BM_PATH}"; then
+				log "Benchmark远程启动命令执行失败:${B_IP_list[${j}]}，本轮测试按失败处理"
+				exit 1
+			fi
 		done
-		wait
 		for ((j = 1; j <= $bm_num; j++)); do
 			if wait_for_attempts \
 				"${BENCHMARK_START_CHECK_RETRIES:-6}" \
@@ -325,6 +327,8 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 				log "Benchmark已启动:${B_IP_list[${j}]}"
 			else
 				log "Benchmark启动失败:${B_IP_list[${j}]}，本轮测试按失败处理"
+				remote_exec "${B_IP_list[${j}]}" \
+					"if [ -f $(printf '%q' "${BM_PATH}/logs/atmos-startup.log") ]; then tail -n 100 $(printf '%q' "${BM_PATH}/logs/atmos-startup.log"); else echo 'Benchmark启动日志不存在'; fi" >&2 || true
 				exit 1
 			fi
 		done
