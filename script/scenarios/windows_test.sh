@@ -14,7 +14,7 @@ IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-windows_test}"
 BENCHMARK_DEFAULT_RESULT_LABEL="INGESTION"
 #初始环境存放路径
-INIT_PATH="${INIT_PATH:-/data/atmos/zk_test_win}"
+INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ATMOS_PATH="${ATMOS_PATH:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 BM_PATH=${INIT_PATH}/iot-benchmark
