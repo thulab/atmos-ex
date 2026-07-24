@@ -317,7 +317,18 @@ if [ "$check_config_num" == "$config_num" ] && [ "$check_data_num" == "$data_num
 			remote_start_benchmark "${B_IP_list[${j}]}" "${BM_PATH}" &
 		done
 		wait
-		log "All BMs have been started"
+		for ((j = 1; j <= $bm_num; j++)); do
+			if wait_for_attempts \
+				"${BENCHMARK_START_CHECK_RETRIES:-6}" \
+				"${BENCHMARK_START_CHECK_INTERVAL_SECONDS:-5}" \
+				remote_java_process_running "${B_IP_list[${j}]}" "App"; then
+				log "Benchmark已启动:${B_IP_list[${j}]}"
+			else
+				log "Benchmark启动失败:${B_IP_list[${j}]}，本轮测试按失败处理"
+				exit 1
+			fi
+		done
+		log "All BMs have been started and verified"
 	fi	
 fi
 }
