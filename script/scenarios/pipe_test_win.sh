@@ -16,7 +16,7 @@ ACCOUNT=Administrator
 IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 TEST_TYPE="${TEST_TYPE:-pipe_test_win}"
 #初始环境存放路径
-INIT_PATH="${INIT_PATH:-/root/zk_test_win}"
+INIT_PATH="${INIT_PATH:-/root/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/pipe_test_win}"
@@ -68,9 +68,13 @@ BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 # 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
 	local new_commit old_commit
-	new_commit="$(git_commit_abbrev "${BM_REPOS_PATH}")"
-	old_commit="$(git_commit_abbrev "${BM_PATH}")"
-	[ -n "${new_commit}" ] || die "benchmark repository is invalid: ${BM_REPOS_PATH}"
+	local source_properties="${BM_REPOS_PATH}/git.properties"
+	local target_properties="${BM_PATH}/git.properties"
+
+	[ -f "${source_properties}" ] || die "missing benchmark git.properties: ${source_properties}"
+	new_commit="$(git_commit_abbrev "${source_properties}")"
+	old_commit="$(git_commit_abbrev "${target_properties}")"
+	[ -n "${new_commit}" ] || die "benchmark git.properties has no commit id: ${source_properties}"
 	if [ "${old_commit}" != "${new_commit}" ]; then
 		log "sync benchmark ${old_commit:-missing} -> ${new_commit}"
 		rm -rf -- "${BM_PATH}"

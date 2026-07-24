@@ -15,7 +15,8 @@ TEST_TYPE="${TEST_TYPE:-windows_test}"
 BENCHMARK_DEFAULT_RESULT_LABEL="INGESTION"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test_win}"
-ATMOS_PATH=${INIT_PATH}/atmos-ex
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ATMOS_PATH="${ATMOS_PATH:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 BM_PATH=${INIT_PATH}/iot-benchmark
 BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/windows_test}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
@@ -107,8 +108,8 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env ${TEST_IOTDB_PATH}/.env
+	install_config_file "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/license"
+	install_config_file "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env"
 }
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
@@ -390,6 +391,7 @@ test_operation_impl() {
 main() {
     ensure_runtime_dependencies
     check_password
+    mkdir -p "${INIT_PATH}"
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 log "开始从MySQL领取${TEST_TYPE}任务"
