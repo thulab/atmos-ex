@@ -147,17 +147,38 @@ LONGRUN_TTL_MS=0
 detect_local_ips() {
     {
         hostname -I 2>/dev/null || true
-        ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:" || true
-    } | tr ' ' '\n' | awk 'NF && !seen[$0]++'
+        hostname -i 2>/dev/null || true
+        if command -v ip >/dev/null 2>&1; then
+            ip -o -4 addr show scope global 2>/dev/null | awk '{split($4, address, "/"); print address[1]}'
+        fi
+        if command -v ifconfig >/dev/null 2>&1; then
+            ifconfig -a 2>/dev/null | awk '
+                $1 == "inet" {print $2}
+                /inet addr:/ {
+                    value=$0
+                    sub(/^.*inet addr:/, "", value)
+                    sub(/[[:space:]].*$/, "", value)
+                    print value
+                }
+            '
+        fi
+    } | tr ' ' '\n' | sed 's#/.*##' | awk 'NF && $0 !~ /^127\./ && !seen[$0]++'
 }
 
 # 功能：根据本机地址选择长稳测试的数据表和任务过滤条件
 init_longrun_route() {
     local local_ips=""
     local first_ip=""
+    local configured_ip="${LONGRUN_HOST_IP:-}"
 
-    local_ips="$(detect_local_ips)"
+    if [ -n "${configured_ip}" ]; then
+        local_ips="${configured_ip}"
+    else
+        local_ips="$(detect_local_ips)"
+    fi
     first_ip="$(printf '%s\n' "${local_ips}" | awk 'NF {print; exit}')"
+
+    [ -n "${first_ip}" ] || die "unable to detect local IPv4 address; set LONGRUN_HOST_IP explicitly"
 
     if printf '%s\n' "${local_ips}" | grep -Fxq "${TIMECHO_LONGRUN_IP}"; then
         TASK_AUTHOR_FILTER_SQL="author = 'Timecho'"
@@ -171,7 +192,16 @@ init_longrun_route() {
         fi
     fi
 
-    log "route: TASK_AUTHOR_FILTER_SQL=${TASK_AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
+    log "route: local_ips=$(printf '%s' "${local_ips}" | tr '\n' ','), TASK_AUTHOR_FILTER_SQL=${TASK_AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
+}
+
+# 功能：校验领取结果与当前机器负责的作者分流一致
+longrun_author_matches_route() {
+    if [ "${TASK_AUTHOR_FILTER_SQL}" = "author = 'Timecho'" ]; then
+        [ "${author}" = "Timecho" ]
+    else
+        [ "${author}" != "Timecho" ]
+    fi
 }
 
 # 功能：同步本地与目标位置的版本或目录内容
@@ -1244,8 +1274,14 @@ main() {
 
     mark_test_in_progress
     if ! fetch_next_commit; then
+        log "no ${TEST_TYPE} task matched ${TASK_AUTHOR_FILTER_SQL}"
         sleep 60
         return 0
+    fi
+
+    if ! longrun_author_matches_route; then
+        log "ERROR: task author ${author} does not match route ${TASK_AUTHOR_FILTER_SQL}; refuse to claim commit ${commit_id}"
+        return 1
     fi
 
     update_task_status "ontesting"

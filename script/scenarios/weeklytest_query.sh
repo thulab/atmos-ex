@@ -157,18 +157,6 @@ set_protocol_class() {
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
 	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
-# 功能：启动当前场景中的 IoTDB 服务
-start_iotdb() { # 启动iotdb
-	(cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
-	sleep 10
-	(cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
-}
-# 功能：停止当前场景中的 IoTDB 服务
-stop_iotdb() { # 停止iotdb
-	(cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
-	sleep 10
-	(cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
-}
 # 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() { # 启动benchmark
 	rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
@@ -247,12 +235,12 @@ backup_test_data() { # 备份测试数据
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
-	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
-	return
-	rm -rf -- "${BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
-	if [ $3 = "table" ]; then
-		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" ${BM_PATH}/conf/config.properties
+	local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2"
+	local config_target="${BM_PATH}/conf/config.properties"
+
+	install_benchmark_config "${config_source}" "${config_target}"
+	if [ "$3" = "table" ]; then
+		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" "${config_target}"
 	fi
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
@@ -290,8 +278,11 @@ test_operation_impl() {
 				return
 			fi
 			#启动iotdb和monitor监控
-			#cp -rf ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
-			mv ${DATA_PATH}/${path_new}/data ${TEST_IOTDB_PATH}/
+			if [ ! -d "${DATA_PATH}/${path_new}/data" ]; then
+				log "缺少查询测试数据: ${DATA_PATH}/${path_new}/data"
+				return 1
+			fi
+			cp -a "${DATA_PATH}/${path_new}/data" "${TEST_IOTDB_PATH}/"
 			sleep 1
 			for (( s = 0; s < ${#sensor_type_list[*]}; s++ ))
 			do
@@ -369,7 +360,6 @@ test_operation_impl() {
 					mv ${TEST_IOTDB_PATH}/logs ${TEST_IOTDB_PATH}/logs_${query_list[${i}]}_${sensor_type_list[${s}]}
 				done
 			done
-			mv  ${TEST_IOTDB_PATH}/data ${DATA_PATH}/${path_new}/
 			log "本轮${query_data_type[${j}]}_${data_mode[${d}]}时间序列查询测试已结束."
 			#备份本次测试
 			backup_test_data ${query_data_type[${j}]}_${data_mode[${d}]}
@@ -380,6 +370,8 @@ test_operation_impl() {
 ##准备开始测试
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
+    local task_failed=0
+
     ensure_runtime_dependencies
     check_password
     trap restore_test_type_file EXIT
@@ -397,14 +389,18 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	test_operation 223
+	if ! test_operation 223; then
+		task_failed=1
+	fi
 	###############################测试完成###############################
 	log "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql_exec "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
-	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql_exec "${update_sql02}")
+	if [ "${task_failed}" -eq 0 ]; then
+		update_task_status done
+		if [ "${author}" != "Timecho" ]; then
+			mark_older_commits_skip
+		fi
+	else
+		update_task_status RError
 	fi
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
@@ -413,5 +409,6 @@ fi
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
 
 main "$@"

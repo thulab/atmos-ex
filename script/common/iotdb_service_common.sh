@@ -67,20 +67,57 @@ start_iotdb_or_handle_failure() {
     return 1
 }
 
-# 功能：执行一次 IoTDB 集群就绪查询
-iotdb_is_ready() {
+# 功能：使用指定认证方式执行一次 IoTDB 集群就绪查询
+iotdb_is_ready_with_password() {
+    local password="$1"
     local output=""
-    output="$(iotdb_cli_query "show cluster" 127.0.0.1 6667 \
-        "${IOTDB_READY_USER:-root}" "${IOTDB_READY_PASSWORD:-root}" |
-        grep -F 'Total line number = 2' || true)"
+
+    if [ -z "${password}" ]; then
+        output="$(iotdb_cli_run -h 127.0.0.1 -p 6667 -e "show cluster" 2>/dev/null |
+            grep -F 'Total line number = 2' || true)"
+    else
+        output="$(iotdb_cli_query "show cluster" 127.0.0.1 6667 \
+            "${IOTDB_READY_USER:-root}" "${password}" |
+            grep -F 'Total line number = 2' || true)"
+    fi
     [ "${output}" = "Total line number = 2" ]
+}
+
+# 功能：兼容初始密码、环境预设密码和已修改密码的 IoTDB 就绪检测
+iotdb_is_ready() {
+    local configured_password="${IOTDB_READY_PASSWORD:-}"
+
+    if [ -n "${configured_password}" ] && iotdb_is_ready_with_password "${configured_password}"; then
+        return 0
+    fi
+    iotdb_is_ready_with_password "" && return 0
+    iotdb_is_ready_with_password root && return 0
+    if [ -n "${IOTDB_PASSWORD:-}" ] && [ "${IOTDB_PASSWORD}" != "root" ]; then
+        iotdb_is_ready_with_password "${IOTDB_PASSWORD}" && return 0
+    fi
+    return 1
 }
 
 # 功能：按指定次数和间隔等待 IoTDB 达到就绪状态
 wait_iotdb_ready() {
     local retries="${1:-${IOTDB_READY_RETRIES:-10}}"
     local interval="${2:-${IOTDB_READY_INTERVAL_SECONDS:-5}}"
-    wait_for_attempts "${retries}" "${interval}" iotdb_is_ready
+    local log_file=""
+
+    if wait_for_attempts "${retries}" "${interval}" iotdb_is_ready; then
+        return 0
+    fi
+
+    log "IoTDB readiness check failed after ${retries} attempts"
+    for log_file in \
+        "${TEST_IOTDB_PATH}/logs/log_confignode_error.log" \
+        "${TEST_IOTDB_PATH}/logs/log_datanode_error.log"; do
+        if [ -s "${log_file}" ]; then
+            log "last errors from ${log_file}:"
+            tail -n 20 "${log_file}" >&2
+        fi
+    done
+    return 1
 }
 
 # 功能：使用默认重试参数等待 IoTDB 达到就绪状态
