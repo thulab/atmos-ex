@@ -227,17 +227,21 @@ remote_windows_reset_dir() {
 }
 
 # 功能：在远程主机上执行受控的部署或检查操作
-remote_windows_copy_contents() {
+remote_windows_copy_contents() (
     local source_dir="$1"
     local host="$2"
     local destination_dir="$3"
+    local source_entry=""
+    local copied_entries=0
 
     [ -d "${source_dir}" ] || die "missing local directory: ${source_dir}"
-    [ -n "$(find "${source_dir}" -mindepth 1 -maxdepth 1 -print -quit)" ] ||
-        die "local directory is empty: ${source_dir}"
-    scp -r -- "${source_dir}/*" "$(remote_target "${host}"):${destination_dir}" ||
-        die "failed to copy directory contents to ${host}:${destination_dir}"
-}
+    while IFS= read -r -d '' source_entry; do
+        copied_entries=$((copied_entries + 1))
+        scp -r -- "${source_entry}" "$(remote_target "${host}"):${destination_dir}" ||
+            die "failed to copy ${source_entry} to ${host}:${destination_dir}"
+    done < <(find "${source_dir}" -mindepth 1 -maxdepth 1 -print0)
+    [ "${copied_entries}" -gt 0 ] || die "local directory is empty: ${source_dir}"
+)
 
 # 功能：在远程主机上执行受控的部署或检查操作
 remote_windows_run_task() {
