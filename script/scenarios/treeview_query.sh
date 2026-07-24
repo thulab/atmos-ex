@@ -224,28 +224,6 @@ copy_benchmark_config() {
 # 功能：更新 Benchmark 配置属性；不存在时追加
 upsert_benchmark_property() {
     upsert_properties "${BM_PATH}/conf/config.properties" "$1=$2"
-    return
-    local key="$1"
-    local value="$2"
-    local config_file="${BM_PATH}/conf/config.properties"
-    local tmp_file="${config_file}.tmp"
-
-    [ -f "${config_file}" ] || die "missing benchmark config: ${config_file}"
-    awk -v key="${key}" -v value="${value}" '
-        BEGIN { updated = 0 }
-        index($0, key "=") == 1 {
-            print key "=" value
-            updated = 1
-            next
-        }
-        { print }
-        END {
-            if (!updated) {
-                print key "=" value
-            }
-        }
-    ' "${config_file}" > "${tmp_file}"
-    mv -- "${tmp_file}" "${config_file}"
 }
 
 # 功能：复制当前测试所需的配置、数据或运行文件

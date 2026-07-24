@@ -82,26 +82,6 @@ errorLogSize=0
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
 	sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
-	return
-	local bm_new=""
-	local bm_old=""
-
-	if [ ! -f "${BM_REPOS_PATH}/git.properties" ]; then
-		log "skip benchmark sync, missing ${BM_REPOS_PATH}/git.properties"
-		return 0
-	fi
-
-	bm_new="$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")"
-	[ -n "${bm_new}" ] || return 0
-	if [ -f "${BM_PATH}/git.properties" ]; then
-		bm_old="$(git_commit_abbrev "${BM_PATH}/git.properties")"
-	fi
-
-	if [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; then
-		log "sync benchmark to ${bm_new}"
-		safe_rm "${BM_PATH}"
-		cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-	fi
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
@@ -210,32 +190,6 @@ monitor_test_status() {
 	}
 	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
 		"${MONITOR_POLL_INTERVAL_SECONDS}" count_ts_timeout_result "$(date +%s)"
-	return
-	local csv_file=""
-	local monitor_start_epoch=0
-	local now_epoch=0
-	local elapsed=0
-
-	monitor_start_epoch="$(date +%s)"
-	while true; do
-		refresh_max_process_metrics
-		csv_file="$(find_result_csv || true)"
-		if [ -n "${csv_file}" ]; then
-			end_time="$(current_datetime)"
-			log "benchmark finished: ${csv_file}"
-			return 0
-		fi
-
-		now_epoch="$(date +%s)"
-		elapsed=$((now_epoch - monitor_start_epoch))
-		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-			end_time="$(current_datetime)"
-			log "benchmark timeout, create fallback result."
-			create_stuck_schema_csv
-			return 1
-		fi
-		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-	done
 }
 
 # 功能：从 Benchmark CSV 中提取元数据创建耗时

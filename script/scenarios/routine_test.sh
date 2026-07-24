@@ -119,45 +119,6 @@ check_benchmark_version() {
 init_items() {
 	init_case_state
 	test_date_time=0; ts_type=0; data_type=0; op_type=0
-	return
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-data_type=0
-op_type=0
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=0
-end_time=0
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-maxCPULoad=0
-avgCPULoad=0
-maxDiskIOOpsRead=0
-maxDiskIOOpsWrite=0
-maxDiskIOSizeRead=0
-maxDiskIOSizeWrite=0
-############定义监控采集项初始值##########################
 }
 local_ip=$(ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
 # 功能：保留或执行测试异常通知逻辑
@@ -194,29 +155,6 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_heap_memory 20G
 	upsert_properties "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name=${TEST_TYPE}"
 	apply_iotdb_profile metrics
-	return
-	#修改IoTDB的配置
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-	#清空配置文件
-	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#关闭影响写入性能的其他功能
-	#echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#修改集群名称
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
-	#添加启动监控功能
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
-	#添加启动监控功能
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 # 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
@@ -257,62 +195,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		create_standard_stuck_result_csv INGESTION
 	}
 	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-100000}" 10 routine_timeout_result "$(date -d "${start_time}" +%s)"
-	return
-	while true; do
-		csvOutput=${BM_PATH}/data/csvOutput
-		if [ ! -d "$csvOutput" ]; then
-			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-			if [ $t_time -ge 100000 ]; then
-				log "测试失败"
-				mkdir -p "${BM_PATH}/data/csvOutput"
-				cd "${BM_PATH}/data/csvOutput" || break
-				touch Stuck_result.csv
-				array1="INGESTION ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1"
-				for ((i=0;i<100;i++))
-				do
-					echo "${array1}" >> Stuck_result.csv
-				done
-				cd ~
-				break
-			fi
-			sleep 10
-			continue
-		else
-			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			log "${ts_type}写入已完成！"
-			break
-		fi
-	done
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	resolve_monitor_disk_id
 	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
-	return
-	local ip="${1:-${TEST_IP}}"
-	local range_seconds=$((m_end_time - m_start_time))
-	local data_file_bytes wal_file_bytes
-	local maxNumofThread_C maxNumofThread_D
-
-	[ "${range_seconds}" -le 0 ] && range_seconds=1
-	#调用监控获取数值
-	data_file_bytes=$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")
-	dataFileSize=$(format_gb "${data_file_bytes}")
-	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")
-	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")
-	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${range_seconds}s])" "${m_end_time}")
-	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${range_seconds}s])" "${m_end_time}")
-	maxNumofThread=$(awk -v cn="${maxNumofThread_C}" -v dn="${maxNumofThread_D}" 'BEGIN{printf "%.0f\n", cn + dn}')
-	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${range_seconds}s])" "${m_end_time}")
-	wal_file_bytes=$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${range_seconds}s])" "${m_end_time}")
-	walFileSize=$(format_gb "${wal_file_bytes}")
-	maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${range_seconds}s])" "${m_end_time}")
-	avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${range_seconds}s])" "${m_end_time}")
-	maxDiskIOOpsRead=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[${range_seconds}s])" "${m_end_time}")
-	maxDiskIOOpsWrite=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${range_seconds}s])" "${m_end_time}")
-	maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[${range_seconds}s])" "${m_end_time}")
-	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[${range_seconds}s])" "${m_end_time}")
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
@@ -328,10 +215,6 @@ backup_test_data() { # 备份测试数据
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
-	return
-	local config_name=$1
-	rm -rf "${BM_PATH}/conf/config.properties"
-	cp -rf "${ATMOS_PATH}/conf/${TEST_TYPE}/${config_name}" "${BM_PATH}/conf/config.properties"
 }
 # 功能：清理超过保留期限的历史测试文件
 clear_expired_file() { # 清理超过七天的文件

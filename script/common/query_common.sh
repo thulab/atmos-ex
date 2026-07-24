@@ -186,23 +186,6 @@ m_end_time=0
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
-    return
-    local source_version=""
-    local target_version=""
-
-    [ -f "${BM_REPOS_PATH}/git.properties" ] || die "missing benchmark git.properties: ${BM_REPOS_PATH}/git.properties"
-    source_version="$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")"
-    [ -n "${source_version}" ] || die "failed to read benchmark version."
-
-    if [ -f "${BM_PATH}/git.properties" ]; then
-        target_version="$(git_commit_abbrev "${BM_PATH}/git.properties")"
-    fi
-
-    if [ ! -d "${BM_PATH}" ] || [ "${target_version}" != "${source_version}" ]; then
-        log "sync benchmark to ${BM_PATH}"
-        safe_rm "${BM_PATH}"
-        cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
-    fi
 }
 
 # -------------------- 公共测试指标初始化函数 --------------------
@@ -210,35 +193,6 @@ check_benchmark_version() {
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
     init_case_state
-    return
-    okPoint=0
-    okOperation=0
-    failPoint=0
-    failOperation=0
-    throughput=0
-    Latency=0
-    MIN=0
-    P10=0
-    P25=0
-    MEDIAN=0
-    P75=0
-    P90=0
-    P95=0
-    P99=0
-    P999=0
-    MAX=0
-    numOfSe0Level=0
-    start_time=""
-    end_time=""
-    cost_time=0
-    numOfUnse0Level=0
-    dataFileSize=0
-    maxNumofOpenFiles=0
-    maxNumofThread=0
-    errorLogSize=0
-    walFileSize=0
-    m_start_time=0
-    m_end_time=0
 }
 
 # 功能：重置当前测试使用的指标或运行状态
@@ -340,30 +294,6 @@ monitor_test_status() {
     }
     wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
         "${MONITOR_POLL_INTERVAL_SECONDS}" query_timeout_result "${m_start_time}"
-    return
-    local csv_file=""
-    local now_epoch=0
-    local elapsed=0
-
-    while true; do
-        csv_file="$(find_result_csv || true)"
-        if [ -n "${csv_file}" ]; then
-            end_time="$(current_datetime)"
-            log "${query_name} query finished."
-            return 0
-        fi
-
-        now_epoch="$(date +%s)"
-        elapsed=$((now_epoch - m_start_time))
-        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            end_time="$(current_datetime)"
-            log "${query_name} query timed out, writing stuck result."
-            create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" "${result_label}"
-            return 1
-        fi
-
-        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-    done
 }
 
 # -------------------- 公共 Prometheus 指标采集函数 --------------------
@@ -372,28 +302,6 @@ monitor_test_status() {
 collect_monitor_data() {
     collect_standard_monitor_snapshot "${TEST_IP}"
     errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") ))
-    return
-    local metric_window=$((m_end_time - m_start_time))
-    local maxNumofThread_C=0
-    local maxNumofThread_D=0
-    local datanode_error_log_size=0
-    local confignode_error_log_size=0
-
-    [ "${metric_window}" -gt 0 ] || metric_window=1
-
-    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${TEST_IP}:9091\"})" "${m_end_time}")"
-    dataFileSize="$(bytes_to_gib "${dataFileSize}")"
-    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"seq\"})" "${m_end_time}")"
-    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"unseq\"})" "${m_end_time}")"
-    maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9081\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
-    maxNumofOpenFiles="$(get_single_index "max_over_time(file_count{instance=~\"${TEST_IP}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" "${m_end_time}")"
-    walFileSize="$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[${metric_window}s])" "${m_end_time}")"
-    walFileSize="$(bytes_to_gib "${walFileSize}")"
-    datanode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log")"
-    confignode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log")"
-    errorLogSize=$((datanode_error_log_size + confignode_error_log_size))
 }
 
 # -------------------- 公共查询配置、结果解析和入库函数 --------------------

@@ -135,24 +135,6 @@ disk_id_regex="^${DEFAULT_DISK_ID}$"
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
     sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
-    return
-    local bm_new=""
-    local bm_old=""
-
-    [ -f "${BM_REPOS_PATH}/git.properties" ] || die "缺少 benchmark git.properties: ${BM_REPOS_PATH}/git.properties"
-    bm_new="$(awk -F= '/git.commit.id.abbrev/ {print $2}' "${BM_REPOS_PATH}/git.properties")"
-    [ -n "${bm_new}" ] || die "无法读取 benchmark 版本信息。"
-
-    if [ -f "${BM_PATH}/git.properties" ]; then
-        bm_old="$(awk -F= '/git.commit.id.abbrev/ {print $2}' "${BM_PATH}/git.properties")"
-    fi
-
-    if [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; then
-        log "同步 benchmark 目录到最新版本。"
-        mkdir -p "${INIT_PATH}"
-        safe_rm "${BM_PATH}"
-        cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-    fi
 }
 # -------------------- 告警通知函数 --------------------
 # -------------------- 公共告警通知函数 --------------------
@@ -161,58 +143,6 @@ check_benchmark_version() {
 sendMsg() {
     # Atmos性能测试告警功能已按要求注释掉；保留函数壳避免历史调用报错。
     return 0
-
-    : <<'ATMOS_PERF_ALERT_DISABLED'
-    local error_type="$1"
-    local date_time
-    local alert_test_type="${alert_test_type:-性能测试}"  # 默认值
-    local headline=''
-    local msgbody=''
-    
-    date_time="$(date '+%Y-%m-%d %H:%M:%S')"
-    
-    case "${error_type}" in
-        1)
-            # 1. 吞吐量监控异常
-            headline="吞吐量监控异常告警"
-            msgbody="[Atmos性能测试告警]\n错误类型：吞吐量异常\n告警时间：${date_time}\n测试类型：${alert_test_type}\n当前吞吐量：${2}\n控制上限：${3}\n控制下限：${4}\n历史均值：${5}\n"
-            ;;
-        2)
-            # 2. 其他错误类型（可根据需要扩展）
-            headline="${alert_test_type}代码编译失败"
-            msgbody="错误类型：${alert_test_type}代码编译失败\n报错时间：${date_time}\n报错Commit：${commit_id:-N/A}\n提交人：${author:-N/A}\n报错信息：${comp_mvn:-N/A}"
-            ;;
-        *)
-            log "未知错误类型: ${error_type}"
-            return 1
-            ;;
-    esac
-    
-    # 发送钉钉消息
-    local dingtalk_token="f2d691d45da9a0307af8bbd853e90d0785dbaa3a3b0219dd2816882e19859e62"
-    local dingtalk_url="https://oapi.dingtalk.com/robot/send?access_token=${dingtalk_token}"
-    
-    # 构建JSON数据
-    local json_data
-    json_data=$(cat <<EOF
-{
-    "msgtype": "text",
-    "text": {
-        "content": "${msgbody}"
-    }
-}
-EOF
-)
-    
-    # 发送请求
-    curl -s -X POST \
-        -H 'Content-Type: application/json' \
-        -d "${json_data}" \
-        "${dingtalk_url}" > /dev/null 2>&1 &
-    
-    log "已发送钉钉告警通知: ${headline}"
-    return 0
-ATMOS_PERF_ALERT_DISABLED
 }
 # -------------------- 监控控制函数 --------------------
 # -------------------- 公共吞吐监控函数 --------------------
@@ -304,41 +234,6 @@ check_throughput_monitor() {
 init_items() {
     init_case_state
     disk_id_regex="^${DEFAULT_DISK_ID}$"
-    return
-    okPoint=0
-    okOperation=0
-    failPoint=0
-    failOperation=0
-    throughput=0
-    Latency=0
-    MIN=0
-    P10=0
-    P25=0
-    MEDIAN=0
-    P75=0
-    P90=0
-    P95=0
-    P99=0
-    P999=0
-    MAX=0
-    numOfSe0Level=0
-    start_time=""
-    end_time=""
-    cost_time=0
-    numOfUnse0Level=0
-    dataFileSize=0
-    maxNumofOpenFiles=0
-    maxNumofThread=0
-    errorLogSize=0
-    walFileSize=0
-    maxCPULoad=0
-    avgCPULoad=0
-    maxDiskIOOpsRead=0
-    maxDiskIOOpsWrite=0
-    maxDiskIOSizeRead=0
-    maxDiskIOSizeWrite=0
-    m_start_time=0
-    m_end_time=0
 }
 
 # -------------------- 公共进程清理函数 --------------------
@@ -364,33 +259,6 @@ monitor_test_status() {
     }
     wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
         "${MONITOR_POLL_INTERVAL_SECONDS}" insert_timeout_result "${m_start_time}"
-    return
-    local csv_file=""
-    local now_epoch=0
-    local elapsed=0
-
-    # 这里没有可直接复用的 IoT-Benchmark 完成回调，因此以结果 CSV 是否生成
-    # 作为测试完成的唯一判定依据。超时后会补写一个 stuck 结果文件，确保后续
-    # 解析和入库仍能留下可见的失败记录。
-    while true; do
-        csv_file="$(find_result_csv || true)"
-        if [ -n "${csv_file}" ]; then
-            end_time="$(current_datetime)"
-            log "${current_ts_type} 写入已完成。"
-            return 0
-        fi
-
-        now_epoch="$(date +%s)"
-        elapsed=$((now_epoch - m_start_time))
-        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            end_time="$(current_datetime)"
-            log "${current_ts_type} 写入超时，写入兜底结果。"
-            create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv"
-            return 1
-        fi
-
-        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-    done
 }
 
 # -------------------- 公共 Prometheus 指标采集函数 --------------------
@@ -415,35 +283,6 @@ collect_monitor_data() {
     resolve_monitor_disk_id
     collect_standard_monitor_snapshot "${ip}"
     errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") ))
-    return
-    local metric_window=$((m_end_time - m_start_time))
-    local maxNumofThread_C=0
-    local maxNumofThread_D=0
-    local datanode_error_log_file="${TEST_IOTDB_PATH}/logs/log_datanode_error.log"
-    local confignode_error_log_file="${TEST_IOTDB_PATH}/logs/log_confignode_error.log"
-    local datanode_error_log_size=0
-    local confignode_error_log_size=0
-
-    resolve_monitor_disk_id
-    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")"
-    dataFileSize="$(bytes_to_gib "${dataFileSize}")"
-    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
-    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
-    maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
-    maxNumofOpenFiles="$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" "${m_end_time}")"
-    datanode_error_log_size="$(du -sb "${datanode_error_log_file}" 2>/dev/null | awk '{print $1}')"
-    confignode_error_log_size="$(du -sb "${confignode_error_log_file}" 2>/dev/null | awk '{print $1}')"
-    errorLogSize=$(( ${datanode_error_log_size:-0} + ${confignode_error_log_size:-0} ))
-    walFileSize="$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${metric_window}s])" "${m_end_time}")"
-    walFileSize="$(bytes_to_gib "${walFileSize}")"
-    maxCPULoad="$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    avgCPULoad="$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    maxDiskIOOpsRead="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOOpsWrite="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOSizeRead="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOSizeWrite="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${disk_id_regex}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
 }
 
 # -------------------- 公共默认备份函数；特定脚本可覆盖 --------------------
@@ -482,11 +321,6 @@ mv_config_file() {
     local config_target="${BM_PATH}/conf/config.properties"
 
     install_benchmark_config "${config_source}" "${config_target}"
-    return
-
-    [ -f "${config_source}" ] || die "缺少 benchmark 配置文件: ${config_source}"
-    safe_rm "${config_target}"
-    cp -rf "${config_source}" "${config_target}"
 }
 
 # -------------------- 公共结果解析和入库函数 --------------------

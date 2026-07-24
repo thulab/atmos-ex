@@ -24,24 +24,6 @@ source "${SCRIPT_DIR}/../common/insert_common.sh"
 # 功能：同步本地与目标位置的版本或目录内容
 sync_benchmark_path() {
     sync_benchmark_distribution "${BM_REPOS_PATH}" "$1"
-    return
-    local target_path="$1"
-    local source_version=""
-    local target_version=""
-
-    [ -f "${BM_REPOS_PATH}/git.properties" ] || die "missing benchmark git.properties: ${BM_REPOS_PATH}/git.properties"
-    source_version="$(awk -F= '/git.commit.id.abbrev/ {print $2}' "${BM_REPOS_PATH}/git.properties")"
-    [ -n "${source_version}" ] || die "failed to read benchmark version."
-
-    if [ -f "${target_path}/git.properties" ]; then
-        target_version="$(awk -F= '/git.commit.id.abbrev/ {print $2}' "${target_path}/git.properties")"
-    fi
-
-    if [ ! -d "${target_path}" ] || [ "${target_version}" != "${source_version}" ]; then
-        log "sync benchmark to ${target_path}"
-        safe_rm "${target_path}"
-        cp -rf -- "${BM_REPOS_PATH}" "${target_path}"
-    fi
 }
 
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark

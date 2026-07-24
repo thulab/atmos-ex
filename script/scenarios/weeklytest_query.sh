@@ -64,41 +64,6 @@ unset required_command
 init_items() {
 	init_case_state
 	ts_type=0; data_type=0; query_type=0; sensor_type=0; query_num=0
-	return
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-data_type=0
-query_type=0
-sensor_type=0
-query_num=0
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=0
-end_time=0
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-############定义监控采集项初始值##########################
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
 # 功能：保留或执行测试异常通知逻辑
@@ -121,31 +86,6 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_heap_memory 20G
 	apply_iotdb_profile base
-	return
-	#修改IoTDB的配置
-	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_IOTDB_PATH}/conf/datanode-env.sh
-	#清空配置文件
-	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "series_slot_num" "10000"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "query_timeout_threshold" "6000000"
-	#关闭影响写入性能的其他功能
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_seq_space_compaction" "false"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_unseq_space_compaction" "false"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "enable_cross_space_compaction" "false"
-	#修改集群名称
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cluster_name" "${TEST_TYPE}"
-	#添加启动监控功能
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_metric" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_enable_performance_stat" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_reporter_list" "PROMETHEUS"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_level" "ALL"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_metric_prometheus_reporter_port" "9081"
-	#添加启动监控功能
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_metric" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_enable_performance_stat" "true"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_reporter_list" "PROMETHEUS"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_level" "ALL"
-	set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "dn_metric_prometheus_reporter_port" "9091"
 }
 # 功能：根据协议编号设置各共识组使用的协议实现
 set_protocol_class() { 
@@ -169,61 +109,11 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 	}
 	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-7200}" \
 		"${MONITOR_POLL_INTERVAL_SECONDS:-10}" weekly_query_timeout_result "${m_start_time}"
-	return
-	local result_label="${1:-PRECISE_POINT}"
-	local csv_file=""
-	local now_epoch=0
-	local elapsed=0
-
-	while true; do
-		csv_file=$(find_result_csv || true)
-		if [ -n "${csv_file}" ]; then
-			end_time=$(current_datetime)
-			log "${ts_type} benchmark completed."
-			return 0
-		fi
-
-		now_epoch=$(date +%s)
-		elapsed=$((now_epoch - m_start_time))
-		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-			end_time=$(current_datetime)
-			log "${ts_type} benchmark timed out."
-			create_standard_stuck_result_csv "${result_label}"
-			return 1
-		fi
-
-		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-	done
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	resolve_monitor_disk_id
 	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
-	return
-	#TEST_IP=$1
-	local metric_window=0
-	local maxNumofThread_C=0
-	local maxNumofThread_D=0
-
-	dataFileSize=0
-	walFileSize=0
-	numOfSe0Level=0
-	numOfUnse0Level=0
-	maxNumofOpenFiles=0
-	maxNumofThread=0
-	metric_window=$((m_end_time-m_start_time))
-	[ "${metric_window}" -gt 0 ] || metric_window=1
-	#调用监控获取数值
-	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${TEST_IP}:9091\"})" $m_end_time)
-	dataFileSize=$(bytes_to_gib "${dataFileSize}")
-	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"seq\"})" $m_end_time)
-	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${TEST_IP}:9091\",name=\"unseq\"})" $m_end_time)
-	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9081\"}[${metric_window}s])" $m_end_time)
-	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${TEST_IP}:9091\"}[${metric_window}s])" $m_end_time)
-	maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
-	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${TEST_IP}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" $m_end_time)
-	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${TEST_IP}:9091\",name=~\"wal\"}[${metric_window}s])" $m_end_time)
-	walFileSize=$(bytes_to_gib "${walFileSize}")
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据

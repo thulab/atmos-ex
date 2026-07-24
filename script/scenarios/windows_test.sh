@@ -62,39 +62,6 @@ unset required_command
 init_items() {
 	init_case_state
 	test_date_time=0; ts_type=0; data_type=0; op_type=0
-	return
-############定义监控采集项初始值##########################
-test_date_time=0
-ts_type=0
-data_type=0
-op_type=0
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=0
-end_time=0
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-############定义监控采集项初始值##########################
 }
 # 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径
@@ -201,67 +168,15 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		create_standard_stuck_result_csv INGESTION
 	}
 	wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS:-7200}" 10 windows_timeout_result "$(date -d "${start_time}" +%s)"
-	return
-	local result_label="${1:-INGESTION}"
-	local csv_file=""
-	local now_epoch=0
-	local elapsed=0
-
-	while true; do
-		csv_file=$(find_result_csv || true)
-		if [ -n "${csv_file}" ]; then
-			end_time=$(current_datetime)
-			log "${ts_type} benchmark completed."
-			return 0
-		fi
-
-		now_epoch=$(date +%s)
-		elapsed=$((now_epoch - m_start_time))
-		if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-			end_time=$(current_datetime)
-			log "${ts_type} benchmark timed out."
-			create_standard_stuck_result_csv "${result_label}"
-			return 1
-		fi
-
-		sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-	done
 }
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	resolve_monitor_disk_id
 	collect_standard_monitor_snapshot "${1:-${TEST_IP}}"
-	return
-	local metric_window=0
-	local maxNumofThread_C=0
-	local maxNumofThread_D=0
-
-	dataFileSize=0
-	walFileSize=0
-	numOfSe0Level=0
-	numOfUnse0Level=0
-	maxNumofOpenFiles=0
-	maxNumofThread=0
-	metric_window=$((m_end_time-m_start_time))
-	[ "${metric_window}" -gt 0 ] || metric_window=1
-	#调用监控获取数值
-	dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${IoTDB_IP}:9091\"})" $m_end_time)
-	dataFileSize=$(bytes_to_gib "${dataFileSize}")
-	numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${IoTDB_IP}:9091\",name=\"seq\"})" $m_end_time)
-	numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${IoTDB_IP}:9091\",name=\"unseq\"})" $m_end_time)
-	maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9081\"}[${metric_window}s])" $m_end_time)
-	maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${IoTDB_IP}:9091\"}[${metric_window}s])" $m_end_time)
-	maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
-	maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${IoTDB_IP}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" $m_end_time)
-	walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${IoTDB_IP}:9091\",name=~\"wal\"}[${metric_window}s])" $m_end_time)
-	walFileSize=$(bytes_to_gib "${walFileSize}")
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
 	install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
-	return
-	rm -rf -- "${BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1 ${BM_PATH}/conf/config.properties
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {

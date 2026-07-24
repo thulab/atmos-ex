@@ -78,26 +78,6 @@ errorLogSize=0
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
 	sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH}"
-	return
-	local bm_new=""
-	local bm_old=""
-
-	if [ ! -f "${BM_REPOS_PATH}/git.properties" ]; then
-		log "skip benchmark sync, missing ${BM_REPOS_PATH}/git.properties"
-		return 0
-	fi
-
-	bm_new="$(git_commit_abbrev "${BM_REPOS_PATH}/git.properties")"
-	[ -n "${bm_new}" ] || return 0
-	if [ -f "${BM_PATH}/git.properties" ]; then
-		bm_old="$(git_commit_abbrev "${BM_PATH}/git.properties")"
-	fi
-
-	if [ ! -d "${BM_PATH}" ] || [ "${bm_old}" != "${bm_new}" ]; then
-		log "sync benchmark to ${bm_new}"
-		safe_rm "${BM_PATH}"
-		cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-	fi
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态

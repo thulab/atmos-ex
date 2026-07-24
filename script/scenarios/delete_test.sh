@@ -401,30 +401,6 @@ monitor_test_status() {
     }
     wait_for_benchmark_result "${MONITOR_TIMEOUT_SECONDS}" \
         "${MONITOR_POLL_INTERVAL_SECONDS}" delete_timeout_result "${m_start_time}"
-    return
-    local csv_file=""
-    local now_epoch=0
-    local elapsed=0
-
-    while true; do
-        csv_file="$(find_result_csv || true)"
-        if [ -n "${csv_file}" ]; then
-            end_time="$(current_datetime)"
-            log "${current_name} completed"
-            return 0
-        fi
-
-        now_epoch="$(date +%s)"
-        elapsed=$((now_epoch - m_start_time))
-        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            end_time="$(current_datetime)"
-            log "${current_name} timed out, writing stuck result"
-            create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" "${result_label}"
-            return 1
-        fi
-
-        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-    done
 }
 
 # 功能：采集当前测试阶段产生的指标或文件信息
