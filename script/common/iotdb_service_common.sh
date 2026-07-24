@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
 # 功能：启动当前安装目录中的 ConfigNode 和 DataNode
+start_iotdb_component() {
+    (
+        cd "${TEST_IOTDB_PATH}" || exit 1
+        nohup "$@" </dev/null >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    )
+}
+
 start_iotdb() {
     if declare -F before_iotdb_start >/dev/null 2>&1; then
         before_iotdb_start
     fi
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
+    start_iotdb_component ./sbin/start-confignode.sh
     sleep "${STARTUP_GRACE_SECONDS:-10}"
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
+    start_iotdb_component ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof"
 }
 
 # 功能：启动 IoTDB 并等待集群就绪
@@ -63,7 +71,7 @@ start_iotdb_or_handle_failure() {
 iotdb_is_ready() {
     local output=""
     output="$(iotdb_cli_query "show cluster" 127.0.0.1 6667 \
-        "${IOTDB_READY_USER:-root}" "${IOTDB_READY_PASSWORD:-${IOTDB_PASSWORD:-root}}" |
+        "${IOTDB_READY_USER:-root}" "${IOTDB_READY_PASSWORD:-root}" |
         grep -F 'Total line number = 2' || true)"
     [ "${output}" = "Total line number = 2" ]
 }
