@@ -235,7 +235,7 @@ remote_windows_copy_contents() {
     [ -d "${source_dir}" ] || die "missing local directory: ${source_dir}"
     [ -n "$(find "${source_dir}" -mindepth 1 -maxdepth 1 -print -quit)" ] ||
         die "local directory is empty: ${source_dir}"
-    scp -T -r -- "${source_dir}/." "$(remote_target "${host}"):${destination_dir}" ||
+    scp -r -- "${source_dir}/*" "$(remote_target "${host}"):${destination_dir}" ||
         die "failed to copy directory contents to ${host}:${destination_dir}"
 }
 

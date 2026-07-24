@@ -389,6 +389,8 @@ test_operation_impl() {
 }
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
+    local task_failed=0
+
     ensure_runtime_dependencies
     check_password
     mkdir -p "${INIT_PATH}"
@@ -407,14 +409,18 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
-	test_operation ${IoTDB_IP} 223 
+	if ! test_operation "${IoTDB_IP}" 223; then
+		task_failed=1
+	fi
 	###############################测试完成###############################
 	log "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql_exec "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
-	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql_exec "${update_sql02}")
+	if [ "${task_failed}" -eq 0 ]; then
+		update_task_status done
+		if [ "${author}" != "Timecho" ]; then
+			mark_older_commits_skip
+		fi
+	else
+		update_task_status RError
 	fi
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
