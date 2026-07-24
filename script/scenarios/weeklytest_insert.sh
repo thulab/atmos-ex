@@ -283,12 +283,11 @@ test_operation_impl() {
 }
 
 # -------------------- 主流程 --------------------
-check_password
-check_standard_benchmark_version
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password
+    check_standard_benchmark_version
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
