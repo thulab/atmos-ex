@@ -231,16 +231,24 @@ remote_windows_copy_contents() (
     local source_dir="$1"
     local host="$2"
     local destination_dir="$3"
-    local source_entry=""
-    local copied_entries=0
+    local archive_file=""
+    local remote_archive="${destination_dir}\\atmos-deploy.tar"
 
     [ -d "${source_dir}" ] || die "missing local directory: ${source_dir}"
-    while IFS= read -r -d '' source_entry; do
-        copied_entries=$((copied_entries + 1))
-        scp -r -- "${source_entry}" "$(remote_target "${host}"):${destination_dir}" ||
-            die "failed to copy ${source_entry} to ${host}:${destination_dir}"
-    done < <(find "${source_dir}" -mindepth 1 -maxdepth 1 -print0)
-    [ "${copied_entries}" -gt 0 ] || die "local directory is empty: ${source_dir}"
+    command -v mktemp >/dev/null 2>&1 || die "required command not found: mktemp"
+    command -v tar >/dev/null 2>&1 || die "required command not found: tar"
+    [ -n "$(find "${source_dir}" -mindepth 1 -print -quit)" ] ||
+        die "local directory is empty: ${source_dir}"
+
+    archive_file="$(mktemp "${TMPDIR:-/tmp}/atmos-windows-deploy.XXXXXX.tar")" ||
+        die "failed to create temporary deployment archive"
+    trap 'rm -f -- "${archive_file}"' EXIT
+    tar -C "${source_dir}" -cf "${archive_file}" . ||
+        die "failed to archive directory contents: ${source_dir}"
+    scp -- "${archive_file}" "$(remote_target "${host}"):${remote_archive}" ||
+        die "failed to copy deployment archive to ${host}:${remote_archive}"
+    remote_exec "${host}" "tar -xf \"${remote_archive}\" -C \"${destination_dir}\" && del /q \"${remote_archive}\"" ||
+        die "failed to extract deployment archive on ${host}:${destination_dir}"
 )
 
 # 功能：在远程主机上执行受控的部署或检查操作
