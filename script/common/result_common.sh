@@ -24,7 +24,11 @@ update_task_status() {
 
 # 功能：更新当前任务或测试的状态标记
 mark_older_commits_skip() {
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < $(sql_quote "${commit_date_time}")"
+    local author_filter="${TASK_AUTHOR_FILTER_SQL:-}"
+    local extra_filter=""
+
+    [ -z "${author_filter}" ] || extra_filter=" and ${author_filter}"
+    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL${extra_filter} and commit_date_time < $(sql_quote "${commit_date_time}")"
 }
 
 # 功能：查询并返回当前场景需要的数据或状态

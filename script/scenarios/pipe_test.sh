@@ -51,15 +51,7 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-log "检查iot-benchmark版本"
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
-BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf -- "${BM_PATH}"
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-fi
 # 功能：重置当前测试用例使用的指标和运行状态
 init_items() {
 ############定义监控采集项初始值##########################
@@ -558,6 +550,9 @@ test_operation_impl() {
 main() {
     ensure_runtime_dependencies
     check_password
+    log "检查iot-benchmark版本"
+    check_standard_benchmark_version
+    log "开始从MySQL领取${TEST_TYPE}任务"
     trap restore_test_type_file EXIT
 printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${TEST_TYPE} = 'retest' ORDER BY commit_date_time desc limit 1 "
@@ -607,6 +602,7 @@ fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/remote_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/platform_common.sh"
 

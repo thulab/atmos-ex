@@ -97,7 +97,7 @@ readonly BENCHMARK_WARMUP_SECONDS=60
 readonly BENCHMARK_STOP_WAIT_SECONDS=30
 
 result_table="${TABLENAME}"
-AUTHOR_FILTER_SQL="author != 'Timecho'"
+TASK_AUTHOR_FILTER_SQL="author != 'Timecho'"
 commit_id=""
 author=""
 commit_date_time=""
@@ -160,18 +160,18 @@ init_longrun_route() {
     first_ip="$(printf '%s\n' "${local_ips}" | awk 'NF {print; exit}')"
 
     if printf '%s\n' "${local_ips}" | grep -Fxq "${TIMECHO_LONGRUN_IP}"; then
-        AUTHOR_FILTER_SQL="author = 'Timecho'"
+        TASK_AUTHOR_FILTER_SQL="author = 'Timecho'"
         result_table="${TABLENAME_T}"
         TEST_IP="${TIMECHO_LONGRUN_IP}"
     else
-        AUTHOR_FILTER_SQL="author != 'Timecho'"
+        TASK_AUTHOR_FILTER_SQL="author != 'Timecho'"
         result_table="${TABLENAME}"
         if [ -n "${first_ip}" ]; then
             TEST_IP="${first_ip}"
         fi
     fi
 
-    log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
+    log "route: TASK_AUTHOR_FILTER_SQL=${TASK_AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
 }
 
 # 功能：同步本地与目标位置的版本或目录内容
