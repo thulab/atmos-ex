@@ -2,7 +2,7 @@
 
 Atmos EX 是面向 Apache IoTDB / TimechoDB 的自动化测试与性能回归编排仓库。它以 MySQL 任务表为任务队列，从制品仓库部署指定提交的 IoTDB，调用 IoT-Benchmark、CLI、SQL/API 测试工具或远端节点执行测试，采集结果与系统指标，最后将数据写回结果表并归档运行现场。
 
-仓库当前包含 29 个场景脚本和 20 个公共脚本，覆盖写入、查询、Compaction、集群、Pipe、重启恢复、删除、长稳、SQL 覆盖、Windows 和多语言 API 等测试。
+仓库当前包含 29 个场景脚本和 20 个公共脚本，覆盖写入、查询、合并、集群、Pipe、重启恢复、删除、长稳、SQL 覆盖、Windows 和多语言 API 等测试。
 
 > 重要：本仓库不是通用的本地单元测试套件。多数场景绑定专用测试机、共享数据库、Prometheus、NAS 数据集和制品目录，并会停止进程、删除测试目录、移动数据或清理远端主机。运行任何场景前必须阅读对应场景文档，并确认当前环境是可清理的专用测试环境。
 
@@ -28,7 +28,7 @@ atmos.sh ───────────────► script/scenarios/<scen
                  ┌─────────────────┼──────────────────┐
                  ▼                 ▼                  ▼
           script/common       IoTDB 制品/NAS       场景配置与数据集
-          公共运行框架         repository/master    conf/、DataSet
+          公共运行框架         repository/master    conf/DataSet
                  │                 │                  │
                  └─────────────────┼──────────────────┘
                                    ▼
