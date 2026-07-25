@@ -2,7 +2,7 @@
 
 ## 1. 场景概览
 
-`sql_coverage.sh` 使用 `/data/atmos/zk_test/iotdb-sql` 工具和 `iotdb-sql-testcase` 执行 SQL 覆盖测试，结果写入 `ex_sql_coverage`，任务状态来自 `ex_commit_history.sql_coverage`。当前主流程显式设置协议 `223`（Ratis/Ratis/IoT）并执行 tablemode；AINode 分支被恒假条件禁用。
+`sql_coverage.sh` 使用 `/data/atmos/zk_test/iotdb-sql` 工具和 `iotdb-sql-testcase` 执行 SQL 覆盖测试，结果写入 `ex_sql_coverage`，任务状态来自 `ex_commit_history.sql_coverage`。当前主流程显式设置协议 `223`（Ratis/Ratis/IoT）并执行 tablemode。
 
 ## 2. 运行前准备
 
@@ -22,4 +22,4 @@ bash script/scenarios/sql_coverage.sh 2>&1 | tee /data/atmos/zk_test/log_sql_cov
 
 ## 5. 验收与排查
 
-检查 FirstInsertSQL 与 tablemode 两类记录、`fail_num=0`、`result.xml` 完整及归档存在。不要把脚本顶部声明的四协议和四类型当作本轮实际矩阵；当前 AINode 代码不可达。启动失败为 `-3`，超时通常 `fail_num=-1`。
+检查 FirstInsertSQL 与 tablemode 两类记录、`fail_num=0`、`result.xml` 完整及归档存在。不要把脚本顶部声明的四协议和四类型当作本轮实际矩阵。启动失败为 `-3`，超时通常 `fail_num=-1`。

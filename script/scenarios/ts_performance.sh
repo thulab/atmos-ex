@@ -132,11 +132,6 @@ run_iotdb_cli() {
 	iotdb_cli_run -h 127.0.0.1 -p 6667 "$@"
 }
 
-# 功能：输出表模型 CLI 调用所需的公共参数
-table_cli_args() {
-	printf '%s\n' "-sql_dialect" "table"
-}
-
 # 功能：创建当前测试需要的数据、文件或数据库对象
 create_tablemode_schema() {
 	if [ "${ts_type}" != "tablemode" ]; then

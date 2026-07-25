@@ -79,11 +79,6 @@ init_routine_route() {
 	log "route: AUTHOR_FILTER_SQL=${AUTHOR_FILTER_SQL}, result_table=${result_table}, TEST_IP=${TEST_IP}"
 }
 
-# 功能：将输入值格式化为目标展示或配置格式
-format_gb() {
-	awk -v value="$1" 'BEGIN{printf "%.2f\n", value / 1048576 / 1024}'
-}
-
 # 功能：使用当前场景参数执行 IoTDB CLI 命令
 run_iotdb_cli() {
 	"${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 "$@"
