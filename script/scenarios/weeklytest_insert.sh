@@ -85,20 +85,6 @@ set_protocol_class() {
     set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
 }
 
-# 功能：启动当前场景中的 IoTDB 服务
-start_iotdb() {
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-confignode.sh >/dev/null 2>&1 &)
-    sleep 10
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &)
-}
-
-# 功能：停止当前场景中的 IoTDB 服务
-stop_iotdb() {
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-datanode.sh >/dev/null 2>&1 &)
-    sleep 10
-    (cd "${TEST_IOTDB_PATH}" && ./sbin/stop-confignode.sh >/dev/null 2>&1 &)
-}
-
 # 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() {
     rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
@@ -151,20 +137,14 @@ test_operation_impl() {
 		224) set_protocol_class 2 2 4 ;;
         *) echo "协议设置错误！"; return ;;
     esac
-    start_iotdb
-    sleep 10
-    for (( t_wait = 0; t_wait <= 10; t_wait++ )); do
-        iotdb_state=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "show cluster" | grep 'Total line number = 2')
-        [ "${iotdb_state}" = "Total line number = 2" ] && break || sleep 5
-    done
-    if [ "${iotdb_state}" != "Total line number = 2" ]; then
+    if ! start_iotdb_and_wait; then
         log "IoTDB未能正常启动，写入负值测试结果！"
         cost_time=-3; throughput=-3
         insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
         mysql_exec "${insert_sql}"
         update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
         mysql_exec "${update_sql}"
-        return
+        return 1
     fi
 	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
     if [[ "${ts_type}" = tablemode_* ]]; then
@@ -235,5 +215,6 @@ fi
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
 
 main "$@"

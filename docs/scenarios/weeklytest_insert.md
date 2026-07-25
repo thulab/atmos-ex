@@ -16,7 +16,7 @@ bash script/scenarios/weeklytest_insert.sh 2>&1 | tee /data/atmos/zk_test/log_we
 
 ## 3. 自动流程
 
-每个组合重建 IoTDB、应用协议、运行 `INGESTION` Benchmark，最长等待 7200 秒，采集 CSV 和监控指标并入库；停止服务后将 IoTDB 配置、日志及 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
+每个组合重建 IoTDB、应用协议，通过公共服务函数启动并等待集群就绪，再运行 `INGESTION` Benchmark，最长等待 7200 秒，采集 CSV 和监控指标并入库；通过公共停止函数关闭服务后，将 IoTDB 配置、日志及 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 4. 验收与排查
 
