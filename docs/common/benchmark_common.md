@@ -14,7 +14,6 @@
 - `find_result_csv [DIR]`：返回第一个 `*result.csv`。
 - `sync_benchmark_distribution [SOURCE] [TARGET]`：按 `git.properties` 版本覆盖运行目录。
 - `wait_for_benchmark_result [TIMEOUT] [INTERVAL] [CALLBACK] [START]`：等待 CSV并更新 `BENCHMARK_RESULT_CSV/end_time`。
-- `run_benchmark_lifecycle CONFIG ...`：安装、启动、预热、等待、解析的组合入口。
 - `create_standard_stuck_result_csv/set_standard_negative_benchmark_metrics/parse_standard_benchmark_result`：标准失败和解析工具。
 
 ## 4. 调用示例

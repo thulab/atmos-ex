@@ -497,7 +497,10 @@ backup_test_data() { # 备份测试数据
 	do
 		TEST_IP=${IP_list[$j]}
 		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/apache-iotdb/logs" iotdb-logs optional
-		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/data" benchmark-data optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/conf/config.properties" benchmark-config.properties optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/logs" benchmark-logs optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/data/csvOutput" benchmark-csv optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/TestResult" benchmark-test-result optional
 	done
 	backup_finish_case completed
 }

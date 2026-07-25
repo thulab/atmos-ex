@@ -224,7 +224,7 @@ backup_add_remote() {
     sudo chmod 0777 "${node_dir}" || return 1
     if ! scp -r -- "${ACCOUNT:-atmos}@${host}:${source_path}" "${node_dir}/$(backup_safe_component "${target_name}")"; then
         status="failed"
-        BACKUP_CASE_FAILED=1
+        [ "${required}" != "required" ] || BACKUP_CASE_FAILED=1
     fi
     printf 'remote\t%s:%s\tnodes/%s/%s\t%s\tcopy\t%s\n' \
         "${host}" "${source_path}" "$(backup_safe_component "${host}")" \

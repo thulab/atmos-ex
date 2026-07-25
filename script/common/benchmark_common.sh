@@ -79,27 +79,6 @@ wait_for_benchmark_result() {
     done
 }
 
-# 功能：安装配置、启动 Benchmark 并等待结果
-run_benchmark_lifecycle() {
-    local config_file="$1"
-    local timeout_callback="${2:-}"
-    local warmup_seconds="${3:-${BENCHMARK_WARMUP_SECONDS:-0}}"
-    local parser_callback="${4:-}"
-    local result_callback="${5:-}"
-
-    install_benchmark_config "${config_file}"
-    start_benchmark
-    start_time="$(current_datetime)"
-    begin_monitor_window
-    [ "${warmup_seconds}" -le 0 ] || sleep "${warmup_seconds}"
-    wait_for_benchmark_result \
-        "${MONITOR_TIMEOUT_SECONDS:-7200}" \
-        "${MONITOR_POLL_INTERVAL_SECONDS:-10}" \
-        "${timeout_callback}" "${m_start_time}" || return 1
-    [ -z "${parser_callback}" ] || "${parser_callback}" "${BENCHMARK_RESULT_CSV}"
-    [ -z "${result_callback}" ] || "${result_callback}" "${BENCHMARK_RESULT_CSV}"
-}
-
 # 功能：同步使用标准目录布局的 IoT-Benchmark
 check_standard_benchmark_version() {
     sync_benchmark_distribution "${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}" "${BM_PATH}"

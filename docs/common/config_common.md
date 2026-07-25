@@ -38,6 +38,7 @@ scope=more__workload=query__query=Q4-a1.properties
 - `install_benchmark_case_config CASE_ID [BM_PATH]`：原子安装 Case 到 Benchmark 的 `conf/config.properties`。
 - `apply_benchmark_overrides BM_PATH KEY=VALUE...`：安装后应用 HOST、SQL 方言等运行时覆盖项。
 - `install_iotdb_runtime_config [COPY_ENV]`：安装当前场景的 license 和可选 `.env`。
+- `install_iotdb_runtime_config_to TARGET_ROOT [COPY_ENV]`：安装到集群等场景指定的 IoTDB 目录。
 - `install_iotdb_node_runtime_config ROLE TARGET_ROOT`：安装指定节点角色的运行配置。
 - `install_config_file SOURCE TARGET`：安装任意单个配置文件。
 - `apply_iotdb_profile no_compaction|metrics|base`：应用标准 IoTDB 配置组。

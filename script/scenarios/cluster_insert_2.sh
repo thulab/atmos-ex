@@ -154,8 +154,8 @@ test_operation_impl() {
 		
 		backup_add_remote "${C_IP_list[${j}]}" "${TEST_CONFIGNODE_PATH}/logs" confignode-logs optional
 		backup_add_remote "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/logs" datanode-logs optional
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo mv ${TEST_DATANODE_PATH}/dn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_dn_dump.hprof"
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo mv ${TEST_CONFIGNODE_PATH}/cn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_cn_dump.hprof"
+		backup_add_remote "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/dn_dump.hprof" datanode-dump.hprof optional
+		backup_add_remote "${C_IP_list[${j}]}" "${TEST_CONFIGNODE_PATH}/cn_dump.hprof" confignode-dump.hprof optional
 	done
 	
 	if  [ "${data_type}" = "unseq_rw" ] || [ "${data_type}" = "seq_rw" ]; then

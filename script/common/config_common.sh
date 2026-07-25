@@ -44,11 +44,6 @@ install_config_file() {
     cp -f -- "${source_file}" "${target_file}"
 }
 
-# 功能：安装 Benchmark 配置文件
-install_benchmark_config() {
-    install_config_file "$1" "${2:-${BM_PATH}/conf/config.properties}"
-}
-
 # 功能：按统一 case 标识原子安装 Benchmark 配置
 install_benchmark_case_config() {
     local case_id="$1"
@@ -72,15 +67,22 @@ apply_benchmark_overrides() {
     upsert_properties "${benchmark_path}/conf/config.properties" "$@"
 }
 
+# 功能：将当前场景统一存放的 IoTDB license 和 env 安装到指定目录
+install_iotdb_runtime_config_to() {
+    local target_root="$1"
+    local include_env="${2:-${COPY_IOTDB_ENV:-1}}"
+    local scenario_root=""
+    scenario_root="$(scenario_config_root)/iotdb"
+    mkdir -p "${target_root}/activation"
+    copy_if_exists "${scenario_root}/activation/license" "${target_root}/activation/" "license"
+    if [ "${include_env}" = "1" ]; then
+        copy_if_exists "${scenario_root}/env/.env" "${target_root}/.env" "env"
+    fi
+}
+
 # 功能：安装当前场景统一存放的 IoTDB license 和 env
 install_iotdb_runtime_config() {
-    local scenario_root=""
-    local include_env="${1:-${COPY_IOTDB_ENV:-1}}"
-    scenario_root="$(scenario_config_root)/iotdb"
-    copy_if_exists "${scenario_root}/activation/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    if [ "${include_env}" = "1" ]; then
-        copy_if_exists "${scenario_root}/env/.env" "${TEST_IOTDB_PATH}/.env" "env"
-    fi
+    install_iotdb_runtime_config_to "${TEST_IOTDB_PATH}" "${1:-${COPY_IOTDB_ENV:-1}}"
 }
 
 # 功能：安装多节点场景中指定角色的 IoTDB license 和 env
