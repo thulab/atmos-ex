@@ -543,12 +543,9 @@ else
 	test_operation tablemode unseq_rw 223
 	###############################测试完成###############################
 	log "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql_exec "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and commit_date_time < '${commit_date_time}'"
-	if [ "${author}" != "Timecho" ]; then
-		result_string=$(mysql_exec "${update_sql02}")
-	fi
+	TASK_SKIP_OLDER_COMMITS=1
+	[ "${author}" != "Timecho" ] || TASK_SKIP_OLDER_COMMITS=0
+	finish_task_success
 fi
     printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
 }

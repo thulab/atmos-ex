@@ -388,10 +388,8 @@ else
 	#test_operation 211 
 	###############################测试完成###############################
 	log "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'done' where commit_id = '${commit_id}'"
-	mysql_exec "${update_sql}"
-	update_sql02="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'skip' where ${TEST_TYPE} is NULL and ${AUTHOR_FILTER_SQL} and commit_date_time < '${commit_date_time}'"
-	mysql_exec "${update_sql02}"
+	TASK_SKIP_OLDER_COMMITS=1
+	finish_task_success
 fi
 }
 
