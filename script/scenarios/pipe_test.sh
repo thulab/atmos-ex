@@ -52,13 +52,9 @@ done
 unset required_command
 BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
+init_scenario_state() {
 ############定义监控采集项初始值##########################
-test_date_time=0
 ts_type=0
-start_time=0
-end_time=0
-cost_time=0
 wait_time=0
 failPointA=0
 throughputA=0

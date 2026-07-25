@@ -6,7 +6,7 @@
 
 ## 2. 调用契约
 
-调用方必须提供 `init_items`、`log`、`run_isolated_case` 和实际测试函数。可用 `API_FAILURE_WAIT_SECONDS` 修改单语言失败后的等待时间，默认 60 秒。
+公共运行时提供 `init_items`、`log` 和 `run_isolated_case`；调用方提供实际测试函数，并通过可选 `init_scenario_state` 初始化专属字段。可用 `API_FAILURE_WAIT_SECONDS` 修改单语言失败后的等待时间，默认 60 秒。
 
 ## 3. 主要函数
 

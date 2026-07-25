@@ -21,7 +21,7 @@
 - 定义 `modify_iotdb_config_for_case(protocol,ts,api)` 追加 case 配置。
 - 定义 `insert_custom_result_row` 时替代标准入库。
 - 定义 `check_custom_throughput_monitor` 时替代标准吞吐控制限。
-- 下层 `append_iotdb_case_properties/init_scenario_state/after_prepare_iotdb_distribution` 仍可使用。
+- 下层 `append_iotdb_case_properties/init_scenario_state/after_prepare_iotdb_distribution` 仍可使用；Insert 公共字段由 `init_workload_state` 初始化。
 
 ## 4. 自动流程
 

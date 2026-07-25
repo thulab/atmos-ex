@@ -54,8 +54,7 @@ MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-    init_case_state
+init_scenario_state() {
     ts_type=0
 }
 

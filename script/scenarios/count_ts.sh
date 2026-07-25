@@ -84,10 +84,7 @@ check_benchmark_version() {
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	start_time=""
-	end_time=""
-	cost_time=0
+init_scenario_state() {
 	createCost_all=0
 	createCost_common=0
 	createCost_aligned=0
@@ -103,12 +100,6 @@ init_items() {
 	showCost_aligned=0
 	showCost_template=0
 	showCost_tempaligned=0
-	numOfSe0Level=0
-	numOfUnse0Level=0
-	dataFileSize=0
-	maxNumofOpenFiles=0
-	maxNumofThread=0
-	errorLogSize=0
 }
 
 # 功能：按当前测试场景修改 IoTDB 配置

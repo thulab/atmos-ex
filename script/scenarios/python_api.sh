@@ -47,15 +47,11 @@ if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${B
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
+init_scenario_state() {
 ############定义监控采集项初始值##########################
-test_date_time=0
 InsertRecord=0
 InsertRecords=0
 InsertTablet=0
-cost_time=0
-start_time=0
-end_time=0
 flag=0
 }
 # 功能：根据协议编号设置各共识组使用的协议实现

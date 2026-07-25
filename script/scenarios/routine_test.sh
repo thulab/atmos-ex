@@ -110,9 +110,8 @@ check_benchmark_version() {
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	init_case_state
-	test_date_time=0; ts_type=0; data_type=0; op_type=0
+init_scenario_state() {
+	ts_type=0; data_type=0; op_type=0
 }
 local_ip=$(ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
 # 功能：保留或执行测试异常通知逻辑

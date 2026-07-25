@@ -38,16 +38,13 @@ for required_command in awk date mysql sed; do
 done
 unset required_command
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
+init_scenario_state() {
 ############定义监控采集项初始值##########################
 tests_num=0
 errors_num=0
 failures_num=0
 skipped_num=0
 successRate=0
-cost_time=0
-start_time=0
-end_time=0
 flag=0
 }
 # 功能：执行指定语言、接口或测试场景

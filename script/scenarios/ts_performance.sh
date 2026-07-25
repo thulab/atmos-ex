@@ -80,8 +80,7 @@ check_benchmark_version() {
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	cost_time=0
+init_scenario_state() {
 	numOfSe0Level_before=0
 	numOfSe0Level_after=0
 	numOfUnse0Level_before=0
@@ -89,13 +88,8 @@ init_items() {
 	ts_dataSize=0
 	ts_numOfPoints=0
 	ts_rate=0
-	start_time=""
-	end_time=""
 	dataFileSize_before=0
 	dataFileSize_after=0
-	maxNumofOpenFiles=0
-	maxNumofThread=0
-	errorLogSize=0
 }
 
 # 功能：在安装包准备完成后创建工具测试日志目录

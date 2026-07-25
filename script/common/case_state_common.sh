@@ -21,10 +21,16 @@ init_case_timestamps() {
     start_time=""; end_time=""; cost_time=0; m_start_time=0; m_end_time=0
 }
 
-# 功能：初始化公共状态并调用场景扩展 hook
+# 功能：初始化所有场景共享的单个 case 状态
 init_case_state() {
     init_benchmark_metrics
     init_monitor_metrics
     init_case_timestamps
+}
+
+# 功能：按公共、工作负载和场景三层顺序初始化单个 case
+init_items() {
+    init_case_state
+    declare -F init_workload_state >/dev/null 2>&1 && init_workload_state
     declare -F init_scenario_state >/dev/null 2>&1 && init_scenario_state
 }

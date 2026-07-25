@@ -217,41 +217,7 @@ check_benchmark_version() {
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-    okPoint=0
-    okOperation=0
-    failPoint=0
-    failOperation=0
-    throughput=0
-    Latency=0
-    MIN=0
-    P10=0
-    P25=0
-    MEDIAN=0
-    P75=0
-    P90=0
-    P95=0
-    P99=0
-    P999=0
-    MAX=0
-    numOfSe0Level=0
-    start_time=""
-    end_time=""
-    cost_time=0
-    numOfUnse0Level=0
-    dataFileSize=0
-    maxNumofOpenFiles=0
-    maxNumofThread=0
-    errorLogSize=0
-    walFileSize=0
-    maxCPULoad=0
-    avgCPULoad=0
-    maxDiskIOOpsRead=0
-    maxDiskIOOpsWrite=0
-    maxDiskIOSizeRead=0
-    maxDiskIOSizeWrite=0
-    m_start_time=0
-    m_end_time=0
+init_scenario_state() {
     TREE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
     TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
     QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"

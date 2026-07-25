@@ -58,9 +58,8 @@ done
 unset required_command
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	init_case_state
-	test_date_time=0; ts_type=0; data_type=0; op_type=0
+init_scenario_state() {
+	ts_type=0; data_type=0; op_type=0
 }
 # 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() { # 拷贝编译好的iotdb到测试路径

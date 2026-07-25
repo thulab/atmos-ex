@@ -143,20 +143,7 @@ build_scoped_path() {
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-    reset_benchmark_metrics
-    numOfSe0Level=0
-    numOfUnse0Level=0
-    start_time=""
-    end_time=""
-    cost_time=0
-    dataFileSize=0
-    maxNumofOpenFiles=0
-    maxNumofThread=0
-    errorLogSize=0
-    walFileSize=0
-    m_start_time=0
-    m_end_time=0
+init_scenario_state() {
     ts_type=""
     data_type=""
     query_type=""

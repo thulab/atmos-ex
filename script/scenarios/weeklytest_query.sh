@@ -60,8 +60,7 @@ done
 unset required_command
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	init_case_state
+init_scenario_state() {
 	ts_type=0; data_type=0; query_type=0; sensor_type=0; query_num=0
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`

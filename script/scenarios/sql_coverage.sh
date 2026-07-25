@@ -54,14 +54,10 @@ if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${B
 	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
 fi
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
+init_scenario_state() {
 ############定义监控采集项初始值##########################
-test_date_time=0
 pass_num=0
 fail_num=0
-start_time=0
-end_time=0
-cost_time=0
 flag=0
 }
 local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`

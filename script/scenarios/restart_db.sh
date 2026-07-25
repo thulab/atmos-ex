@@ -61,21 +61,15 @@ maxNumofThread=0
 errorLogSize=0
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-	cost_time=0
+init_scenario_state() {
 	numOfSe0Level_before=0
 	numOfSe0Level_after=0
 	numOfUnse0Level_before=0
 	numOfUnse0Level_after=0
-	start_time=""
-	end_time=""
 	dataFileSize_before=0
 	dataFileSize_after=0
 	WALSize_before=0
 	WALSize_after=0
-	maxNumofOpenFiles=0
-	maxNumofThread=0
-	errorLogSize=0
 }
 
 # 功能：按当前测试场景修改 IoTDB 配置

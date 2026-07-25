@@ -190,10 +190,6 @@ check_benchmark_version() {
 # -------------------- 公共测试指标初始化函数 --------------------
 # 每个协议或查询 case 开始前重置全局指标，避免上一次结果污染本次入库数据。
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-    init_case_state
-}
-
 # 功能：重置当前测试使用的指标或运行状态
 reset_benchmark_metrics() {
     okPoint=0

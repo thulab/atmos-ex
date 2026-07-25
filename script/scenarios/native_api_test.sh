@@ -48,16 +48,13 @@ done
 unset required_command
 
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
+init_scenario_state() {
 ############定义监控采集项初始值##########################
 tests_num=0
 errors_num=0
 failures_num=0
 skipped_num=0
 successRate=0
-cost_time=0
-start_time=0
-end_time=0
 flag=0
 }
 # 功能：根据协议编号设置各共识组使用的协议实现

@@ -230,8 +230,7 @@ check_throughput_monitor() {
 # -------------------- 公共测试指标初始化函数 --------------------
 # 每个 case 开始前重置全局指标，避免上一个 case 的结果污染本次入库数据。
 # 功能：重置当前测试用例使用的指标和运行状态
-init_items() {
-    init_case_state
+init_workload_state() {
     disk_id_regex="^${DEFAULT_DISK_ID}$"
 }
 

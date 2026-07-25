@@ -2,29 +2,53 @@
 
 ## 1. 职责
 
-集中重置单个 Benchmark case 的全局状态，避免上一 case 的指标和时间泄漏到下一 case。
+提供所有场景唯一的 `init_items` 入口，按公共状态、工作负载状态、场景状态三层初始化单个 Case，避免上一 Case 的指标泄漏。
 
-## 2. 主要函数
+## 2. 初始化层级
 
-- `init_benchmark_metrics`：重置成功/失败点、吞吐和全部延迟分位。
+1. `init_case_state` 重置标准 Benchmark 指标、监控指标和 Case 时间。
+2. 若存在 `init_workload_state`，初始化 Insert、Query 等公共工作负载字段。
+3. 若存在 `init_scenario_state`，初始化具体场景的专属字段。
+
+场景脚本不得重新定义 `init_items`。
+
+## 3. 主要函数
+
+- `init_benchmark_metrics`：重置成功/失败点、吞吐和延迟分位。
 - `init_monitor_metrics`：重置文件、WAL、线程、CPU 和磁盘指标。
-- `init_case_timestamps`：重置开始、结束、耗时和监控 epoch。
-- `init_case_state`：依次调用上述函数，再调用可选 `init_scenario_state` hook。
+- `init_case_timestamps`：重置 Case 开始、结束、耗时和监控 epoch。
+- `init_case_state`：只初始化公共 Case 状态，不调用 Hook。
+- `init_items`：唯一公共入口，依次执行公共初始化和两个可选 Hook。
 
-## 3. 调用示例
+## 4. 扩展示例
+
+工作负载公共脚本可以定义：
+
+```bash
+init_workload_state() {
+    disk_id_regex="^${DEFAULT_DISK_ID}$"
+}
+```
+
+场景脚本可以定义：
 
 ```bash
 init_scenario_state() {
-  custom_metric=0
+    custom_metric=0
+    current_model=""
 }
-source "${SCRIPT_DIR}/../common/runtime_common.sh"
-init_case_state
 ```
 
-## 4. 注意事项
+执行 Case 时统一调用：
 
-函数直接创建或修改全局变量，不返回对象；因此 case 最好在 `run_isolated_case` 子 Shell 中执行。新增标准指标时需要同步修改初始化逻辑，否则会出现脏值。
+```bash
+init_items
+```
 
-## 5. 排查
+## 5. 生命周期约束
 
-结果沿用上一轮时，确认每个 case 开头调用了 `init_case_state/init_items`，以及自定义字段是否由 `init_scenario_state` 重置。
+- Run 级字段不在 Hook 中重置，例如 `commit_id`、`commit_date_time`、`test_date_time` 和结果表名。
+- Case 级字段由 `init_items` 及 Hook 重置。
+- Step 级临时值优先声明为函数 `local`，确需共享时使用专用步骤初始化函数。
+- Hook 只修改变量，不执行文件、进程、网络或数据库操作。
+- Case 最好通过 `run_isolated_case` 在子 Shell 中执行。
