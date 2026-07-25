@@ -924,6 +924,69 @@ find_result_csv() {
     fi
 }
 
+# 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
+log_benchmark_parse_diagnostics() {
+    local benchmark_path="$1"
+    local csv_file="$2"
+    local result_label="$3"
+    local output_dir="${benchmark_path}/data/csvOutput"
+    local csv_size=0
+    local matched_count=0
+    local candidate=""
+
+    log "benchmark parse diagnostic begin path=${benchmark_path} output_dir=${output_dir} label=[${result_label}] selected_csv=${csv_file:-missing}"
+
+    if [ ! -d "${output_dir}" ]; then
+        log "benchmark parse diagnostic output directory missing: ${output_dir}"
+        log "benchmark parse diagnostic end label=[${result_label}]"
+        return 0
+    fi
+
+    while IFS= read -r candidate; do
+        log "benchmark parse diagnostic candidate_csv=${candidate}"
+    done < <(find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null | sort)
+
+    if [ -z "${csv_file}" ]; then
+        log "benchmark parse diagnostic no matching *result.csv file"
+        log "benchmark parse diagnostic end label=[${result_label}]"
+        return 0
+    fi
+    if [ ! -f "${csv_file}" ]; then
+        log "benchmark parse diagnostic selected CSV is not a regular file: ${csv_file}"
+        log "benchmark parse diagnostic end label=[${result_label}]"
+        return 0
+    fi
+
+    csv_size="$(wc -c < "${csv_file}" 2>/dev/null || printf '0')"
+    matched_count="$(awk -F, -v label="${result_label}" '
+        {
+            name = $1
+            gsub(/^[ \t\r]+|[ \t\r]+$/, "", name)
+            if (name == label) {
+                count++
+            }
+        }
+        END { print count + 0 }
+    ' "${csv_file}" 2>/dev/null)"
+    log "benchmark parse diagnostic csv_size=${csv_size} matched_rows=${matched_count}"
+
+    awk -F, -v label="${result_label}" '
+        {
+            name = $1
+            gsub(/^[ \t\r]+|[ \t\r]+$/, "", name)
+            if (name == label) {
+                row = $0
+                gsub(/\r/, "\\r", row)
+                printf "line=%d fields=%d content=%s\n", NR, NF, row
+            }
+        }
+    ' "${csv_file}" 2>/dev/null | while IFS= read -r candidate; do
+        log "benchmark parse diagnostic matched_row ${candidate}"
+    done
+
+    log "benchmark parse diagnostic end label=[${result_label}]"
+}
+
 # 功能：解析 Benchmark 输出并更新结果指标
 parse_benchmark_result() {
     local csv_file="$1"
@@ -1053,8 +1116,10 @@ insert_result_from_csv() {
     reset_benchmark_metrics
     result_max_time="$(get_result_max_time "${current_ts_type}")"
     csv_file="$(find_result_csv "${benchmark_path}" || true)"
+    log "benchmark parse start path=${benchmark_path} label=[${result_label}] selected_csv=${csv_file:-missing}"
 
     if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
+        log_benchmark_parse_diagnostics "${benchmark_path}" "${csv_file}" "${result_label}"
         log "failed to parse ${result_label} from ${benchmark_path}, writing negative result."
         set_negative_benchmark_metrics -2
         insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
