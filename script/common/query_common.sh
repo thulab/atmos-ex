@@ -309,19 +309,12 @@ collect_monitor_data() {
 configure_benchmark() {
     local current_ts_type="$1"
     local current_query_name="$2"
-    local source_config="${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}/${current_query_name}"
-    local target_config="${BM_PATH}/conf/config.properties"
+    local case_id=""
 
-    [ -f "${source_config}" ] || die "missing benchmark config file: ${source_config}"
-    safe_rm "${target_config}"
-    cp -rf -- "${source_config}" "${target_config}"
-
+    case_id="$(config_build_case_id model "${current_ts_type}" workload query query "${current_query_name}")"
+    install_benchmark_case_config "${case_id}"
     if [ "${current_ts_type}" = "tablemode" ]; then
-        if grep -q '^IoTDB_DIALECT_MODE=' "${target_config}"; then
-            sed -i 's/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/' "${target_config}"
-        else
-            printf 'IoTDB_DIALECT_MODE=table\n' >> "${target_config}"
-        fi
+        apply_benchmark_overrides "${BM_PATH}" "IoTDB_DIALECT_MODE=table"
     fi
 }
 

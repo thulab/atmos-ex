@@ -79,7 +79,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	fi
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
 	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
+	install_iotdb_runtime_config
 }
 # 功能：按当前测试场景修改 IoTDB 配置
 modify_iotdb_config() { # iotdb调整内存，关闭合并
@@ -120,16 +120,6 @@ backup_test_data() { # 备份测试数据
 
 	case_id="$(backup_build_case_id protocol "${protocol_class}" suite "$1")"
 	backup_standard_case "${case_id}"
-}
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() { # 移动配置文件
-	local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2"
-	local config_target="${BM_PATH}/conf/config.properties"
-
-	install_benchmark_config "${config_source}" "${config_target}"
-	if [ "$3" = "table" ]; then
-		sed -i "s/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/g" "${config_target}"
-	fi
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
@@ -209,7 +199,10 @@ test_operation_impl() {
 					fi
 					
 					#启动写入程序
-					mv_config_file ${sensor_type_list[${s}]} ${query_list[${i}]} ${data_mode[${d}]}
+					install_benchmark_case_config "$(config_build_case_id scope "${sensor_type_list[${s}]}" workload query query "${query_list[${i}]}")"
+					if [ "${data_mode[${d}]}" = "table" ]; then
+						apply_benchmark_overrides "${BM_PATH}" "IoTDB_DIALECT_MODE=table"
+					fi
 					for (( m = 1; m <= 2; m++ ))
 					do
 						ts_type=${data_mode[${d}]}

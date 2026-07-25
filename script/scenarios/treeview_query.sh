@@ -112,23 +112,6 @@ sql_maybe_quote() {
     fi
 }
 
-# 功能：输出当前配置对应的候选值列表
-emit_query_name_candidates() {
-    local current_name="$1"
-    local alternate_name=""
-
-    printf '%s\n' "${current_name}"
-    if [[ "${current_name}" =~ ^(Q[0-9]+)-([ab])([0-9]+)$ ]]; then
-        alternate_name="${BASH_REMATCH[1]}${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
-    elif [[ "${current_name}" =~ ^(Q[0-9]+)([ab])-([0-9]+)$ ]]; then
-        alternate_name="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
-    fi
-
-    if [ -n "${alternate_name}" ] && [ "${alternate_name}" != "${current_name}" ]; then
-        printf '%s\n' "${alternate_name}"
-    fi
-}
-
 # 功能：规范化输入值以便后续比较或存储
 normalize_query_name() {
     local current_name="$1"
@@ -139,29 +122,6 @@ normalize_query_name() {
     fi
 
     printf '%s\n' "${current_name}"
-}
-
-# 功能：根据候选路径或配置解析最终使用值
-resolve_config_from_roots() {
-    local config_name="$1"
-    shift
-    local root=""
-    local candidate_name=""
-    local candidate_path=""
-
-    for root in "$@"; do
-        [ -n "${root}" ] || continue
-        while IFS= read -r candidate_name; do
-            [ -n "${candidate_name}" ] || continue
-            candidate_path="${root}/${candidate_name}"
-            if [ -f "${candidate_path}" ]; then
-                printf '%s\n' "${candidate_path}"
-                return 0
-            fi
-        done < <(emit_query_name_candidates "${config_name}")
-    done
-
-    return 1
 }
 
 # 功能：根据当前配置构造路径、表达式或参数
@@ -210,14 +170,6 @@ init_items() {
 validate_query_settings() {
     [[ "${QUERY_REPEAT_COUNT}" =~ ^[1-9][0-9]*$ ]] || die "QUERY_REPEAT_COUNT must be a positive integer"
     [ "${#QUERY_LIST[@]}" -eq "${#QUERY_RESULT_LABELS[@]}" ] || die "QUERY_LIST and QUERY_RESULT_LABELS length mismatch"
-}
-
-# 功能：复制当前测试所需的配置、数据或运行文件
-copy_benchmark_config() {
-    local config_source="$1"
-    local config_target="${BM_PATH}/conf/config.properties"
-
-    install_benchmark_config "${config_source}" "${config_target}"
 }
 
 # 功能：更新 Benchmark 配置属性；不存在时追加
@@ -329,22 +281,6 @@ resolve_query_dataset_source() {
     printf '%s/%s/%s/data\n' "${dataset_root}" "${protocol_code}" "${base_suite}"
 }
 
-# 功能：根据候选路径或配置解析最终使用值
-resolve_query_config_source() {
-    local current_suite_type="$1"
-    local current_query="$2"
-    local current_sensor_type="${3:-}"
-    local config_suite=""
-    local config_root=""
-    local resolved_path=""
-
-    config_suite="$(treeview_config_suite "${current_suite_type}")"
-    config_root="${ATMOS_PATH}/conf/${TEST_TYPE}/query/${config_suite}"
-    resolved_path="$(resolve_config_from_roots "${current_query}" "${config_root}")" || \
-        die "missing treeview benchmark config: ${current_query} (suite=${current_suite_type}, sensor=${current_sensor_type:-default})"
-    printf '%s\n' "${resolved_path}"
-}
-
 # 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_query_context() {
     local current_suite_type="$1"
@@ -411,14 +347,15 @@ prepare_tree_to_table_view() {
     treeview_cli_sql "SELECT count(s_0) FROM ${view_name} WHERE device_id = 'd_0'" >/dev/null || return 1
 }
 
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() {
+# 功能：安装当前 TreeView 查询 case 的 Benchmark 配置
+install_treeview_query_config() {
     local current_suite_type="$1"
     local current_query="$2"
-    local current_sensor_type="${3:-}"
+    local config_suite=""
 
     prepare_tree_to_table_view "${current_suite_type}" || die "failed to prepare Tree-to-Table view for ${current_suite_type}"
-    copy_benchmark_config "$(resolve_query_config_source "${current_suite_type}" "${current_query}" "${current_sensor_type}")"
+    config_suite="$(treeview_config_suite "${current_suite_type}")"
+    install_benchmark_case_config "$(config_build_case_id data "${config_suite}" workload query query "${current_query}")"
     append_tablemode_config_if_needed
 }
 
@@ -590,7 +527,7 @@ test_operation_impl() {
                     continue
                 fi
 
-                mv_config_file "${current_suite_type}" "${current_query}" "${current_sensor_type}"
+                install_treeview_query_config "${current_suite_type}" "${current_query}"
                 sleep 3
 
                 for ((current_repeat = 1; current_repeat <= QUERY_REPEAT_COUNT; current_repeat++)); do

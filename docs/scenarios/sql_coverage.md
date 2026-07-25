@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-检查 IoTDB 待测包、`iotdb-sql` 工具、testcase 仓库、JDK/编译脚本、`/data/nginx` UDF 依赖目录和 `conf/sql_coverage/license`。确认工具目录可被覆盖，测试账号可创建 UDF/数据库，设置 `ATMOS_DB_PASSWORD`。
+检查 IoTDB 待测包、`iotdb-sql` 工具、testcase 仓库、JDK/编译脚本、`/data/nginx` UDF 依赖目录和 `conf/sql_coverage/iotdb/activation/license`。确认工具目录可被覆盖，测试账号可创建 UDF/数据库，设置 `ATMOS_DB_PASSWORD`。
 
 ## 3. 启动步骤
 

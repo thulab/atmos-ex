@@ -8,7 +8,7 @@
 
 ## 2. 运行前准备
 
-完成[通用准备](common-operations.md#3-运行前步骤)，检查 `conf/delete_test/env`、`write_first.properties`、`write_second.properties` 和 license；确认默认或覆盖后的测试 IP、IoTDB/Benchmark/归档路径，测试账号可执行删除 SQL，Prometheus target 可用。
+完成[通用准备](common-operations.md#3-运行前步骤)，检查 `conf/delete_test/iotdb/env/.env`、`benchmark/cases/workload=write__phase=first.properties`、`benchmark/cases/workload=write__phase=second.properties` 和 license；确认默认或覆盖后的测试 IP、IoTDB/Benchmark/归档路径，测试账号可执行删除 SQL，Prometheus target 可用。
 
 ## 3. 启动步骤
 

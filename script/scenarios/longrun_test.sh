@@ -308,8 +308,7 @@ set_env() {
     safe_rm "${TEST_IOTDB_PATH}"
     mkdir -p "${TEST_IOTDB_PATH}/activation"
     cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
+    install_iotdb_runtime_config
     mkdir -p "${IOTDB_HDD_DATA_DIR}" "${IOTDB_SSD_DATA_DIR}" "${IOTDB_CONF_DIR}"
 }
 
@@ -798,21 +797,12 @@ set_longrun_ttl() {
     return "${failed}"
 }
 
-# 功能：复制当前测试所需的配置、数据或运行文件
-copy_benchmark_config() {
-    local source_config="$1"
-    local target_benchmark_path="$2"
-    local target_config="${target_benchmark_path}/conf/config.properties"
-
-    install_benchmark_config "${source_config}" "${target_config}"
-}
-
 # 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_configs() {
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/aligned" "${BM_PATH_TREE}"
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode" "${BM_PATH_TABLE}"
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/aligned_query" "${BM_PATH_TREE_QUERY}"
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/tablemode_query" "${BM_PATH_TABLE_QUERY}"
+    install_benchmark_case_config "$(config_build_case_id model aligned workload insert)" "${BM_PATH_TREE}"
+    install_benchmark_case_config "$(config_build_case_id model tablemode workload insert)" "${BM_PATH_TABLE}"
+    install_benchmark_case_config "$(config_build_case_id model aligned workload query)" "${BM_PATH_TREE_QUERY}"
+    install_benchmark_case_config "$(config_build_case_id model tablemode workload query)" "${BM_PATH_TABLE_QUERY}"
 }
 
 # 功能：清理指定 Benchmark 实例的日志和输出数据

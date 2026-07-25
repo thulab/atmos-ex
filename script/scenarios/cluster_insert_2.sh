@@ -121,8 +121,8 @@ test_operation_impl() {
 		return
 	fi
 	
-	mv_config_file ${ts_type} ${data_type}
-	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
+	install_benchmark_case_config "$(config_build_case_id model "${ts_type}" data "${data_type}")"
+	apply_benchmark_overrides "${BM_PATH}" "HOST=${D_IP_list[1]}"
 	setup_nCmD -c3 -d5 -t1
 		
 	log "测试开始！"

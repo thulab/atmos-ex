@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-完成[通用运行前步骤](common-operations.md#3-运行前步骤)，确认 `conf/se_insert/<ts_type>_SESSION_BY_TABLET`、`conf/se_insert/license`、IoT-Benchmark 和 `11.101.17.116:9091` 指标完整。
+完成[通用运行前步骤](common-operations.md#3-运行前步骤)，确认 `conf/se_insert/benchmark/cases/model=<ts_type>__api=SESSION_BY_TABLET.properties`、`conf/se_insert/iotdb/activation/license`、IoT-Benchmark 和 `11.101.17.116:9091` 指标完整。
 
 ## 3. 启动步骤
 

@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-完成[通用运行前步骤](common-operations.md#3-运行前步骤)，检查 `conf/api_insert_cts/tempaligned_<API>`、`conf/api_insert_cts/license`、IoT-Benchmark 及 `11.101.17.143:9091` 指标。该场景没有 `SESSION_BY_TABLET_TABLE`，验收时不要按 5 行计算。
+完成[通用运行前步骤](common-operations.md#3-运行前步骤)，检查 `conf/api_insert_cts/benchmark/cases/model=tempaligned__api=<API>.properties`、`conf/api_insert_cts/iotdb/activation/license`、IoT-Benchmark 及 `11.101.17.143:9091` 指标。该场景没有 `SESSION_BY_TABLET_TABLE`，验收时不要按 5 行计算。
 
 ## 3. 启动步骤
 

@@ -165,6 +165,7 @@ setup_env_linux() {
 	sleep 120
 	for (( i = 1; i < ${#IP_list[*]}; i++ ))
 	do
+		if [ "${i}" -eq 1 ]; then node_role=source; else node_role=target; fi
 		log "开始部署${IP_list[$i]}！"
 		TEST_IP=${IP_list[$i]}
 		log "setting env to ${TEST_IP} ..."
@@ -177,12 +178,11 @@ setup_env_linux() {
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_internal_address" "${TEST_IP}"
 		set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "cn_seed_config_node" "${config_node_config_nodes[$i]}"
 		#准备配置文件和license
-		mv_config_file ${ts_type} ${TEST_IP}
-		#sed -i "s/^HOST=.*$/HOST=${TEST_IP}/g" ${TEST_BM_PATH}/conf/config.properties
+		install_benchmark_case_config "$(config_build_case_id model "${ts_type}" node "${node_role}")" "${TEST_BM_PATH}"
+		apply_benchmark_overrides "${TEST_BM_PATH}" "HOST=${TEST_IP}"
 		rm -rf -- "${TEST_INIT_PATH}/apache-iotdb/activation"
 		mkdir -p ${TEST_INIT_PATH}/apache-iotdb/activation
-		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/activation/license
-		cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env_${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/.env
+		install_iotdb_node_runtime_config "${node_role}" "${TEST_IOTDB_PATH}"
 		#复制三项到客户机
 		remote_copy_contents "${TEST_INIT_PATH}" "${TEST_IP}" "${TEST_INIT_PATH}"
 		#scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/  > /dev/null 2>&1 &
@@ -446,11 +446,6 @@ backup_test_data() { # 备份测试数据
 	done
 	backup_add benchmark "${TEST_BM_PATH}/TestResult" test-result optional
 	backup_finish_case completed
-}
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() { # 移动配置文件
-	rm -rf -- "${TEST_BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${TEST_BM_PATH}/conf/config.properties
 }
 # 功能：清理超过保留期限的历史测试文件
 clear_expired_file() { # 清理超过七天的文件

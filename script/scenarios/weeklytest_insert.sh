@@ -69,8 +69,7 @@ set_env() {
     [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
     mkdir -p ${TEST_IOTDB_PATH}/activation
     cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-    cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_IOTDB_PATH}/activation/
-    cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/env ${TEST_IOTDB_PATH}/.env
+    install_iotdb_runtime_config
 }
 
 # 功能：按当前测试场景修改 IoTDB 配置
@@ -131,11 +130,6 @@ backup_test_data() {
     backup_standard_case "${case_id}"
 }
 
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() {
-    install_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/$1"
-}
-
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
     run_isolated_case test_operation_impl "$@"
@@ -174,7 +168,11 @@ test_operation_impl() {
         return
     fi
 	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
-    mv_config_file ${ts_type}
+    if [[ "${ts_type}" = tablemode_* ]]; then
+        install_benchmark_case_config "$(config_build_case_id model tablemode data "${ts_type#tablemode_}")"
+    else
+        install_benchmark_case_config "$(config_build_case_id model common data "${ts_type}")"
+    fi
     start_benchmark
     start_time=$(current_datetime)
     m_start_time=$(date +%s)

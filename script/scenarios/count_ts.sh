@@ -266,17 +266,6 @@ run_show_cost() {
 	printf '%s\n' "$((end_epoch - start_epoch))"
 }
 
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() {
-	local current_ts_type="$1"
-	local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}"
-	local config_target="${BM_PATH}/conf/config.properties"
-
-	[ -f "${config_source}" ] || die "missing benchmark config: ${config_source}"
-	safe_rm "${config_target}"
-	cp -rf "${config_source}" "${config_target}"
-}
-
 # 功能：采集当前测试窗口内的资源和文件指标
 collect_monitor_data() {
 	local datanode_error_log_file="${TEST_IOTDB_PATH}/logs/log_datanode_error.log"
@@ -384,7 +373,7 @@ backup_test_data() {
 run_schema_benchmark() {
 	local current_ts_type="$1"
 
-	mv_config_file "${current_ts_type}"
+	install_benchmark_case_config "$(config_build_case_id model "${current_ts_type}")"
 	log "create ${current_ts_type} timeseries"
 	start_benchmark
 	sleep "${BENCHMARK_WARMUP_SECONDS}"

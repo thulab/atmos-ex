@@ -101,9 +101,8 @@ maxDiskIOSizeWrite=0
 IOTDB_READY_USER="${IOTDB_READY_USER:-}"
 IOTDB_READY_PASSWORD="${IOTDB_READY_PASSWORD:-}"
 
-readonly DELETE_CONF_DIR="${ATMOS_PATH}/conf/${TEST_TYPE}"
-readonly WRITE_FIRST_CONFIG="${DELETE_CONF_DIR}/write_first.properties"
-readonly WRITE_SECOND_CONFIG="${DELETE_CONF_DIR}/write_second.properties"
+readonly WRITE_FIRST_CONFIG_PHASE="first"
+readonly WRITE_SECOND_CONFIG_PHASE="second"
 
 readonly CLI_HOST="127.0.0.1"
 readonly CLI_PORT="6667"
@@ -558,14 +557,6 @@ collect_monitor_data() {
     collect_resource_monitor_data "${ip}" "${disk_id_regex}" "${m_start_time}" "${m_end_time}"
 }
 
-# 功能：复制当前测试所需的配置、数据或运行文件
-copy_benchmark_config() {
-    local config_source="$1"
-    local config_target="${BM_PATH}/conf/config.properties"
-
-    install_benchmark_config "${config_source}" "${config_target}"
-}
-
 # 功能：检测并设置 IoTDB root 用户密码
 change_root_password() {
     if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
@@ -645,9 +636,7 @@ current_epoch_ms() {
 # 功能：准备当前测试所需的本地安装目录与运行环境
 set_env() {
     local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-    local delete_conf_path="${ATMOS_PATH}/conf/${TEST_TYPE}"
-    local license_file="${delete_conf_path}/license"
-    local env_file="${delete_conf_path}/env"
+    local license_file="$(scenario_config_root)/iotdb/activation/license"
 
     if [ ! -d "${source_path}" ]; then
         append_remark "missing test version path: ${source_path}"
@@ -657,24 +646,18 @@ set_env() {
     safe_rm "${TEST_IOTDB_PATH}"
     mkdir -p "${TEST_IOTDB_PATH}/activation"
     cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
-    cp -rf "${license_file}" "${TEST_IOTDB_PATH}/activation/"
     if [ -f "${license_file}" ]; then
         cp -rf "${license_file}" "${TEST_IOTDB_PATH}/license"
     else
         log "missing delete_test license, skip license copy: ${license_file}"
     fi
-    if [ -f "${env_file}" ]; then
-        cp -rf "${env_file}" "${TEST_IOTDB_PATH}/.env"
-    else
-        log "missing delete_test env, skip .env copy: ${env_file}"
-    fi
+    install_iotdb_runtime_config
 }
 
 # 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_config() {
-    local phase_config="$1"
-
-    copy_benchmark_config "${phase_config}"
+    local phase="$1"
+    install_benchmark_case_config "$(config_build_case_id workload write phase "${phase}")"
 }
 
 # 功能：执行指定测试阶段或外部工具命令
@@ -1133,9 +1116,9 @@ test_operation_impl() {
         return 1
     fi
 
-    run_benchmark_write "delete first write" "${WRITE_FIRST_CONFIG}" || true
+    run_benchmark_write "delete first write" "${WRITE_FIRST_CONFIG_PHASE}" || true
     execute_sql "flush after first write" "flush"
-    run_benchmark_write "delete second write" "${WRITE_SECOND_CONFIG}" || true
+    run_benchmark_write "delete second write" "${WRITE_SECOND_CONFIG_PHASE}" || true
     execute_sql "flush after second write" "flush"
     collect_file_stats_after_write
 

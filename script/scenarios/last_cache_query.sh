@@ -37,29 +37,18 @@ enable_last_cache() {
     printf 'enable_last_cache=true\n' >> "${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
 }
 
-# 功能：复制当前测试所需的配置、数据或运行文件
-copy_benchmark_config() {
-    local source_config="$1"
-    local target_benchmark_path="$2"
-    local target_config="${target_benchmark_path}/conf/config.properties"
-
-    install_benchmark_config "${source_config}" "${target_config}"
-}
-
 # 功能：生成或修改当前测试步骤所需的配置
 configure_background_benchmark() {
     local current_ts_type="$1"
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}" "${BM_PATH}"
+    install_benchmark_case_config "$(config_build_case_id model "${current_ts_type}" workload insert)" "${BM_PATH}"
 }
 
 # 功能：生成或修改当前测试步骤所需的配置
 configure_query_benchmark() {
     local current_ts_type="$1"
-    local target_config="${QUERY_BM_PATH}/conf/config.properties"
-
-    copy_benchmark_config "${ATMOS_PATH}/conf/${TEST_TYPE}/Q8" "${QUERY_BM_PATH}"
+    install_benchmark_case_config "$(config_build_case_id workload query query Q8)" "${QUERY_BM_PATH}"
     if [ "${current_ts_type}" = "tablemode" ]; then
-        sed -i 's/^IoTDB_DIALECT_MODE=.*$/IoTDB_DIALECT_MODE=table/' "${target_config}"
+        apply_benchmark_overrides "${QUERY_BM_PATH}" "IoTDB_DIALECT_MODE=table"
     fi
 }
 

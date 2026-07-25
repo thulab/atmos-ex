@@ -40,6 +40,13 @@ readonly -a API_LIST=(
     max_cross_compaction_candidate_file_size_21474836480
 )
 
+# 功能：生成配置写入场景 Benchmark 配置的统一 case 标识
+insert_benchmark_case_id() {
+    local current_ts_type="$1"
+    local current_api_type="$2"
+    config_build_case_id model "${current_ts_type}" variant "${current_api_type}"
+}
+
 # 功能：返回指定配置测试编号对应的配置项名称
 config_case_name() {
     local case_id="$1"

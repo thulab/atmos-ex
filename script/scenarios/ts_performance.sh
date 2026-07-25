@@ -140,7 +140,7 @@ create_tablemode_schema() {
 	run_iotdb_cli -sql_dialect table -e "create database test_g_0" >/dev/null 2>&1 || true
 	"${TEST_IOTDB_PATH}/tools/schema/import-schema.sh" \
 		-sql_dialect table \
-		-s "${ATMOS_PATH}/conf/${TEST_TYPE}/metadata/dump_test_g_0.sql" \
+		-s "${ATMOS_PATH}/conf/${TEST_TYPE}/assets/metadata/dump_test_g_0.sql" \
 		-db test_g_0 >/dev/null 2>&1 || true
 }
 

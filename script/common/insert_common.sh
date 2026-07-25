@@ -299,21 +299,16 @@ backup_test_data() {
     backup_standard_case "${case_id}"
 }
 
-# -------------------- 公共默认配置文件切换函数；特定脚本可覆盖 --------------------
-# 默认按 conf/${TEST_TYPE}/${ts_type}_${api_type} 选择 Benchmark 配置。
-# insert_records.sh 会覆盖 mv_config_file，以支持 common_seq_w/common_unseq_w 等拆分目录。
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() {
-    local protocol_code="$1"
-    local current_ts_type="$2"
-    local current_api_type="$3"
-    local config_source="${ATMOS_PATH}/conf/${TEST_TYPE}/${current_ts_type}_${current_api_type}"
-    local config_target="${BM_PATH}/conf/config.properties"
-
-    install_benchmark_config "${config_source}" "${config_target}"
-}
-
 # -------------------- 公共结果解析和入库函数 --------------------
+# 功能：生成写入场景 Benchmark 配置的统一 case 标识；特定场景可覆盖
+if ! declare -F insert_benchmark_case_id >/dev/null 2>&1; then
+    insert_benchmark_case_id() {
+        local current_ts_type="$1"
+        local current_api_type="$2"
+        config_build_case_id model "${current_ts_type}" api "${current_api_type}"
+    }
+fi
+
 # parse_benchmark_result 解析通用 INGESTION 结果。
 # insert_result_row 是默认入库实现；config_insert 可实现 insert_custom_result_row hook 改写入库字段。
 # last_cache_query.sh 会在 source 后覆盖 insert_result_row，写入查询类的 last cache 结果字段。
@@ -504,7 +499,7 @@ test_operation_impl() {
         return 1
     fi
 
-    mv_config_file "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+    install_benchmark_case_config "$(insert_benchmark_case_id "${current_ts_type}" "${current_api_type}")"
     start_benchmark
     start_time="$(current_datetime)"
     m_start_time="$(date +%s)"

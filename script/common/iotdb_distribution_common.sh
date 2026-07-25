@@ -7,10 +7,7 @@ prepare_iotdb_distribution() {
     safe_rm "${TEST_IOTDB_PATH}"
     mkdir -p "${TEST_IOTDB_PATH}/activation"
     cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
-    copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/license" "${TEST_IOTDB_PATH}/activation/" "license"
-    if [ "${COPY_IOTDB_ENV:-0}" = "1" ]; then
-        copy_if_exists "${ATMOS_PATH}/conf/${TEST_TYPE}/env" "${TEST_IOTDB_PATH}/.env" "env"
-    fi
+    install_iotdb_runtime_config "${COPY_IOTDB_ENV:-0}"
     if declare -F after_prepare_iotdb_distribution >/dev/null 2>&1; then
         after_prepare_iotdb_distribution
     fi

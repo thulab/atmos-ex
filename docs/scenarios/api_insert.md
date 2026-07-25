@@ -10,7 +10,7 @@
 
 1. 完成[通用运行前步骤](common-operations.md#3-运行前步骤)，确认主机 IP 为 `11.101.17.225`。
 2. 检查五个配置：`conf/api_insert/tempaligned_<API>`。
-3. 检查 `conf/api_insert/license`、待测安装包和 `/nasdata/repository/iot-benchmark`。
+3. 检查 `conf/api_insert/iotdb/activation/license`、`conf/api_insert/benchmark/cases/`、待测安装包和 `/nasdata/repository/iot-benchmark`。
 4. 确认结果表、任务表及 Prometheus 的 `11.101.17.225:9091` target 可用。
 
 ## 3. 启动步骤

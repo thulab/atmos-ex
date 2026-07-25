@@ -26,8 +26,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=script/common/insert_common.sh
 source "${SCRIPT_DIR}/../common/insert_common.sh"
 
-# 功能：构造并写入当前场景的结果记录
-insert_records_config_path() {
+# 功能：拆分 Insert Records 场景的模型和数据模式
+split_insert_records_type() {
     local current_ts_type="$1"
     local base_ts_type=""
     local insert_mode=""
@@ -46,22 +46,19 @@ insert_records_config_path() {
             ;;
     esac
 
-    printf '%s/%s/%s\n' "${ATMOS_PATH}/conf/${TEST_TYPE}" "${base_ts_type}" "${insert_mode}"
+    printf '%s %s\n' "${base_ts_type}" "${insert_mode}"
 }
 
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() {
-    local current_ts_type="$2"
-    local current_api_type="$3"
-    local config_source=""
-    local config_target="${BM_PATH}/conf/config.properties"
+# 功能：生成 Insert Records 场景 Benchmark 配置的统一 case 标识
+insert_benchmark_case_id() {
+    local current_ts_type="$1"
+    local current_api_type="$2"
+    local base_ts_type=""
+    local insert_mode=""
 
     [ "${current_api_type}" = "SESSION_BY_RECORDS" ] || die "unsupported insert_records api type: ${current_api_type}"
-    config_source="$(insert_records_config_path "${current_ts_type}")" || die "unsupported insert_records ts type: ${current_ts_type}"
-
-    [ -f "${config_source}" ] || die "missing benchmark config file: ${config_source}"
-    safe_rm "${config_target}"
-    cp -rf -- "${config_source}" "${config_target}"
+    read -r base_ts_type insert_mode < <(split_insert_records_type "${current_ts_type}") || return 1
+    config_build_case_id model "${base_ts_type}" data "${insert_mode}"
 }
 
 # 功能：归档测试日志、配置、数据或结果文件

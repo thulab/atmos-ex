@@ -17,7 +17,7 @@
 
 ## 3. 可扩展点
 
-- 覆盖 `mv_config_file/backup_test_data/insert_result_row` 改变配置、归档和结果表结构。
+- 覆盖 `insert_benchmark_case_id/backup_test_data/insert_result_row` 改变 Case 维度、归档和结果表结构。
 - 定义 `modify_iotdb_config_for_case(protocol,ts,api)` 追加 case 配置。
 - 定义 `insert_custom_result_row` 时替代标准入库。
 - 定义 `check_custom_throughput_monitor` 时替代标准吞吐控制限。

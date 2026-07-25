@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-完成[通用准备](common-operations.md#3-运行前步骤)，检查四类 Benchmark 配置、`conf/count_ts/license`、IoT-Benchmark 和 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/` 空间。该场景会创建大量元数据，需重点确认堆内存、元数据盘和打开文件限制。
+完成[通用准备](common-operations.md#3-运行前步骤)，检查 `conf/count_ts/benchmark/cases/` 下四类 Benchmark 配置、`conf/count_ts/iotdb/activation/license`、IoT-Benchmark 和 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/` 空间。该场景会创建大量元数据，需重点确认堆内存、元数据盘和打开文件限制。
 
 ## 3. 启动步骤
 

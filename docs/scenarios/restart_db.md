@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-完成[通用准备](common-operations.md#3-运行前步骤)，确认 `/data/atmos/DataSet/211/sequence/common` 的实际数据结构、`conf/restart_db/license` 和归档空间。确保数据与待测版本兼容，机器上无其他 IoTDB 实例。
+完成[通用准备](common-operations.md#3-运行前步骤)，确认 `/data/atmos/DataSet/211/sequence/common` 的实际数据结构、`conf/restart_db/iotdb/activation/license` 和归档空间。确保数据与待测版本兼容，机器上无其他 IoTDB 实例。
 
 ## 3. 启动步骤
 

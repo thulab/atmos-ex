@@ -128,7 +128,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 	
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_PATH}/CN/apache-iotdb/
 	mkdir -p ${TEST_PATH}/CN/apache-iotdb/activation
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/license ${TEST_PATH}/CN/apache-iotdb/activation/
+	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/iotdb/activation/license ${TEST_PATH}/CN/apache-iotdb/activation/
 	
 	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_PATH}/DN/apache-iotdb/
 }
@@ -410,11 +410,6 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 	maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 	maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${TEST_IP}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 }
-# 功能：选择并安装当前用例对应的配置文件
-mv_config_file() { # 移动配置文件
-	rm -rf -- "${BM_PATH}/conf/config.properties"
-	cp -rf ${ATMOS_PATH}/conf/${TEST_TYPE}/$1/$2 ${BM_PATH}/conf/config.properties
-}
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
 	run_isolated_case test_operation_impl "$@"
@@ -446,8 +441,8 @@ test_operation_impl() {
 		return
 	fi
 	
-	mv_config_file ${ts_type} ${data_type}
-	sed -i "s/^HOST=.*$/HOST=${D_IP_list[1]}/g" ${BM_PATH}/conf/config.properties
+	install_benchmark_case_config "$(config_build_case_id model "${ts_type}" data "${data_type}")"
+	apply_benchmark_overrides "${BM_PATH}" "HOST=${D_IP_list[1]}"
 	setup_nCmD -c3 -d3 -t1	
 	log "测试开始！"
 	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`

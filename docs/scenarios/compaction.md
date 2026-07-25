@@ -135,7 +135,7 @@ find /data/atmos/DataSet/211/aligned/data -name '*.tsfile' | head
 确认仓库内存在场景许可证：
 
 ```bash
-test -f /data/atmos/zk_test/atmos-ex/conf/compaction/license
+test -f /data/atmos/zk_test/atmos-ex/conf/compaction/iotdb/activation/license
 ```
 
 脚本会将其复制到 IoTDB 的 `activation/` 目录。再检查 Prometheus 可访问且能够查询测试机指标：
