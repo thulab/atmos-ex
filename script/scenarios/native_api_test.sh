@@ -219,8 +219,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Java原生接口测试报告"
-      		mkdir -p /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
-      		cp -rf  ${TEST_JAVA_TOOL_PATH}/details/target/site /data/qa/backup/java/${last_cid_iotdb}_${failures_num}
+			backup_api_failure java "${last_cid_iotdb}" "${failures_num}" "${TEST_JAVA_TOOL_PATH}/details/target/site"
 			return 1
 		fi
 	else
@@ -242,9 +241,6 @@ EOF
 	rm -rf -- "${BK_PATH:?}/java/"*
 	cp -rf ${TEST_JAVA_TOOL_PATH}/details/target/site ${BK_PATH}/java
 	#if [ $failures_num -gt 0 ]; then
-	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	#cd ${BK_PATH}/java
 	#git add .
 	#git commit -m ${last_cid_iotdb}_${failures_num}
@@ -353,8 +349,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Cpp原生接口测试报告"
-      		mkdir -p /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}
-      		cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json /data/qa/backup/cpp/${last_cid_iotdb}_${failures_num}/
+			backup_api_failure cpp "${last_cid_iotdb}" "${failures_num}" "${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json"
 			return 1
 		fi
 	else
@@ -375,9 +370,6 @@ EOF
 	#backup_test_data
 	rm -rf -- "${BK_PATH:?}/cpp/"*
 	cp -f ${TEST_CPP_TOOL_PATH}/build/test/cpp_session_test_report.json ${BK_PATH}/cpp/
-	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	#cd ${BK_PATH}/cpp
 	#git add .
 	#git commit -m ${last_cid_iotdb}_${failures_num}
@@ -469,8 +461,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份C原生接口测试报告"
-			mkdir -p /data/qa/backup/c/${last_cid_iotdb}_${failures_num}
-			cp -rf ${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json /data/qa/backup/c/${last_cid_iotdb}_${failures_num}/
+			backup_api_failure c "${last_cid_iotdb}" "${failures_num}" "${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json"
 			return 1
 		fi
 	else
@@ -489,9 +480,6 @@ EOF
 	rm -rf -- "${BK_PATH:?}/c/"*
 	mkdir -p ${BK_PATH}/c
 	cp -f ${TEST_C_TOOL_PATH}/build/test/c_session_test_report.json ${BK_PATH}/c/
-	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 }
 # 功能：执行指定语言、接口或测试场景
 test_python_native_api_test() { # 测试Python原生接口
@@ -619,8 +607,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Python原生接口测试报告"
-      		mkdir -p /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
-      		cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_iotdb}_${failures_num}
+			backup_api_failure python "${last_cid_iotdb}" "${failures_num}" "${TEST_PYTHON_TOOL_PATH}/reports"
 			return 1
 		fi
 	else
@@ -641,9 +628,6 @@ EOF
 	#backup_test_data
 	rm -rf -- "${BK_PATH:?}/python/"*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
-	mkdir -p /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	cp -rf  ${TEST_IOTDB_PATH}/logs /data/qa/backup/${last_cid_iotdb}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 	cd ${BK_PATH}/python
 	#git add .
 	#git commit -m ${last_cid_iotdb}_${failures_num}

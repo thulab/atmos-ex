@@ -6,7 +6,7 @@
 
 ## 2. 使用前准备
 
-调用方通常必须定义 `INIT_PATH`、`TEST_INIT_PATH`、`TEST_IOTDB_PATH`、`BACKUP_PATH`、`TEST_TYPE` 及数据库变量。`check_password` 要求 `MYSQL_PASSWORD` 非空；`ensure_runtime_dependencies` 会检查完整命令集。
+调用方通常必须定义 `INIT_PATH`、`TEST_INIT_PATH`、`TEST_IOTDB_PATH`、`BACKUP_ROOT`、`TEST_TYPE` 及数据库变量。`check_password` 要求 `MYSQL_PASSWORD` 非空；`ensure_runtime_dependencies` 会检查完整命令集。
 
 ## 3. 主要函数
 

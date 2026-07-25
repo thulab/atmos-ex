@@ -27,7 +27,6 @@ readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
 readonly BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
 readonly DATA_PATH="${DATA_PATH:-/data/atmos/DataSet}"
-readonly BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/${TEST_TYPE}}"
 readonly REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 
@@ -493,21 +492,10 @@ save_query_logs() {
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local current_ts_type="$1"
-    local backup_parent="${BACKUP_PATH}/${current_ts_type}"
-    local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}"
+    local case_id=""
 
-    sudo_safe_rm "${backup_dir}"
-    path_is_safe "${backup_parent}" || die "refuse unexpected backup path: ${backup_parent}"
-    sudo mkdir -p -- "${backup_parent}"
-    path_is_safe "${backup_dir}" || die "refuse unexpected backup path: ${backup_dir}"
-    sudo mkdir -p -- "${backup_dir}"
-
-    sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-    path_is_safe "${TEST_IOTDB_PATH}" || die "refuse unexpected IoTDB path: ${TEST_IOTDB_PATH}"
-    sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-    if [ -d "${BM_PATH}/data/csvOutput" ]; then
-        sudo cp -rf -- "${BM_PATH}/data/csvOutput" "${backup_dir}"
-    fi
+    case_id="$(backup_build_case_id data "${QUERY_DATA_TYPE}" model "${current_ts_type}")"
+    backup_standard_case "${case_id}"
 }
 
 # -------------------- 公共查询 case 执行流程 --------------------

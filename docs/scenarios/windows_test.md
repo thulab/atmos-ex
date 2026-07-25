@@ -20,4 +20,4 @@ bash script/scenarios/windows_test.sh 2>&1 | tee /data/atmos/zk_test/log_windows
 
 ## 4. 自动流程与验收
 
-脚本准备 Windows 安装包、通过远端任务启动 IoTDB，在 Linux 控制端运行 Benchmark；四种写入均入库，顺序和乱序纯写模式继续跑查询，并把本地 Benchmark 与远端 IoTDB 日志归档到 `/nasdata/repository/windows_test`。验收除性能字段外，必须检查远端任务返回、Windows 路径、日志 SCP 和查询子项；Linux 上 `jps` 正常不能证明 Windows IoTDB 正常。
+脚本准备 Windows 安装包、通过远端任务启动 IoTDB，在 Linux 控制端运行 Benchmark；四种写入均入库，顺序和乱序纯写模式继续跑查询，并把本地 Benchmark 与远端 IoTDB 日志归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。验收除性能字段外，必须检查远端任务返回、Windows 路径、日志 SCP 和查询子项；Linux 上 `jps` 正常不能证明 Windows IoTDB 正常。

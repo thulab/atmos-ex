@@ -11,7 +11,6 @@ TEST_TYPE="${TEST_TYPE:-pipe_test}"
 INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/pipe_test}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_INIT_PATH="${TEST_INIT_PATH:-${INIT_PATH}/first-rest-test}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -436,16 +435,17 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	local case_id=""
+	case_id="$(backup_build_case_id protocol "${protocol_class}" model "$1" workload pipe)"
+	backup_begin_case "${case_id}" || return 1
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		remote_safe_rm "${TEST_IP}" "${TEST_IOTDB_PATH}/data"
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH}/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH}/conf" iotdb-conf optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH}/logs" iotdb-logs optional
 	done
-	sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	backup_add benchmark "${TEST_BM_PATH}/TestResult" test-result optional
+	backup_finish_case completed
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件

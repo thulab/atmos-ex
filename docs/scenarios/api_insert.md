@@ -4,7 +4,7 @@
 
 `api_insert.sh` 在专用机 `11.101.17.225` 上使用 IoT-Benchmark 测试 `tempaligned` 数据的五种写入接口：`SESSION_BY_TABLET_TABLE`、`SESSION_BY_TABLET`、`SESSION_BY_RECORDS`、`SESSION_BY_RECORD`、`JDBC`。默认协议为 `223`，共执行 5 个 case，结果写入 `ex_api_insert` 或 `ex_api_insert_T`。
 
-> 脚本复用 `insert_common.sh`，每个 case 都会清理进程和 `/data/atmos/apache-iotdb`，归档前删除测试数据并移动整个 IoTDB 目录。
+> 脚本复用 `insert_common.sh`，每个 case 都会清理进程和 `/data/atmos/apache-iotdb`，并按统一 minimal 级别归档配置、日志和 Benchmark 产物。
 
 ## 2. 运行前准备
 
@@ -27,7 +27,7 @@ bash script/scenarios/api_insert.sh 2>&1 | tee /data/atmos/zk_test/log_api_inser
 2. 对每个 API 复制全新 IoTDB，应用协议 `223`、指标和 Benchmark 配置。
 3. 启动 IoTDB、修改 root 密码、启动 Benchmark，预热 60 秒并等待 CSV，最长 7200 秒。
 4. 执行 `flush`，解析 `INGESTION` 的吞吐与延迟，采集进程和 Prometheus 指标并入库。
-5. 停止进程，将结果归档到 `/nasdata/repository/api_insert/tempaligned_<API>/<commit_date_time>_<commit_id>_223/`。
+5. 停止进程，将结果归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

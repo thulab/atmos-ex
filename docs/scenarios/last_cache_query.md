@@ -18,7 +18,7 @@ bash script/scenarios/last_cache_query.sh 2>&1 | tee /data/atmos/zk_test/log_las
 
 ## 4. 自动流程
 
-脚本同步两份 Benchmark，重建 IoTDB 并显式启用 Last Cache；先启动对应类型的后台写入并预热 60 秒，再启动查询 Benchmark、继续预热并等待结果。随后 `flush`、解析 `LATEST_POINT`、采集指标、入库并停止全部进程。归档目录为 `/nasdata/repository/last_cache_query/<ts_type>/<commit_date_time>_<commit_id>_223/`，包含查询 CSV 和日志。
+脚本同步两份 Benchmark，重建 IoTDB 并显式启用 Last Cache；先启动对应类型的后台写入并预热 60 秒，再启动查询 Benchmark、继续预热并等待结果。随后 `flush`、解析 `LATEST_POINT`、采集指标、入库并停止全部进程。归档目录为 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`，包含查询 CSV 和日志。
 
 ## 5. 验收与排查
 

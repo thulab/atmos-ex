@@ -247,24 +247,10 @@ EOF
 backup_test_data() {
     local protocol_code="$1"
     local current_ts_type="$2"
-    local backup_parent="${BACKUP_PATH}/${current_ts_type}"
-    local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_code}"
+    local case_id=""
 
-    sudo_safe_rm "${backup_dir}"
-    path_is_safe "${backup_parent}" || die "refuse unexpected backup path: ${backup_parent}"
-    sudo mkdir -p -- "${backup_parent}"
-    path_is_safe "${backup_dir}" || die "refuse unexpected backup path: ${backup_dir}"
-    sudo mkdir -p -- "${backup_dir}"
-
-    sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-    path_is_safe "${TEST_IOTDB_PATH}" || die "refuse unexpected IoTDB path: ${TEST_IOTDB_PATH}"
-    sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-    if [ -d "${QUERY_BM_PATH}/data/csvOutput" ]; then
-        sudo cp -rf -- "${QUERY_BM_PATH}/data/csvOutput" "${backup_dir}"
-    fi
-    if [ -d "${QUERY_BM_PATH}/logs" ]; then
-        sudo cp -rf -- "${QUERY_BM_PATH}/logs" "${backup_dir}"
-    fi
+    case_id="$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" workload last_cache_query)"
+    backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" "${QUERY_BM_PATH}"
 }
 
 # 功能：执行单个测试组合并收集、解析和保存结果

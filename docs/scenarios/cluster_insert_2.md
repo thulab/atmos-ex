@@ -20,4 +20,4 @@ bash script/scenarios/cluster_insert_2.sh 2>&1 | tee /data/atmos/zk_test/log_clu
 
 ## 4. 自动流程与验收
 
-脚本分发安装包、构建五节点集群、运行各实际写入 case，并解析写入和查询结果入库，归档到 `/nasdata/repository/cluster_insert_2`。验收须同时检查五节点 `show cluster`、`223/224` 协议 case、两类结果表、远端 CSV 和归档；特别确认允许清理的三个数据根目录未指向非测试数据。
+脚本分发安装包、构建五节点集群、运行各实际写入 case，并解析写入和查询结果入库，归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。验收须同时检查五节点 `show cluster`、`223/224` 协议 case、两类结果表、远端 CSV 和归档；特别确认允许清理的三个数据根目录未指向非测试数据。

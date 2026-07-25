@@ -4,7 +4,7 @@
 
 本文说明所有场景共有的任务领取、环境检查、启动、观察、验收和重测步骤。场景文档只补充差异项；若场景文档与本文冲突，以场景脚本当前实现和场景文档为准。
 
-> 警告：大多数 Linux 场景会终止本机 `DataNode`、`ConfigNode`、`IoTDB` 和 Benchmark 进程，删除并重建测试目录，最终移动整个 IoTDB 目录。集群、Pipe 和 Windows 场景还会通过 SSH 清理远端目录和进程。仅可在对应专用测试环境运行。
+> 警告：大多数 Linux 场景会终止本机 `DataNode`、`ConfigNode`、`IoTDB` 和 Benchmark 进程，并删除、重建测试目录。集群、Pipe 和 Windows 场景还会通过 SSH 清理远端目录和进程。仅可在对应专用测试环境运行。
 
 ## 2. 通用依赖
 
@@ -65,6 +65,14 @@ Benchmark 场景通常写入成功/失败点数、吞吐、延迟分位数、文
 
 验收不能只看任务为 `done`：还应核对预期结果行数、测试矩阵是否完整、吞吐/延迟是否有效、失败点是否为 0、错误日志是否为空，以及归档目录是否完整。
 
+所有场景统一归档到：
+
+```text
+${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/
+```
+
+每轮运行和每个 case 都包含 `manifest.env`，case 还包含 `artifacts.tsv`。归档先写入 `.partial` 目录，完成后原子提交；已有 case 不会被覆盖。默认 `BACKUP_LEVEL=minimal`，失败诊断可使用 `diagnostic`，需要完整数据现场的场景使用 `full`。详细契约参见[统一备份公共脚本](../common/backup_common.md)。
+
 ## 7. 运行观察
 
 ```bash
@@ -73,7 +81,7 @@ jps
 find /data/atmos/zk_test/iot-benchmark/data/csvOutput -type f 2>/dev/null
 ```
 
-远端场景还应同步查看节点进程、IoTDB 错误日志和网络连接。脚本可能在每个 case 后移动 `logs`，应按场景归档路径继续检查。
+远端场景还应同步查看节点进程、IoTDB 错误日志和网络连接。远端产物统一位于 case 目录的 `nodes/<host>/` 下。
 
 ## 8. 失败与重测
 
@@ -83,4 +91,4 @@ find /data/atmos/zk_test/iot-benchmark/data/csvOutput -type f 2>/dev/null
 4. 指标为 0 时检查 Prometheus target、测试机 IP 和自动解析的磁盘 ID。
 5. 远端失败检查 SSH、SCP、账号权限、Windows 任务名或节点目录。
 6. 修复后将目标提交的场景字段设为 `retest`，重新运行。
-7. 多数场景重测会覆盖同名归档；需要保留旧现场时先另行备份。
+7. 重测会生成新的 `run_id`，不会覆盖已有归档；残留 `.partial` 表示归档未正常完成。

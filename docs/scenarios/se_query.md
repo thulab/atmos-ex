@@ -18,7 +18,7 @@ bash script/scenarios/se_query.sh 2>&1 | tee /data/atmos/zk_test/log_se_query
 
 ## 4. 自动流程
 
-每种类型先重建 IoTDB并移入预置数据；随后每个查询均启动 IoTDB、运行 Benchmark、解析对应结果标签、采集指标、入库、保存为 `logs_<Q>` 并停库。全部查询后把 `data` 移回数据集目录，再归档 IoTDB 和 CSV 到 `/nasdata/repository/se_query/<ts_type>/<commit_date_time>_<commit_id>/`。
+每种类型先重建 IoTDB并移入预置数据；随后每个查询均启动 IoTDB、运行 Benchmark、解析对应结果标签、采集指标、入库、保存为 `logs_<Q>` 并停库。全部查询后把 `data` 移回数据集目录，再归档 IoTDB 和 CSV 到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

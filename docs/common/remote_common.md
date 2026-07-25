@@ -6,7 +6,7 @@
 
 ## 2. 调用契约
 
-设置 `ACCOUNT` 或 `REMOTE_ACCOUNT`，并定义可信的 `INIT_PATH/TEST_INIT_PATH/BACKUP_PATH/TEST_PATH/BM_PATH`。额外安全根用冒号分隔的 `REMOTE_EXTRA_SAFE_ROOTS`；批量清理根使用 `REMOTE_CLEAR_ROOTS`。依赖 `ssh/scp`，Windows 目录部署另需本地 `tar/mktemp` 和远端 tar。
+设置 `ACCOUNT` 或 `REMOTE_ACCOUNT`，并定义可信的 `INIT_PATH/TEST_INIT_PATH/BACKUP_ROOT/TEST_PATH/BM_PATH`。额外安全根用冒号分隔的 `REMOTE_EXTRA_SAFE_ROOTS`；批量清理根使用 `REMOTE_CLEAR_ROOTS`。依赖 `ssh/scp`，Windows 目录部署另需本地 `tar/mktemp` 和远端 tar。
 
 ## 3. 主要函数
 

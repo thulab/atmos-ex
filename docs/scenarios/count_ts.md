@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-完成[通用准备](common-operations.md#3-运行前步骤)，检查四类 Benchmark 配置、`conf/count_ts/license`、IoT-Benchmark 和 `/nasdata/repository/count_ts` 空间。该场景会创建大量元数据，需重点确认堆内存、元数据盘和打开文件限制。
+完成[通用准备](common-operations.md#3-运行前步骤)，检查四类 Benchmark 配置、`conf/count_ts/license`、IoT-Benchmark 和 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/` 空间。该场景会创建大量元数据，需重点确认堆内存、元数据盘和打开文件限制。
 
 ## 3. 启动步骤
 
@@ -18,7 +18,7 @@ bash script/scenarios/count_ts.sh 2>&1 | tee /data/atmos/zk_test/log_count_ts
 
 ## 4. 自动流程
 
-脚本重建 IoTDB，协议设为 `223`，启动并改密；依次运行四类 schema Benchmark，执行一次 `flush`，随后执行 5 条 count 和 5 条 show 命令并记录耗时，采集文件/线程/错误日志指标并入库。最终安装目录与 Benchmark 产物归档到 `/nasdata/repository/count_ts/223/<commit_date_time>_<commit_id>_223/`。
+脚本重建 IoTDB，协议设为 `223`，启动并改密；依次运行四类 schema Benchmark，执行一次 `flush`，随后执行 5 条 count 和 5 条 show 命令并记录耗时，采集文件/线程/错误日志指标并入库。最终 IoTDB 配置、日志与 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

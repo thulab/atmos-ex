@@ -16,7 +16,7 @@ bash script/scenarios/weeklytest_query.sh 2>&1 | tee /data/atmos/zk_test/log_wee
 
 ## 3. 自动流程
 
-脚本按数据模式复制预置数据并启动 IoTDB，对 one/more 和每个查询安装配置，连续运行两次 Benchmark，解析对应查询标签入库；每个查询后保存日志，每种数据模式后归档到 `/nasdata/repository/weeklytest_query`。
+脚本按数据模式复制预置数据并启动 IoTDB，对 one/more 和每个查询安装配置，连续运行两次 Benchmark，解析对应查询标签入库；每个查询后保存日志，每种数据模式后归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 4. 验收与排查
 

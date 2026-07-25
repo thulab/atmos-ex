@@ -18,7 +18,7 @@ bash script/scenarios/routine_test.sh 2>&1 | tee /data/atmos/zk_test/log_routine
 
 ## 3. 自动流程
 
-脚本领取匹配作者的提交，重建并配置 IoTDB；执行写入/读写 Benchmark，随后基于生成数据逐项运行查询，解析 CSV、采集资源指标并入库；每阶段日志、配置和 CSV 归档到 `/nasdata/repository/routine_test`。
+脚本领取匹配作者的提交，重建并配置 IoTDB；执行写入/读写 Benchmark，随后基于生成数据逐项运行查询，解析 CSV、采集资源指标并入库；每阶段日志、配置和 CSV 归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 4. 验收与排查
 

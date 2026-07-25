@@ -18,7 +18,7 @@ bash script/scenarios/unse_insert.sh 2>&1 | tee /data/atmos/zk_test/log_unse_ins
 
 ## 4. 自动流程
 
-脚本逐 case 重建并启动 IoTDB、执行 Benchmark、解析 `INGESTION`、采集资源指标、入库和归档。归档路径为 `/nasdata/repository/unse_insert/<ts_type>_SESSION_BY_TABLET/<commit_date_time>_<commit_id>_223/`。
+脚本逐 case 重建并启动 IoTDB、执行 Benchmark、解析 `INGESTION`、采集资源指标、入库和归档。归档路径为 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

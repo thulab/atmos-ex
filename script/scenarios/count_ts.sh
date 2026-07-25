@@ -17,7 +17,6 @@ readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly BM_PATH="${INIT_PATH}/iot-benchmark"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
-readonly BACKUP_PATH="/nasdata/repository/count_ts"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -375,14 +374,10 @@ append_show_results() {
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local protocol_code="$1"
-	local backup_parent="${BACKUP_PATH}/${protocol_code}"
-	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_code}"
+	local case_id=""
 
-	prepare_archive_directory "${backup_dir}"
-	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
-	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-	archive_benchmark_runtime "${BM_PATH}" "${backup_dir}"
+	case_id="$(backup_build_case_id protocol "${protocol_code}")"
+	backup_standard_case "${case_id}"
 }
 
 # 功能：执行指定测试阶段或外部工具命令

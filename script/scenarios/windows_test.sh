@@ -18,7 +18,6 @@ INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ATMOS_PATH="${ATMOS_PATH:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 BM_PATH=${INIT_PATH}/iot-benchmark
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/windows_test}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_PATH=${INIT_PATH}/first-rest-test
 TEST_IOTDB_PATH=${TEST_PATH}/apache-iotdb
@@ -232,15 +231,15 @@ test_operation_impl() {
 		log ${commit_id}版本${ts_type}写入${data_type}数据的${okPoint}点平均耗时${Latency}毫秒。吞吐率为：${throughput} 点/秒
 		mysql_exec "${insert_sql}"
 		#查询测试
-		mkdir -p ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM
-		cp -rf ${BM_PATH}/logs ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/
+		case_id="$(backup_build_case_id protocol "${protocol_class}" model "${ts_type}" data "${data_type}" target windows)"
+		backup_begin_case "${case_id}" || return 1
+		backup_add benchmark "${BM_PATH}/logs" ingestion-logs optional
 		if [[ "${data_type}" == "seq_w" || "${data_type}" == "unseq_w" ]]; then 
 			for (( j = 0; j < ${#query_list[*]}; j++ ))
 			do
 				log "开始${query_list[${j}]}查询！"
 				op_type=${query_list[${j}]}
 				mv_config_file ${op_type}
-				mkdir -p ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}
 				for (( m = 1; m <= 1; m++ ))
 				do
 					check_benchmark_pid
@@ -269,14 +268,15 @@ test_operation_impl() {
 					insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,data_type,op_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}','${data_type}','${op_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},'${protocol_class}')"
 					log ${commit_id}版本${ts_type}类型${data_type}数据${op_type}查询${okPoint}数据点的耗时为：${Latency}ms
 					mysql_exec "${insert_sql}"
-					cp -rf ${BM_PATH}/logs ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
-					cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/BM/${op_type}/
+					backup_add benchmark "${BM_PATH}/logs" "${op_type}-logs" optional
+					backup_add benchmark "${BM_PATH}/data/csvOutput" "${op_type}-csv" optional
 				done
 				#停止IoTDB程序和监控程序
 				sleep 10
 			done
 		fi
-		scp -r  ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/logs ${BACKUP_PATH}/${data_type}/${commit_date_time}_${commit_id}/
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/apache-iotdb/logs" iotdb-logs optional
+		backup_finish_case completed
 	done
 }
 # 功能：校验运行环境并编排当前脚本的完整测试流程

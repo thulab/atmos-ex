@@ -23,7 +23,7 @@ bash script/scenarios/longrun_test.sh 2>&1 | tee /data/atmos/zk_test/log_longrun
 
 ## 4. 自动流程
 
-脚本领取匹配作者的任务，重建并配置 IoTDB，启动 aligned/tablemode 长时间写入，维护 Benchmark 起始时间；运行期间按阶段执行查询与校验，观察进程和 CSV，采集 Prometheus 窗口指标、文件数、错误日志与业务断言。结束后停止进程、写入汇总结果并归档到 `/nasdata/repository/longrun_test`。
+脚本领取匹配作者的任务，重建并配置 IoTDB，启动 aligned/tablemode 长时间写入，维护 Benchmark 起始时间；运行期间按阶段执行查询与校验，观察进程和 CSV，采集 Prometheus 窗口指标、文件数、错误日志与业务断言。结束后停止进程、写入汇总结果并归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

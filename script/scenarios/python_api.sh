@@ -214,11 +214,18 @@ while true; do
 			mysql_exec "${insert_sql}"
 		fi
 		#备份本次测试
-		#backup_test_data
+		case_id="$(backup_build_case_id language python workload session_api)"
+		backup_begin_case "${case_id}" || return 1
+		backup_add_iotdb_runtime
+		backup_add result "${INIT_PATH}/log_python_api" python-api.log required
+		if [ "${flag}" -eq 0 ]; then
+			backup_finish_case completed
+		else
+			backup_finish_case failed
+		fi
 		###############################测试完成###############################
 		log "本轮测试${test_date_time}已结束."
 		#清理过期文件 - 当前策略保留4天
-		#find ${BACKUP_PATH}/ -mtime +4 -type d -name "*" -exec rm -rf {} \;
 	fi
 done
 }

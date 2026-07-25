@@ -36,6 +36,7 @@ insert_common.sh / query_common.sh
 | `check_shell_style.sh` | Shell 静态检查入口 | [说明](check_shell_style.md) |
 | `config_common.sh` | 配置安装和 IoTDB profile | [说明](config_common.md) |
 | `file_common.sh` | 文件统计和归档 | [说明](file_common.md) |
+| `backup_common.sh` | 统一运行与 case 归档 | [说明](backup_common.md) |
 | `git_common.sh` | Git 版本读取与同步 | [说明](git_common.md) |
 | `insert_common.sh` | 写入类场景完整框架 | [说明](insert_common.md) |
 | `iotdb_cli_common.sh` | IoTDB CLI 包装 | [说明](iotdb_cli_common.md) |

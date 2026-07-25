@@ -15,7 +15,6 @@ readonly TEST_TYPE="compaction"
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly DATA_PATH="/data/atmos/DataSet"
-readonly BACKUP_PATH="/nasdata/repository/compaction"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -319,15 +318,10 @@ EOF
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local current_ts_type="$1"
-	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
-	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
+	local case_id=""
 
-	sudo_safe_rm "${backup_dir}"
-	path_is_safe "${backup_parent}" || die "拒绝使用非预期备份路径: ${backup_parent}"
-	sudo mkdir -p -- "${backup_dir}"
-	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-	path_is_safe "${TEST_IOTDB_PATH}" || die "拒绝移动非预期路径: ${TEST_IOTDB_PATH}"
-	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
+	case_id="$(backup_build_case_id protocol "${protocol_id}" model "${current_ts_type}" workload compaction)"
+	BACKUP_LEVEL=full backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" ""
 }
 
 # 功能：生成或修改当前测试步骤所需的配置

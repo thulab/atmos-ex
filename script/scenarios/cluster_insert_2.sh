@@ -3,7 +3,6 @@
 set -o pipefail
 
 TEST_TYPE="cluster_insert_2"
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/cluster_insert_2}"
 REMOTE_EXTRA_SAFE_ROOTS="${REMOTE_EXTRA_SAFE_ROOTS:-/data/datanode:/data1/datanode:/ssd/datanode}"
 REMOTE_CLEAR_ROOTS="${REMOTE_CLEAR_ROOTS:-/data/datanode:/data1/datanode:/ssd/datanode}"
 CLUSTER_CREATE_QA_USER=0
@@ -140,6 +139,8 @@ test_operation_impl() {
 	fi
 	rm -rf -- "${BM_PATH:?}/TestResult/csvOutput/"*
 	scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/data/csvOutput/*result.csv ${BM_PATH}/TestResult/csvOutput/
+	case_id="$(backup_build_case_id protocol "${protocol_class}" model "${ts_type}" data "${data_type}" workload cluster)"
+	backup_begin_case "${case_id}" || return 1
 	for ((j = 1; j <= 5; j++)); do
 		#收集启动后基础监控数据
 		collect_monitor_data ${j}
@@ -151,10 +152,8 @@ test_operation_impl() {
 		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,node_id,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark,protocol) values(${commit_date_time},${test_date_time},'${commit_id}','${author}',${node_id},'${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},'${data_type}','${protocol_class}')"
 		mysql_exec "${insert_sql}"
 		
-		sudo mkdir -p ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN
-		sudo mkdir -p ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN
-		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo cp -rf ${TEST_CONFIGNODE_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/CN"
-		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo cp -rf ${TEST_DATANODE_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/${j}/DN"
+		backup_add_remote "${C_IP_list[${j}]}" "${TEST_CONFIGNODE_PATH}/logs" confignode-logs optional
+		backup_add_remote "${D_IP_list[${j}]}" "${TEST_DATANODE_PATH}/logs" datanode-logs optional
 		ssh ${ACCOUNT}@${D_IP_list[${j}]} "sudo mv ${TEST_DATANODE_PATH}/dn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_dn_dump.hprof"
 		ssh ${ACCOUNT}@${C_IP_list[${j}]} "sudo mv ${TEST_CONFIGNODE_PATH}/cn_dump.hprof ${INIT_PATH}/${ts_type}_${commit_date_time}_${commit_id}_${data_type}_${protocol_class}_cn_dump.hprof"
 	done
@@ -171,8 +170,9 @@ test_operation_impl() {
 		done
 	fi
 	
-	sudo cp -rf ${BM_PATH}/TestResult/csvOutput/* ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
-	sudo scp -r ${ACCOUNT}@${B_IP_list[1]}:${BM_PATH}/logs ${BACKUP_PATH}/${ts_type}/${commit_date_time}_${commit_id}_${data_type}_${protocol_class}/
+	backup_add benchmark "${BM_PATH}/TestResult/csvOutput" csv optional
+	backup_add_remote "${B_IP_list[1]}" "${BM_PATH}/logs" benchmark-logs optional
+	backup_finish_case completed
 }
 
 # 功能：校验运行环境并编排当前脚本的完整测试流程

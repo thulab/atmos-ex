@@ -21,7 +21,7 @@
 
 ## 4. 自动流程
 
-`main` 校验查询名与标签等长，检查依赖、同步 Benchmark、claim 任务并遍历协议。每种 ts_type 重建 IoTDB、设置协议，并把数据目录移动进实例；每个查询启动 IoTDB，失败写 `-3`，否则安装配置、运行 Benchmark、等待/解析结果，失败写 `-2`，入库并把日志保存为 `logs_<query>`。类型结束后把 data 移回原位置，再移动 IoTDB 到归档。最终更新 `done/RError`。
+`main` 校验查询名与标签等长，检查依赖、同步 Benchmark、claim 任务并遍历协议。每种 ts_type 重建 IoTDB、设置协议，并把数据目录移动进实例；每个查询启动 IoTDB，失败写 `-3`，否则安装配置、运行 Benchmark、等待/解析结果，失败写 `-2`，入库并把日志保存为 `logs_<query>`。类型结束后把 data 移回原位置，再按统一 minimal 级别归档 IoTDB 配置、日志和 Benchmark 产物。最终更新 `done/RError`。
 
 ## 5. 使用示例
 

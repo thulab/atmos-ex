@@ -12,7 +12,6 @@ INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 TOOL_PATH=${INIT_PATH}/iotdb-sql
 BM_PATH=${INIT_PATH}/iot-benchmark
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/sql_coverage/master}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TC_PATH=${INIT_PATH}/iotdb-sql-testcase
 #测试数据运行路径
@@ -159,11 +158,13 @@ stop_iotdb() { # 停止iotdb
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-    sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
-	sudo mv ${TEST_IOTDB_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo mv ${TEST_TOOL_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	local case_id=""
+
+	case_id="$(backup_build_case_id protocol "${protocol_class}" dialect "$1")"
+	backup_begin_case "${case_id}" || return 1
+	backup_add_iotdb_runtime
+	backup_add result "${TEST_TOOL_PATH}" sql-coverage optional
+	backup_finish_case completed
 }
 ##准备开始测试
 # 功能：校验运行环境并编排当前脚本的完整测试流程

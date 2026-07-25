@@ -18,7 +18,6 @@ readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly BM_PATH="${INIT_PATH}/iot-benchmark"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
 readonly DATA_PATH="/data/atmos/DataSet"
-readonly BACKUP_PATH="/nasdata/repository/ts_performance"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -487,17 +486,10 @@ run_tool_operation_impl() {
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local current_ts_type="$1"
-	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
-	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
+	local case_id=""
 
-	prepare_archive_directory "${backup_dir}"
-	if [ -d "${TEST_IOTDB_PATH}/tools/testlog" ]; then
-		sudo mv "${TEST_IOTDB_PATH}/tools/testlog" "${backup_dir}/"
-	fi
-	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-	sudo_safe_rm "${TEST_IOTDB_PATH}/tools"
-	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
-	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
+	case_id="$(backup_build_case_id protocol "${protocol_id}" model "${current_ts_type}" data "${data_type}")"
+	BACKUP_LEVEL=diagnostic backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" ""
 }
 
 # 功能：执行单个测试组合并收集、解析和保存结果

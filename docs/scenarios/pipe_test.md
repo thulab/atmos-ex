@@ -20,7 +20,7 @@ bash script/scenarios/pipe_test.sh 2>&1 | tee /data/atmos/zk_test/log_pipe_test
 
 ## 4. 自动流程
 
-脚本领取任务并同步 Benchmark，向两端部署对应提交，按协议和序列类型启动实例、创建 Pipe，运行源端写入并等待目标端同步；分别采集 A/B 两端吞吐、延迟、文件、WAL、CPU、磁盘和错误日志，比较最小点数后入库，归档两端日志和 CSV到 `/nasdata/repository/pipe_test`。
+脚本领取任务并同步 Benchmark，向两端部署对应提交，按协议和序列类型启动实例、创建 Pipe，运行源端写入并等待目标端同步；分别采集 A/B 两端吞吐、延迟、文件、WAL、CPU、磁盘和错误日志，比较最小点数后入库，归档两端日志和 CSV到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

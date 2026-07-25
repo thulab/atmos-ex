@@ -6,7 +6,7 @@
 
 ## 2. 运行前准备
 
-检查 TsFile 源码及 `java/cpp/python-tsfile-api-test` 三个工具仓库，准备 Maven、CMake/C++、Python/pip、代理（默认 `172.20.31.76:7890`）和 Git 凭据。确认 `/data/qa` 测试目录和 `/data/qa/backup` 可被脚本清理/写入，并设置 `ATMOS_DB_PASSWORD`。
+检查 TsFile 源码及 `java/cpp/python-tsfile-api-test` 三个工具仓库，准备 Maven、CMake/C++、Python/pip、代理（默认 `172.20.31.76:7890`）和 Git 凭据。确认 `/data/qa` 测试目录和统一归档根可写，并设置 `ATMOS_DB_PASSWORD`。
 
 ## 3. 启动步骤
 
@@ -18,7 +18,7 @@ bash script/scenarios/tsfile_api_test.sh 2>&1 | tee /data/atmos/zk_test/log_tsfi
 
 ## 4. 自动流程
 
-脚本同步 TsFile develop 和三套测试工具，仅在 HEAD 变化时执行：Java 生成 Surefire HTML，C++ 生成 JSON，Python 生成 reports；分别解析用例总数、错误、失败、跳过、成功率和耗时入库，失败现场按语言复制到 `/data/qa/backup` 并清理 7 天前目录。执行后等待 300 秒并把调度类型恢复为 `native_api_test`。
+脚本同步 TsFile develop 和三套测试工具，仅在 HEAD 变化时执行：Java 生成 Surefire HTML，C++ 生成 JSON，Python 生成 reports；分别解析用例总数、错误、失败、跳过、成功率和耗时入库，失败现场按语言写入统一 case 归档。执行后等待 300 秒并把调度类型恢复为 `native_api_test`。
 
 ## 5. 验收与排查
 

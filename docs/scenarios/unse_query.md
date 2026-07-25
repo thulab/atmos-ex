@@ -18,7 +18,7 @@ bash script/scenarios/unse_query.sh 2>&1 | tee /data/atmos/zk_test/log_unse_quer
 
 ## 4. 自动流程
 
-流程与 `se_query` 相同，但结果的 `data_type` 为 `unsequence`。脚本移动数据集、逐查询启停 IoTDB、运行 Benchmark、入库和保存日志，最后恢复数据集并归档到 `/nasdata/repository/unse_query/<ts_type>/<commit_date_time>_<commit_id>/`。
+流程与 `se_query` 相同，但结果的 `data_type` 为 `unsequence`。脚本移动数据集、逐查询启停 IoTDB、运行 Benchmark、入库和保存日志，最后恢复数据集并归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

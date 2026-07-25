@@ -18,7 +18,7 @@ bash script/scenarios/api_insert_cts.sh 2>&1 | tee /data/atmos/zk_test/log_api_i
 
 ## 4. 自动流程
 
-脚本按 API 逐项重建 IoTDB，设置协议和指标，运行写入 Benchmark，最长等待 7200 秒，解析 `INGESTION` CSV，采集资源指标并入库；随后停止进程，将安装目录和 CSV 归档到 `/nasdata/repository/api_insert_cts/tempaligned_<API>/<commit_date_time>_<commit_id>_223/`。
+脚本按 API 逐项重建 IoTDB，设置协议和指标，运行写入 Benchmark，最长等待 7200 秒，解析 `INGESTION` CSV，采集资源指标并入库；随后停止进程，将 IoTDB 配置、日志和 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

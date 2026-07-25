@@ -20,7 +20,7 @@ remote_path_is_safe() {
     [ -n "${path}" ] || return 1
     case "${path}" in
         /|/data|/nasdata|/root|/home) return 1 ;;
-        "${TEST_INIT_PATH:-__unset__}"|"${TEST_INIT_PATH:-__unset__}"/*|"${INIT_PATH:-__unset__}"|"${INIT_PATH:-__unset__}"/*|"${BACKUP_PATH:-__unset__}"|"${BACKUP_PATH:-__unset__}"/*|"${TEST_PATH:-__unset__}"|"${TEST_PATH:-__unset__}"/*|"${BM_PATH:-__unset__}"|"${BM_PATH:-__unset__}"/*) return 0 ;;
+        "${TEST_INIT_PATH:-__unset__}"|"${TEST_INIT_PATH:-__unset__}"/*|"${INIT_PATH:-__unset__}"|"${INIT_PATH:-__unset__}"/*|"${BACKUP_ROOT:-__unset__}"|"${BACKUP_ROOT:-__unset__}"/*|"${TEST_PATH:-__unset__}"|"${TEST_PATH:-__unset__}"/*|"${BM_PATH:-__unset__}"|"${BM_PATH:-__unset__}"/*) return 0 ;;
     esac
     IFS=: read -r -a allowed_roots <<< "${REMOTE_EXTRA_SAFE_ROOTS:-}"
     for allowed_root in "${allowed_roots[@]}"; do

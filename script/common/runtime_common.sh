@@ -53,8 +53,8 @@ require_command() {
 ensure_runtime_dependencies() {
     local command_name=""
     local -a required_commands=(
-        awk bc cat cp curl cut date du find findmnt grep hostname jps jq kill
-        lsof lsblk mkdir mv mysql ps readlink rm scp sed sleep ssh sudo tail
+        awk basename bc cat chmod cp curl cut date du find findmnt grep hostname jps jq kill
+        lsof lsblk mkdir mktemp mv mysql ps readlink rm scp sed sleep ssh sudo tail
         touch tr wc
     )
 
@@ -81,7 +81,7 @@ path_is_safe() {
     [ -n "${path}" ] || return 1
     case "${path}" in
         /|/data|/nasdata|/root|.) return 1 ;;
-        "${INIT_PATH}"/*|"${TEST_INIT_PATH}"/*|"${BACKUP_PATH}"/*) return 0 ;;
+        "${INIT_PATH:-__unset__}"/*|"${TEST_INIT_PATH:-__unset__}"/*|"${BACKUP_ROOT:-__unset__}"/*) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -159,6 +159,7 @@ readonly RUNTIME_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${RUNTIME_COMMON_DIR}/process_common.sh"
 source "${RUNTIME_COMMON_DIR}/result_common.sh"
 source "${RUNTIME_COMMON_DIR}/file_common.sh"
+source "${RUNTIME_COMMON_DIR}/backup_common.sh"
 source "${RUNTIME_COMMON_DIR}/git_common.sh"
 source "${RUNTIME_COMMON_DIR}/config_common.sh"
 source "${RUNTIME_COMMON_DIR}/iotdb_cli_common.sh"

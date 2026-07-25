@@ -18,7 +18,7 @@ bash script/scenarios/se_insert.sh 2>&1 | tee /data/atmos/zk_test/log_se_insert
 
 ## 4. 自动流程
 
-每种序列类型均重建 IoTDB，应用协议 `223`，启动服务并修改密码；安装对应 Benchmark 配置，预热 60 秒，等待 `INGESTION` CSV，采集吞吐、延迟、文件、WAL、CPU 和磁盘指标后入库；最后归档到 `/nasdata/repository/se_insert/<ts_type>_SESSION_BY_TABLET/<commit_date_time>_<commit_id>_223/`。
+每种序列类型均重建 IoTDB，应用协议 `223`，启动服务并修改密码；安装对应 Benchmark 配置，预热 60 秒，等待 `INGESTION` CSV，采集吞吐、延迟、文件、WAL、CPU 和磁盘指标后入库；最后归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

@@ -25,7 +25,7 @@ bash script/scenarios/cluster_insert.sh 2>&1 | tee /data/atmos/zk_test/log_clust
 
 ## 4. 自动流程
 
-脚本领取任务、同步 Benchmark，向三台主机分发 CN/DN 包并写入种子节点、三副本、协议和指标配置，启动集群并创建 QA 用户；逐个实际 case 在远端运行 Benchmark，解析写入及查询 CSV，按节点采集指标并写入两类结果表，最后归档至 `/nasdata/repository/cluster_insert/<ts_type>/...`。
+脚本领取任务、同步 Benchmark，向三台主机分发 CN/DN 包并写入种子节点、三副本、协议和指标配置，启动集群并创建 QA 用户；逐个实际 case 在远端运行 Benchmark，解析写入及查询 CSV，按节点采集指标并写入两类结果表，最后归档至 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

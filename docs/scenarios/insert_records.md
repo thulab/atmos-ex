@@ -20,7 +20,7 @@ bash script/scenarios/insert_records.sh 2>&1 | tee /data/atmos/zk_test/log_inser
 
 ## 4. 自动流程
 
-脚本把复合 `ts_type` 拆为基础类型和写入模式，安装对应配置，然后按共享写入流程执行。每个 case 完成后删除 IoTDB `data`，将安装目录和 CSV 归档到 `/nasdata/repository/insert_records/<base>_<mode>/<commit_date_time>_<commit_id>_223/`。
+脚本把复合 `ts_type` 拆为基础类型和写入模式，安装对应配置，然后按共享写入流程执行。每个 case 完成后将 IoTDB 配置、日志和 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

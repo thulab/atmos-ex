@@ -40,7 +40,7 @@ main "$@"
 
 ## 6. 副作用与验收
 
-每个 case 会终止本机 IoTDB/Benchmark、删除并重建 `${TEST_IOTDB_PATH}`，归档前删除其 data 并移动整个目录；Benchmark 的 logs/data 也会删除。验收应按数组笛卡尔积核对行数、API/类型/协议、负值、失败点和归档。
+每个 case 会终止本机 IoTDB/Benchmark、删除并重建 `${TEST_IOTDB_PATH}`；结束后按统一 minimal 级别复制 IoTDB 配置、日志和 Benchmark 产物。Benchmark 的 logs/data 会在下一 case 前清理。验收应按数组笛卡尔积核对行数、API/类型/协议、负值、失败点和归档。
 
 ## 7. 排查
 

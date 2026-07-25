@@ -16,7 +16,6 @@ readonly -a API_LIST=(SESSION_BY_TABLET)
 readonly TEST_IP="${DELETE_TEST_IP:-172.20.31.31}"
 readonly TEST_TYPE="delete_test"
 
-readonly BACKUP_PATH="${DELETE_TEST_BACKUP_PATH:-/nasdata/repository/${TEST_TYPE}}"
 readonly INIT_PATH="${DELETE_TEST_INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${DELETE_TEST_ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
 readonly BM_PATH="${DELETE_TEST_BM_PATH:-${INIT_PATH}/iot-benchmark}"
@@ -1191,7 +1190,13 @@ test_operation_impl() {
     sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
     cleanup_processes
 
-    [ "${fail_num}" -eq 0 ]
+    case_id="$(backup_build_case_id protocol "${protocol_code}" workload delete)"
+    if [ "${fail_num}" -eq 0 ]; then
+        backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" "${BM_PATH}" completed
+    else
+        BACKUP_LEVEL=diagnostic backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" "${BM_PATH}" failed
+        return 1
+    fi
 }
 
 # 功能：校验运行环境并编排当前脚本的完整测试流程

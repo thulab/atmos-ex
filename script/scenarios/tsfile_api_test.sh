@@ -131,8 +131,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Java测试报告"
-			mkdir -p /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
-			cp -rf  ${TEST_JAVA_TOOL_PATH}/target/site /data/qa/backup/java/${last_cid_TsFile}_${failures_num}
+			backup_api_failure java "${last_cid_TsFile}" "${failures_num}" "${TEST_JAVA_TOOL_PATH}/target/site"
 			return 1
 		fi
 	else
@@ -152,8 +151,6 @@ EOF
 	log "备份Java测试报告"
 	rm -rf -- "${BK_PATH:?}/java/"*
 	cp -rf ${TEST_JAVA_TOOL_PATH}/target/site ${BK_PATH}/java
-	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 #	cd ${BK_PATH}/java
 #	git add .
 #	git commit -m ${last_cid_TsFile}_${failures_num}
@@ -258,8 +255,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Cpp测试报告"
-			mkdir -p /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}
-			cp -rf ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json /data/qa/backup/cpp/${last_cid_TsFile}_${failures_num}/
+			backup_api_failure cpp "${last_cid_TsFile}" "${failures_num}" "${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json"
 			return 1
 		fi
 	else
@@ -279,8 +275,6 @@ EOF
 	log "备份Cpp测试报告"
 	rm -rf -- "${BK_PATH:?}/cpp/"*
 	cp -f ${TEST_CPP_TOOL_PATH}/build/test/cpp_tsfile_test_report.json ${BK_PATH}/cpp/
-	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 #	cd ${BK_PATH}/cpp
 #	git add .
 #	git commit -m ${last_cid_TsFile}_${failures_num}
@@ -396,8 +390,7 @@ EOF
 			)
 			mysql_exec "$sql"
 			log "备份Python测试报告"
-			mkdir -p /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
-			cp -rf  ${TEST_PYTHON_TOOL_PATH}/reports/* /data/qa/backup/python/${last_cid_TsFile}_${failures_num}
+			backup_api_failure python "${last_cid_TsFile}" "${failures_num}" "${TEST_PYTHON_TOOL_PATH}/reports"
 			return 1
 		fi
 	else
@@ -417,8 +410,6 @@ EOF
 	log "备份Python测试报告"
 	rm -rf -- "${BK_PATH:?}/python/"*
 	cp -rf ${TEST_PYTHON_TOOL_PATH}/reports/* ${BK_PATH}/python
-	mkdir -p /data/qa/backup/${last_cid_TsFile}_${failures_num}
-	find /data/qa/backup/ -mtime +7 -type d -name "*" -exec rm -rf {} \;
 #	cd ${BK_PATH}/python
 #	git add .
 #	git commit -m ${last_cid_TsFile}_${failures_num}

@@ -18,7 +18,6 @@ INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
 DATA_PATH=/data/atmos/original
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/weeklytest_query}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -117,11 +116,10 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo rm -rf -- "${TEST_IOTDB_PATH}/data"
-	sudo mv ${TEST_IOTDB_PATH} ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
-	sudo cp -rf ${BM_PATH}/data/csvOutput ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}
+	local case_id=""
+
+	case_id="$(backup_build_case_id protocol "${protocol_class}" suite "$1")"
+	backup_standard_case "${case_id}"
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件

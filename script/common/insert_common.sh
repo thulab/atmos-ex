@@ -19,7 +19,6 @@ fi
 : "${TEST_IP:?TEST_IP must be set before sourcing insert_common.sh}"
 : "${TEST_TYPE:?TEST_TYPE must be set before sourcing insert_common.sh}"
 
-readonly BACKUP_PATH="/nasdata/repository/${TEST_TYPE}"
 readonly TABLENAME="ex_${TEST_TYPE}"
 readonly TABLENAME_T="ex_${TEST_TYPE}_T"
 
@@ -294,19 +293,10 @@ backup_test_data() {
     local protocol_code="$1"
     local current_ts_type="$2"
     local current_api_type="$3"
-    local backup_dir="${BACKUP_PATH}/${current_ts_type}_${current_api_type}/${commit_date_time}_${commit_id}_${protocol_code}"
-    local backup_parent="${BACKUP_PATH}/${current_ts_type}_${current_api_type}"
+    local case_id=""
 
-    sudo_safe_rm "${backup_dir}"
-    path_is_safe "${backup_parent}" || die "拒绝使用非预期备份路径: ${backup_parent}"
-    sudo mkdir -p -- "${backup_parent}"
-    path_is_safe "${backup_dir}" || die "拒绝使用非预期备份路径: ${backup_dir}"
-    sudo mkdir -p -- "${backup_dir}"
-
-    sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-    path_is_safe "${TEST_IOTDB_PATH}" || die "拒绝移动非预期路径: ${TEST_IOTDB_PATH}"
-    sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
-    sudo cp -rf "${BM_PATH}/data/csvOutput" "${backup_dir}"
+    case_id="$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" api "${current_api_type}")"
+    backup_standard_case "${case_id}"
 }
 
 # -------------------- 公共默认配置文件切换函数；特定脚本可覆盖 --------------------

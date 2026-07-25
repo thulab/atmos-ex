@@ -20,7 +20,7 @@ bash script/scenarios/treeview_query.sh 2>&1 | tee /data/atmos/zk_test/log_treev
 
 ## 4. 自动流程
 
-脚本校验覆盖参数并同步 Benchmark；对每个套件重建 IoTDB、复制对应顺序/乱序数据，逐查询启停服务并运行 Benchmark，解析标签、入库和归档 `logs_<Q>`。套件完成后把 IoTDB、CSV 和配置归档到 `/nasdata/repository/treeview_query/<protocol>/<suite>/...`。
+脚本校验覆盖参数并同步 Benchmark；对每个套件重建 IoTDB、复制对应顺序/乱序数据，逐查询启停服务并运行 Benchmark，解析标签、入库和归档 `logs_<Q>`。套件完成后把 IoTDB、CSV 和配置归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

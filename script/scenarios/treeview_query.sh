@@ -19,7 +19,6 @@ ATMOS_PATH="${TREEVIEW_ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
 BM_PATH="${TREEVIEW_BM_PATH:-${INIT_PATH}/iot-benchmark}"
 REPOS_PATH="${TREEVIEW_REPOS_PATH:-/nasdata/repository/master}"
 BM_REPOS_PATH="${TREEVIEW_BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
-BACKUP_PATH="${TREEVIEW_BACKUP_PATH:-/nasdata/repository/${TEST_TYPE}}"
 TEST_INIT_PATH="${TREEVIEW_TEST_INIT_PATH:-/data/atmos}"
 TEST_IOTDB_PATH="${TREEVIEW_TEST_IOTDB_PATH:-${TEST_INIT_PATH}/apache-iotdb}"
 
@@ -237,47 +236,14 @@ copy_query_dataset() {
     cp -rf -- "${source_path}" "${TEST_IOTDB_PATH}/"
 }
 
-# 功能：准备当前步骤所需的目录、配置或测试数据
-prepare_backup_directory() {
-    local backup_dir="$1"
-    local backup_parent="${backup_dir%/*}"
-
-    sudo_safe_rm "${backup_dir}"
-    path_is_safe "${backup_parent}" || die "refuse to use unexpected backup path: ${backup_parent}"
-    sudo mkdir -p -- "${backup_parent}"
-    path_is_safe "${backup_dir}" || die "refuse to use unexpected backup path: ${backup_dir}"
-    sudo mkdir -p -- "${backup_dir}"
-}
-
-# 功能：归档当前测试产生的日志和运行文件
-archive_test_runtime_artifacts() {
-    local backup_dir="$1"
-    local csv_source="${BM_PATH}/data/csvOutput"
-    local iotdb_target="${backup_dir}/iotdb"
-
-    prepare_backup_directory "${backup_dir}"
-
-    sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-    path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
-    sudo mv -- "${TEST_IOTDB_PATH}" "${iotdb_target}"
-
-    if [ -d "${csv_source}" ]; then
-        sudo cp -rf -- "${csv_source}" "${backup_dir}/"
-    fi
-}
-
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
     local current_suite_type="$2"
-    local backup_dir=""
+    local case_id=""
 
-    backup_dir="$(build_scoped_path \
-        "${BACKUP_PATH}" \
-        "protocol=${protocol_code}" \
-        "suite=${current_suite_type}" \
-        "commit=${commit_date_time}_${commit_id}")"
-    archive_test_runtime_artifacts "${backup_dir}"
+    case_id="$(backup_build_case_id protocol "${protocol_code}" suite "${current_suite_type}")"
+    backup_standard_case "${case_id}"
 }
 
 # 功能：处理 TreeView 查询场景的配置、数据或用例集合

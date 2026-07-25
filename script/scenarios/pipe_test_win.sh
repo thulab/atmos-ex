@@ -19,7 +19,6 @@ TEST_TYPE="${TEST_TYPE:-pipe_test_win}"
 INIT_PATH="${INIT_PATH:-/root/zk_test}"
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH=${INIT_PATH}/iot-benchmark
-BACKUP_PATH="${BACKUP_PATH:-/nasdata/repository/pipe_test_win}"
 REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 TEST_PATH=${INIT_PATH}/first-rest-test
 TEST_IOTDB_PATH=${TEST_PATH}/apache-iotdb
@@ -491,16 +490,16 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 }
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
-	sudo rm -rf -- "${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}"
-	sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	local case_id=""
+	case_id="$(backup_build_case_id protocol "${protocol_class}" model "$1" workload pipe_windows)"
+	backup_begin_case "${case_id}" || return 1
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		sudo mkdir -p ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/apache-iotdb/log* ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH_W}/iot-benchmark/data ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/${TEST_IP}/
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/apache-iotdb/logs" iotdb-logs optional
+		backup_add_remote "${TEST_IP}" "${TEST_IOTDB_PATH_W}/iot-benchmark/data" benchmark-data optional
 	done
-	#sudo cp -rf ${TEST_BM_PATH}/TestResult/ ${BACKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class}/
+	backup_finish_case completed
 }
 # 功能：选择并安装当前用例对应的配置文件
 mv_config_file() { # 移动配置文件
@@ -598,7 +597,7 @@ test_operation_impl() {
 		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh")
 	done
 	#备份本次测试
-	#backup_test_data ${ts_type}
+	backup_test_data "${ts_type}"
 }
 ##准备开始测试
 # 功能：校验运行环境并编排当前脚本的完整测试流程

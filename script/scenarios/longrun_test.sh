@@ -24,7 +24,6 @@ readonly BM_PATH_TREE="${INIT_PATH}/iot-benchmark_tree"
 readonly BM_PATH_TABLE="${INIT_PATH}/iot-benchmark_table"
 readonly BM_PATH_TREE_QUERY="${INIT_PATH}/iot-benchmark_tree_query"
 readonly BM_PATH_TABLE_QUERY="${INIT_PATH}/iot-benchmark_table_query"
-readonly BACKUP_PATH="/nasdata/repository/${TEST_TYPE}"
 readonly REPOS_PATH="/nasdata/repository/master"
 readonly BM_REPOS_PATH="/nasdata/repository/iot-benchmark"
 
@@ -1132,18 +1131,13 @@ insert_all_results() {
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
     local protocol_code="$1"
-    local backup_dir="${BACKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_code}"
     local name=""
     local path=""
+    local case_id=""
 
-    sudo_safe_rm "${backup_dir}"
-    path_is_safe "${backup_dir}" || die "refuse unexpected backup path: ${backup_dir}"
-    sudo mkdir -p -- "${backup_dir}/benchmark"
-
-    if [ -d "${TEST_IOTDB_PATH}" ]; then
-        path_is_safe "${TEST_IOTDB_PATH}" || die "refuse unexpected IoTDB path: ${TEST_IOTDB_PATH}"
-        sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}/"
-    fi
+    case_id="$(backup_build_case_id protocol "${protocol_code}" workload longrun)"
+    backup_begin_case "${case_id}" || return 1
+    backup_add_iotdb_runtime
 
     for name in tree table tree_query table_query; do
         case "${name}" in
@@ -1153,13 +1147,9 @@ backup_test_data() {
             table_query) path="${BM_PATH_TABLE_QUERY}" ;;
         esac
 
-        if [ -d "${path}/data/csvOutput" ]; then
-            sudo cp -rf -- "${path}/data/csvOutput" "${backup_dir}/benchmark/${name}_csvOutput"
-        fi
-        if [ -d "${path}/logs" ]; then
-            sudo cp -rf -- "${path}/logs" "${backup_dir}/benchmark/${name}_logs"
-        fi
+        backup_add_benchmark_runtime "${path}" "benchmark-${name}"
     done
+    backup_finish_case completed
 }
 
 # 功能：写入当前测试的日志、状态或失败结果

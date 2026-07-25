@@ -18,4 +18,4 @@ bash script/scenarios/pipe_test_win.sh 2>&1 | tee /root/zk_test/log_pipe_test_wi
 
 ## 4. 自动流程与验收
 
-脚本在两台 Windows 主机部署 IoTDB、配置并创建 Pipe，运行写入、等待同步、采集双端结果后归档到 `/nasdata/repository/pipe_test_win`。验收覆盖 4 个协议/类型组合，检查 A/B 点数、Pipe 状态、双端错误日志和远端日志复制；Linux 控制端正常不代表 Windows 端成功。
+脚本在两台 Windows 主机部署 IoTDB、配置并创建 Pipe，运行写入、等待同步、采集双端结果后归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。验收覆盖 4 个协议/类型组合，检查 A/B 点数、Pipe 状态、双端错误日志和远端日志复制；Linux 控制端正常不代表 Windows 端成功。

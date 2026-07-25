@@ -16,7 +16,7 @@ bash script/scenarios/weeklytest_insert.sh 2>&1 | tee /data/atmos/zk_test/log_we
 
 ## 3. 自动流程
 
-每个组合重建 IoTDB、应用协议、运行 `INGESTION` Benchmark，最长等待 7200 秒，采集 CSV 和监控指标并入库；停止服务后将安装目录及 CSV 归档到 `/nasdata/repository/weeklytest_insert/<ts_type>/<commit_date_time>_<commit_id>_<protocol>/`。
+每个组合重建 IoTDB、应用协议、运行 `INGESTION` Benchmark，最长等待 7200 秒，采集 CSV 和监控指标并入库；停止服务后将 IoTDB 配置、日志及 Benchmark 产物归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 4. 验收与排查
 

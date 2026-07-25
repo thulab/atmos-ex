@@ -20,7 +20,7 @@ bash script/scenarios/config_insert.sh 2>&1 | tee /data/atmos/zk_test/log_config
 
 ## 4. 自动流程
 
-每个 case 都使用全新 IoTDB，在通用配置后追加目标属性；合并优先级、目标 Chunk 和候选文件大小 case 会启用所有合并。脚本运行 aligned 写入 Benchmark，解析 `INGESTION`，按配置维度执行历史吞吐控制限检查并入库，随后归档安装目录和 CSV。
+每个 case 都使用全新 IoTDB，在通用配置后追加目标属性；合并优先级、目标 Chunk 和候选文件大小 case 会启用所有合并。脚本运行 aligned 写入 Benchmark，解析 `INGESTION`，按配置维度执行历史吞吐控制限检查并入库，随后归档 IoTDB 配置、日志和 Benchmark 产物。
 
 ## 5. 验收与排查
 

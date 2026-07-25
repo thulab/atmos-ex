@@ -14,7 +14,6 @@ readonly TEST_TYPE="restart_db"
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
 readonly DATA_PATH="/data/atmos/DataSet"
-readonly BACKUP_PATH="/nasdata/repository/restart_db"
 readonly REPOS_PATH="/nasdata/repository/master"
 
 readonly TEST_INIT_PATH="/data/atmos"
@@ -272,13 +271,10 @@ archive_logs() {
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
 	local current_ts_type="$1"
-	local backup_parent="${BACKUP_PATH}/${current_ts_type}"
-	local backup_dir="${backup_parent}/${commit_date_time}_${commit_id}_${protocol_id}"
+	local case_id=""
 
-	prepare_archive_directory "${backup_dir}"
-	sudo_safe_rm "${TEST_IOTDB_PATH}/data"
-	path_is_safe "${TEST_IOTDB_PATH}" || die "refuse to move unexpected path: ${TEST_IOTDB_PATH}"
-	sudo mv "${TEST_IOTDB_PATH}" "${backup_dir}"
+	case_id="$(backup_build_case_id protocol "${protocol_id}" model "${current_ts_type}")"
+	backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" ""
 }
 
 # 功能：执行指定测试阶段或外部工具命令

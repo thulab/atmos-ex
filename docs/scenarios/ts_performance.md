@@ -18,7 +18,7 @@ bash script/scenarios/ts_performance.sh 2>&1 | tee /data/atmos/zk_test/log_ts_pe
 
 ## 4. 自动流程
 
-每个组合重建 IoTDB并应用协议/配置，定位对应源 TsFile，调用发行包工具执行数据或元数据相关操作，记录处理前后文件数量/大小、耗时、失败标志和资源指标；每轮工具日志改名保存，最终归档到 `/nasdata/repository/ts_performance/<ts_type>/<commit_date_time>_<commit_id>_223/`。
+每个组合重建 IoTDB并应用协议/配置，定位对应源 TsFile，调用发行包工具执行数据或元数据相关操作，记录处理前后文件数量/大小、耗时、失败标志和资源指标；每轮工具日志改名保存，最终归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

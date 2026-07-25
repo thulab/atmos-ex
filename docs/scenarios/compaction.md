@@ -2,7 +2,7 @@
 
 本文说明如何准备、启动、观察和验收 `script/scenarios/compaction.sh`。该脚本用于对指定 IoTDB 提交依次执行顺序空间合并、乱序空间合并和跨空间合并测试，并将结果写入 MySQL。
 
-> 警告：脚本会停止本机已有的 `DataNode`、`ConfigNode` 和 `IoTDB` Java 进程，删除 `/data/atmos/apache-iotdb` 下原有数据，并在测试结束后移动整个 IoTDB 目录。只能在专用测试机 `11.101.17.114` 上运行，不要在保存有效数据或运行其他 IoTDB 实例的机器上执行。
+> 警告：脚本会停止本机已有的 `DataNode`、`ConfigNode` 和 `IoTDB` Java 进程，删除 `/data/atmos/apache-iotdb` 下原有数据，并在测试结束后复制完整 IoTDB 现场。只能在专用测试机 `11.101.17.114` 上运行，不要在保存有效数据或运行其他 IoTDB 实例的机器上执行。
 
 ## 1. 场景概览
 
@@ -32,14 +32,14 @@
 | `/nasdata/repository/master/<commit_id>/apache-iotdb` | 待测提交的 IoTDB 安装包 | 每种序列测试开始前复制到测试目录 |
 | `/data/atmos/DataSet/211/common/data` | 普通序列预置数据 | 复制到 IoTDB 目录 |
 | `/data/atmos/DataSet/211/aligned/data` | 对齐序列预置数据 | 复制到 IoTDB 目录 |
-| `/data/atmos/apache-iotdb` | 本轮临时 IoTDB 实例 | 会被删除、重建并最终移动 |
-| `/nasdata/repository/compaction/<ts_type>` | 结果归档根目录 | 保存测试后的完整 IoTDB 目录 |
+| `/data/atmos/apache-iotdb` | 本轮临时 IoTDB 实例 | 会被删除、重建并完整归档 |
+| `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/` | 结果归档根目录 | 保存测试后的完整 IoTDB 目录 |
 | `/data/atmos/zk_test/test_type_file` | 调度状态文件 | 运行时写为 `ontesting`，退出时恢复为 `compaction` |
 
 归档目录名称为：
 
 ```text
-/nasdata/repository/compaction/<common|aligned>/<commit_date_time>_<commit_id>_211/
+${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/
 ```
 
 若同名归档已经存在，脚本会先将其递归删除。
@@ -151,7 +151,7 @@ curl -G -fsS 'http://111.200.37.158:19090/api/v1/query' \
 ### 步骤 7：确认磁盘空间和进程状态
 
 ```bash
-df -h /data/atmos /nasdata/repository/compaction
+df -h /data/atmos "${BACKUP_ROOT:-/nasdata/repository}"
 jps
 ```
 
@@ -236,7 +236,7 @@ bash atmos.sh
 9. 收集合并后数据、进程峰值、错误日志标志和 Prometheus 指标。
 10. 向结果表插入一行，并将本轮 `conf`、`logs` 移到 IoTDB 目录下以 `comp_type` 命名的归档目录。
 
-三轮完成后，脚本删除测试目录中的 `data`，再把整个 `/data/atmos/apache-iotdb` 移到该序列类型的最终归档目录。
+三轮完成后，脚本以 `full` 级别把包含 `data` 的整个 `/data/atmos/apache-iotdb` 复制到该 case 的 `iotdb/apache-iotdb` 目录。
 
 ## 6. 运行中观察
 
@@ -334,7 +334,7 @@ grep -E 'ON_HEAP_MEMORY|consensus_protocol|metric|compaction' \
   /data/atmos/apache-iotdb/conf/{datanode-env.sh,iotdb-system.properties}
 ```
 
-若目录已经归档，则改到对应的 `/nasdata/repository/compaction/...` 目录检查。
+若目录已经归档，则改到对应的 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/` 目录检查。
 
 ### 合并超时或耗时为 `-1`
 

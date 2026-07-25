@@ -18,7 +18,7 @@ bash script/scenarios/restart_db.sh 2>&1 | tee /data/atmos/zk_test/log_restart_d
 
 ## 4. 自动流程
 
-脚本重建 IoTDB、应用协议和配置、复制预置数据，记录重启前文件统计；启动并检查就绪，停止后再次启动，监控恢复状态并记录前后数据大小、sequence/unsequence TsFile 数、耗时和错误日志，入库后归档到 `/nasdata/repository/restart_db/common/<commit_date_time>_<commit_id>_211/`。
+脚本重建 IoTDB、应用协议和配置、复制预置数据，记录重启前文件统计；启动并检查就绪，停止后再次启动，监控恢复状态并记录前后数据大小、sequence/unsequence TsFile 数、耗时和错误日志，入库后仅归档 IoTDB 配置和日志，不归档 `data`。归档目录为 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

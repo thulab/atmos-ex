@@ -18,7 +18,7 @@ bash script/scenarios/sql_coverage.sh 2>&1 | tee /data/atmos/zk_test/log_sql_cov
 
 ## 4. 自动流程
 
-脚本领取任务、同步 testcase，重建 IoTDB 和 SQL 工具，启动并先记录一条 FirstInsertSQL 基线；复制 UDF/driver/scripts，切换 table dialect，编译并后台运行 SQL 测试，最长等待 7200 秒生成 `result.xml`，统计 PASS/FAIL 后入库，停止服务并归档到 `/nasdata/repository/sql_coverage/master`。
+脚本领取任务、同步 testcase，重建 IoTDB 和 SQL 工具，启动并先记录一条 FirstInsertSQL 基线；复制 UDF/driver/scripts，切换 table dialect，编译并后台运行 SQL 测试，最长等待 7200 秒生成 `result.xml`，统计 PASS/FAIL 后入库，停止服务并归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 

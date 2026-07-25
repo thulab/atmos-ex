@@ -18,7 +18,7 @@ bash script/scenarios/se_query_test.sh 2>&1 | tee /data/atmos/zk_test/log_se_que
 
 ## 4. 自动流程
 
-脚本按两种类型移动预置数据并逐查询启动 IoTDB；每轮尝试创建 `qa_user`，授予 `root.**` 和 table dialect 权限，然后运行 Benchmark、入库和保存日志。数据最终恢复到数据集仓库，运行目录归档到 `/nasdata/repository/se_query_test/<ts_type>/<commit_date_time>_<commit_id>/`。
+脚本按两种类型移动预置数据并逐查询启动 IoTDB；每轮尝试创建 `qa_user`，授予 `root.**` 和 table dialect 权限，然后运行 Benchmark、入库和保存日志。数据最终恢复到数据集仓库，运行目录归档到 `${BACKUP_ROOT}/<scenario>/<commit_id>/<run_id>/cases/<case_id>/`。
 
 ## 5. 验收与排查
 
