@@ -33,7 +33,7 @@ TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus org.apache.iotdb.consensus.iot.IoTConsensusV2)
+readonly -a PROTOCOL_CLASS=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus org.apache.iotdb.consensus.iot.IoTConsensusV2)
 protocol_list=(223 224)
 ts_list=(seq_w unseq_w tablemode_seq_w tablemode_unseq_w)
 
@@ -53,44 +53,6 @@ MONITOR_TIMEOUT_SECONDS=${MONITOR_TIMEOUT_SECONDS:-7200}
 MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 
 # -------------------- 公用函数 --------------------
-# 功能：重置当前测试用例使用的指标和运行状态
-init_scenario_state() {
-    ts_type=0
-}
-
-# 功能：保留或执行测试异常通知逻辑
-sendEmail() {
-    sendEmail=$(${TOOLS_PATH}/sendEmail.sh $1 >/dev/null 2>&1 &)
-}
-
-# 功能：准备当前测试所需的本地安装目录与运行环境
-set_env() {
-    [ -d "${TEST_IOTDB_PATH}" ] && rm -rf ${TEST_IOTDB_PATH}
-    mkdir -p ${TEST_IOTDB_PATH}/activation
-    cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-    install_iotdb_runtime_config
-}
-
-# 功能：按当前测试场景修改 IoTDB 配置
-modify_iotdb_config() {
-    set_iotdb_heap_memory 20G
-    apply_iotdb_profile base
-}
-
-# 功能：根据协议编号设置各共识组使用的协议实现
-set_protocol_class() {
-    local config_node=$1; local schema_region=$2; local data_region=$3
-    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "config_node_consensus_protocol_class" "${protocol_class[${config_node}]}"
-    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "schema_region_consensus_protocol_class" "${protocol_class[${schema_region}]}"
-    set_iotdb_property "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" "data_region_consensus_protocol_class" "${protocol_class[${data_region}]}"
-}
-
-# 功能：清理运行目录并启动 IoT-Benchmark
-start_benchmark() {
-    rm -rf "${BM_PATH}/logs" "${BM_PATH}/data"
-    (cd "${BM_PATH}" && ./benchmark.sh >/dev/null 2>&1 &)
-}
-
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     weekly_insert_timeout_result() {
@@ -108,10 +70,11 @@ collect_monitor_data() {
 
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() {
-    local ts_type=$1
+    local protocol_code=$1
+    local ts_type=$2
     local case_id=""
 
-    case_id="$(backup_build_case_id protocol "${protocol_class}" model "${ts_type}")"
+    case_id="$(backup_build_case_id protocol "${protocol_code}" model "${ts_type}")"
     backup_standard_case "${case_id}"
 }
 
@@ -129,24 +92,19 @@ test_operation_impl() {
     check_iotdb_pid
     set_env
     modify_iotdb_config
-    case $protocol_class_input in
-        111) set_protocol_class 1 1 1 ;;
-        222) set_protocol_class 2 2 2 ;;
-        223) set_protocol_class 2 2 3 ;;
-        211) set_protocol_class 2 1 1 ;;
-		224) set_protocol_class 2 2 4 ;;
-        *) echo "协议设置错误！"; return ;;
-    esac
+    if ! set_protocol_class "${protocol_class_input}"; then
+        log "协议设置错误：${protocol_class_input}"
+        return 1
+    fi
     if ! start_iotdb_and_wait; then
         log "IoTDB未能正常启动，写入负值测试结果！"
         cost_time=-3; throughput=-3
         insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
         mysql_exec "${insert_sql}"
-        update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
-        mysql_exec "${update_sql}"
+        finish_task_failure
         return 1
     fi
-	change_pwd=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'")
+    change_root_password
     if [[ "${ts_type}" = tablemode_* ]]; then
         install_benchmark_case_config "$(config_build_case_id model tablemode data "${ts_type#tablemode_}")"
     else
@@ -158,7 +116,7 @@ test_operation_impl() {
     sleep 60
     monitor_test_status "INGESTION"
     m_end_time=$(date +%s)
-    pid=$(${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h 127.0.0.1 -p 6667 -e "flush")
+    iotdb_cli_exec "flush" >/dev/null
     collect_monitor_data ${TEST_IP}
     csvOutputfile=$(find_result_csv || true)
     if ! parse_standard_benchmark_result "${csvOutputfile}" "INGESTION"; then
@@ -171,7 +129,7 @@ test_operation_impl() {
     sleep 30
     check_benchmark_pid
     check_iotdb_pid
-    backup_test_data ${ts_type}
+    backup_test_data "${protocol_class_input}" "${ts_type}"
 }
 
 # -------------------- 主流程 --------------------
@@ -181,9 +139,9 @@ main() {
     check_password
     check_standard_benchmark_version
     trap restore_test_type_file EXIT
-printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
-log "开始从MySQL领取${TEST_TYPE}任务"
-if ! claim_next_task; then
+    mark_test_in_progress
+    log "开始从MySQL领取${TEST_TYPE}任务"
+    if ! claim_next_task; then
     log "MySQL中没有符合条件的${TEST_TYPE}任务"
     sleep 60s
 else
@@ -205,13 +163,12 @@ else
     TASK_SKIP_OLDER_COMMITS=1
     [ "${author}" != "Timecho" ] || TASK_SKIP_OLDER_COMMITS=0
     finish_task_success
-fi
-    printf '%s\n' "${TEST_TYPE}" > "${INIT_PATH}/test_type_file"
+    fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_common.sh"
 
 main "$@"
