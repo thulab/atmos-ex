@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #登录用户名
 ACCOUNT=atmos
 test_type=compile
@@ -14,13 +14,20 @@ filter_list_folder_name=(client-cpp client-go client-py code-coverage compile-to
 MYSQLHOSTNAME="111.200.37.158" #数据库信息
 PORT="13306"
 USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
+PASSWORD="${ATMOS_DB_PASSWORD:-}"
 DBNAME="QA_ATM"  #数据库名称
 TABLENAME="ex_commit_history" #数据库中表的名称
 ############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-echo "需要关注密码设置！"
+if [ -z "${PASSWORD}" ]; then
+	echo "ERROR: ATMOS_DB_PASSWORD is not set; cannot connect to MySQL." >&2
+	exit 1
 fi
+
+mysql_exec() {
+	MYSQL_PWD="${PASSWORD}" mysql -N -B \
+		-h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "$1"
+}
+
 init_items() {
 commit_date_time=0
 commit_id=0
@@ -85,7 +92,10 @@ for (( i = 0; i <= 10; i++))
 do
 	query_sql="select commit_id from ${TABLENAME} where commit_id='${commit_id_list[$i]}'"
 	echo "$query_sql"
-	diff_str=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}" | sed -n '2p')
+	if ! diff_str=$(mysql_exec "${query_sql}"); then
+		echo "ERROR: failed to query MySQL; aborting compile task publication." >&2
+		exit 1
+	fi
 	if [ "${diff_str}" = "" ]; then
 		cd ${IOTDB_PATH}
 		git_pull=$(timeout 100s git fetch --all)
@@ -140,11 +150,11 @@ do
 				#不需要测试
 				str_noneed='NoNeed'
 				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,treeview_query,longrun_test,pipe_test_win,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${commit_headline}')"
-				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}" || { echo "ERROR: failed to publish ${commit_id} to MySQL." >&2; exit 1; }
 			else
 				#正常下派所有任务
 				insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,remark) values(${commit_date_time},'${commit_id}','${author}','${commit_headline}')"
-				mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+				mysql_exec "${insert_sql}" || { echo "ERROR: failed to publish ${commit_id} to MySQL." >&2; exit 1; }
 				echo "${commit_id}测试任务已发布！"
 			fi
 		else	
@@ -189,11 +199,11 @@ do
 						#不需要测试
 						str_noneed='NoNeed'
 						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,treeview_query,longrun_test,pipe_test_win,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${str_noneed}','${commit_headline}')"
-						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						mysql_exec "${insert_sql}" || { echo "ERROR: failed to publish ${commit_id} to MySQL." >&2; exit 1; }
 					else
 						#正常下派所有任务
 						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,remark) values(${commit_date_time},'${commit_id}','${author}','${commit_headline}')"
-						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						mysql_exec "${insert_sql}" || { echo "ERROR: failed to publish ${commit_id} to MySQL." >&2; exit 1; }
 						echo "${commit_id}测试任务已发布！"
 					fi
 					break
@@ -204,7 +214,7 @@ do
 						echo $comp_mvn >> ${INIT_PATH}/compile-error.log
 						str_err='CError'
 						insert_sql="insert into ${TABLENAME} (commit_date_time,commit_id,author,se_insert,unse_insert,se_query,unse_query,compaction,sql_coverage,weeklytest_insert,weeklytest_query,api_insert,ts_performance,cluster_insert,cluster_insert_2,insert_records,restart_db,routine_test,config_insert,count_ts,pipe_test,last_cache_query,windows_test,treeview_query,longrun_test,pipe_test_win,api_insert_cts,se_query_test,remark) values(${commit_date_time},'${commit_id}','${author}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${str_err}','${commit_headline}')"
-						mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
+						mysql_exec "${insert_sql}" || { echo "ERROR: failed to record ${commit_id} in MySQL." >&2; exit 1; }
 						sendEmail 2
 						break
 					fi
