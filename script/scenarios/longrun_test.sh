@@ -904,24 +904,18 @@ collect_monitor_data() {
 # 功能：定位 Benchmark 生成的结果 CSV 文件
 find_result_csv() {
     local benchmark_path="$1"
-    local had_nullglob=0
-    local files=()
+    local output_dir="${benchmark_path}/data/csvOutput"
 
-    if shopt -q nullglob; then
-        had_nullglob=1
-    else
-        shopt -s nullglob
-    fi
+    [ -d "${output_dir}" ] || return 1
 
-    files=("${benchmark_path}/data/csvOutput/"*result.csv)
-
-    if [ "${had_nullglob}" -eq 0 ]; then
-        shopt -u nullglob
-    fi
-
-    if [ "${#files[@]}" -gt 0 ]; then
-        printf '%s\n' "${files[0]}"
-    fi
+    # Do not use a shell glob here. GLOBIGNORE and other caller shell state can
+    # filter an existing Benchmark result and make the command substitution
+    # look empty. find uses the same filename rule without inheriting that
+    # filtering; sorting preserves the previous deterministic first-file
+    # behavior when more than one result exists.
+    find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null |
+        LC_ALL=C sort |
+        head -n 1
 }
 
 # 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
