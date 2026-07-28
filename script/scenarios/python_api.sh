@@ -102,12 +102,44 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
+
+# 测试失败后立即同步代码，并安排下一轮任务。
+# 有新提交时测试新提交；没有新提交时仅重试当前提交一次。
+schedule_task_after_failure() {
+	local failed_commit="$1"
+	local failed_run_mode="$2"
+	local updated_commit=""
+
+	log "测试失败，立即更新 IoTDB 代码。"
+	if git_sync_branch "${IOTDB_PATH}" master 100; then
+		updated_commit=$(git_current_commit "${IOTDB_PATH}")
+	else
+		updated_commit="${failed_commit}"
+		log "IoTDB 代码更新失败，按无代码更新处理。"
+	fi
+	if [ "${updated_commit}" != "${failed_commit}" ]; then
+		pending_commit_id="${updated_commit}"
+		pending_run_mode="updated"
+		log "检测到代码更新，将运行下一个 commit ${updated_commit} 的任务。"
+	elif [ "${failed_run_mode}" != "retry" ]; then
+		pending_commit_id="${failed_commit}"
+		pending_run_mode="retry"
+		log "未检测到代码更新，将对当前 commit ${failed_commit} 重新运行一次测试。"
+	else
+		pending_commit_id=""
+		pending_run_mode=""
+		log "当前 commit ${failed_commit} 重试后仍失败，不再重复重试。"
+	fi
+}
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
     check_password
+	pending_commit_id=""
+	pending_run_mode=""
 while true; do
 	init_items
+	current_run_mode="normal"
 	# 获取git commit对比判定是否启动测试
 	#对比判定是否启动测试
 	cd "${IOTDB_PATH}" || return 1
@@ -119,7 +151,12 @@ while true; do
 	# 获取更新后git commit对比判定是否启动测试
 	commit_id=$(git_current_commit "${IOTDB_PATH}")
 	#对比判定是否启动测试
-	if [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
+	if [ -n "${pending_commit_id}" ] && [ "${pending_commit_id}" = "${commit_id}" ]; then
+		current_run_mode="${pending_run_mode}"
+		pending_commit_id=""
+		pending_run_mode=""
+		log "按失败处理计划执行 commit ${commit_id}，模式：${current_run_mode}。"
+	elif [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
 		log "无代码更新，当前版本${commit_id}已经执行过测试"
 		sleep 300s
 		continue
@@ -139,7 +176,7 @@ while true; do
 			InsertTablet=-1
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
 			mysql_exec "${insert_sql}"
-			sleep 600
+			schedule_task_after_failure "${commit_id}" "${current_run_mode}"
 			continue
 		fi
 		cd ${IOTDB_PATH}/iotdb-client/client-py
@@ -186,6 +223,9 @@ while true; do
 		end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		#停止IoTDB程序
 		check_iotdb_pid
+		if [ "${flag}" -ne 0 ]; then
+			schedule_task_after_failure "${commit_id}" "${current_run_mode}"
+		fi
 		if [ $flag -eq 0 ]; then
 			#收集测试结果
 			cd "${TEST_TOOL_PATH}" || return 1
