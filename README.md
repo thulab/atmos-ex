@@ -123,7 +123,7 @@ atmos.sh ───────────────► script/scenarios/<scen
 ### 基础要求
 
 - Linux 控制端和 Bash；Windows 场景还需要 Windows OpenSSH/PowerShell 任务。
-- Java/JDK、`jps` 和待测 IoTDB 所需运行环境。
+- Java/JDK、`jps`、Node.js/npm 和待测 IoTDB 所需运行环境。
 - MySQL 客户端以及访问 `QA_ATM` 的权限。
 - IoT-Benchmark 和场景要求的 Java、C/C++、Python 或 SQL 工具链。
 - `awk`、`bc`、`curl`、`findmnt`、`jq`、`lsof`、`lsblk`、`scp`、`ssh`、`sudo` 等命令。

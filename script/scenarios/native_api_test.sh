@@ -14,6 +14,7 @@ JAVA_TOOL_PATH=${INIT_PATH}/java-native-api-testcase
 CPP_TOOL_PATH=${INIT_PATH}/cpp-native-api-testcase
 C_TOOL_PATH=${INIT_PATH}/c-native-api-testcase
 PYTHON_TOOL_PATH=${INIT_PATH}/python-native-api-testcase
+NODEJS_TOOL_PATH=${INIT_PATH}/nodejs-native-api-testcase
 BK_PATH=${INIT_PATH}/native_api_test_report
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/qa}"
@@ -23,6 +24,11 @@ TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-native-api-testcase
 TEST_CPP_TOOL_PATH=${TEST_INIT_PATH}/cpp-native-api-testcase
 TEST_C_TOOL_PATH=${TEST_INIT_PATH}/c-native-api-testcase
 TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-native-api-testcase
+TEST_NODEJS_TOOL_PATH=${TEST_INIT_PATH}/nodejs-native-api-testcase
+NODE_HOME="${NODE_HOME:-${INIT_PATH}/tools/nodejs}"
+if [ -d "${NODE_HOME}/bin" ]; then
+	export PATH="${NODE_HOME}/bin:${PATH}"
+fi
 # 1. org.apache.iotdb.consensus.simple.SimpleConsensus
 # 2. org.apache.iotdb.consensus.ratis.RatisConsensus
 # 3. org.apache.iotdb.consensus.iot.IoTConsensus
@@ -629,6 +635,115 @@ EOF
 	#git commit -m ${last_cid_iotdb}_${failures_num}
 	#git push -f
 }
+# 功能：执行 Node.js 原生接口测试并解析 Jest JSON 报告
+test_nodejs_native_api_test() {
+	local required_command=""
+	local result_file="${TEST_NODEJS_TOOL_PATH}/reports/jest-report.json"
+	local npm_test_status=0
+	local original_insert_sql=""
+	local sql=""
+
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	for required_command in git node npm tar; do
+		if ! command -v "${required_command}" >/dev/null 2>&1; then
+			log "Node.js原生接口测试缺少命令：${required_command}"
+			tests_num=-2
+			errors_num=-2
+			failures_num=-2
+			skipped_num=-2
+			successRate=-2
+			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+			insert_sql_nodejs="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS')"
+			mysql_exec "${insert_sql_nodejs}"
+			return 1
+		fi
+	done
+
+	log "准备Node.js原生接口测试环境，Node.js $(node --version)，npm $(npm --version)"
+	safe_rm "${TEST_NODEJS_TOOL_PATH}"
+	mkdir -p "${TEST_NODEJS_TOOL_PATH}"
+	if ! git -C "${NODEJS_TOOL_PATH}" archive --format=tar HEAD | tar -xf - -C "${TEST_NODEJS_TOOL_PATH}"; then
+		log "复制Node.js原生接口测试工具失败"
+		return 1
+	fi
+	mkdir -p "${TEST_NODEJS_TOOL_PATH}/reports"
+
+	cd "${TEST_NODEJS_TOOL_PATH}" || return 1
+	export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-${INIT_PATH}/.npm-cache}"
+	mkdir -p "${NPM_CONFIG_CACHE}"
+	if ! timeout 1800s npm ci --ignore-scripts --no-audit --no-fund --prefer-offline; then
+		log "安装Node.js原生接口测试依赖失败，写入负值测试结果！"
+		tests_num=-3
+		errors_num=-3
+		failures_num=-3
+		skipped_num=-3
+		successRate=-3
+		end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql_nodejs="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS')"
+		mysql_exec "${insert_sql_nodejs}"
+		return 1
+	fi
+
+	log "开始Node.js原生接口测试"
+	if timeout 7200s npm test -- --json --outputFile="${result_file}"; then
+		npm_test_status=0
+	else
+		npm_test_status=$?
+		log "Node.js原生接口测试命令退出码：${npm_test_status}，继续解析Jest报告"
+	fi
+	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+
+	if [ ! -s "${result_file}" ] || ! jq -e '
+		(.numTotalTests | type == "number") and
+		(.numFailedTests | type == "number") and
+		(.numPendingTests | type == "number") and
+		(.numPassedTests | type == "number") and
+		(.success | type == "boolean")
+	' "${result_file}" >/dev/null; then
+		log "Node.js原生接口测试报告缺失或格式无效，写入负值测试结果！"
+		tests_num=-4
+		errors_num=-4
+		failures_num=-4
+		skipped_num=-4
+		successRate=-4
+		insert_sql_nodejs="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS')"
+		mysql_exec "${insert_sql_nodejs}"
+		return 1
+	fi
+
+	tests_num=$(jq -r '.numTotalTests' "${result_file}")
+	errors_num=$(jq -r '.numRuntimeErrorTestSuites // 0' "${result_file}")
+	failures_num=$(jq -r '.numFailedTests' "${result_file}")
+	skipped_num=$(jq -r '.numPendingTests' "${result_file}")
+	passed_num=$(jq -r '.numPassedTests' "${result_file}")
+	successRate=$(awk -v t="${tests_num}" -v p="${passed_num}" 'BEGIN{printf "%.2f", t?(p*100/t):0}')
+	insert_sql_nodejs="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS')"
+	if ! mysql_exec "${insert_sql_nodejs}"; then
+		log "执行mysql命令失败"
+		original_insert_sql="${insert_sql_nodejs}"
+		tests_num=-5
+		errors_num=-5
+		failures_num=-5
+		skipped_num=-5
+		successRate=-5
+		sql=$(cat <<EOF
+		insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS',"${original_insert_sql}")
+EOF
+		)
+		mysql_exec "${sql}"
+		log "备份Node.js原生接口测试报告"
+		backup_api_failure nodejs "${last_cid_iotdb}" "${failures_num}" "${result_file}"
+		return 1
+	fi
+
+	log "备份Node.js原生接口测试报告"
+	mkdir -p "${BK_PATH}/nodejs"
+	rm -rf -- "${BK_PATH:?}/nodejs/"*
+	cp -f -- "${result_file}" "${BK_PATH}/nodejs/"
+}
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
     ensure_runtime_dependencies
@@ -651,6 +766,8 @@ cd "${CPP_TOOL_PATH}" || return 1
 git_pull_repository "${CPP_TOOL_PATH}" 100
 cd "${PYTHON_TOOL_PATH}" || return 1
 git_pull_repository "${PYTHON_TOOL_PATH}" 100
+cd "${NODEJS_TOOL_PATH}" || return 1
+git_pull_repository "${NODEJS_TOOL_PATH}" 100
 # 对比判定是否启动测试
 if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是否更新
 	log "IoTDB代码有更新，当前新版本commit：${commit_id_iotdb} 未执行过测试"
@@ -669,6 +786,8 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		mysql_exec "${insert_sql_cpp}"
 		insert_sql_python="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'PYTHON')"
 		mysql_exec "${insert_sql_python}"
+		insert_sql_nodejs="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_iotdb}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'NODEJS')"
+		mysql_exec "${insert_sql_nodejs}"
 	else
 		# 编译成功，开始测试
 		#清理环境，确保无旧程序影响
@@ -684,7 +803,8 @@ if [ "${last_cid_iotdb}" != "${commit_id_iotdb}" ]; then # 判断IoTDB代码是�
 		"Java:test_java_native_api_test" \
 		"Cpp:test_cpp_native_api_test" \
 		"C:test_c_native_api_test" \
-		"Python:test_python_native_api_test" || true
+		"Python:test_python_native_api_test" \
+		"Nodejs:test_nodejs_native_api_test" || true
 		#停止IoTDB程序
 		check_iotdb_pid
 		cd "${BK_PATH}" || return 1
