@@ -911,10 +911,11 @@ find_result_csv() {
     # Do not use a shell glob here. GLOBIGNORE and other caller shell state can
     # filter an existing Benchmark result and make the command substitution
     # look empty. find uses the same filename rule without inheriting that
-    # filtering. Return the sorted candidates once so the caller can select a
-    # file and reuse the same list for diagnostics without searching again.
+    # filtering; sorting preserves the previous deterministic first-file
+    # behavior when more than one result exists.
     find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null |
-        LC_ALL=C sort
+        LC_ALL=C sort |
+        head -n 1
 }
 
 # 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
@@ -922,7 +923,6 @@ log_benchmark_parse_diagnostics() {
     local benchmark_path="$1"
     local csv_file="$2"
     local result_label="$3"
-    shift 3
     local output_dir="${benchmark_path}/data/csvOutput"
     local csv_size=0
     local matched_count=0
@@ -936,9 +936,9 @@ log_benchmark_parse_diagnostics() {
         return 0
     fi
 
-    for candidate in "$@"; do
+    while IFS= read -r candidate; do
         log "benchmark parse diagnostic candidate_csv=${candidate}"
-    done
+    done < <(find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null | sort)
 
     if [ -z "${csv_file}" ]; then
         log "benchmark parse diagnostic no matching *result.csv file"
@@ -1106,16 +1106,14 @@ insert_result_from_csv() {
     local result_label="$6"
     local result_max_time=""
     local csv_file=""
-    local csv_candidates=()
 
     reset_benchmark_metrics
     result_max_time="$(get_result_max_time "${current_ts_type}")"
-    mapfile -t csv_candidates < <(find_result_csv "${benchmark_path}" || true)
-    csv_file="${csv_candidates[0]:-}"
+    csv_file="$(find_result_csv "${benchmark_path}" || true)"
     log "benchmark parse start path=${benchmark_path} label=[${result_label}] selected_csv=${csv_file:-missing}"
 
     if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
-        log_benchmark_parse_diagnostics "${benchmark_path}" "${csv_file}" "${result_label}" "${csv_candidates[@]}"
+        log_benchmark_parse_diagnostics "${benchmark_path}" "${csv_file}" "${result_label}"
         log "failed to parse ${result_label} from ${benchmark_path}, writing negative result."
         set_negative_benchmark_metrics -2
         insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
