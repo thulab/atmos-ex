@@ -913,9 +913,12 @@ find_result_csv() {
     # look empty. find uses the same filename rule without inheriting that
     # filtering; sorting preserves the previous deterministic first-file
     # behavior when more than one result exists.
+    # Keep the final command reading the complete stream. With pipefail enabled,
+    # head can make sort/find exit on SIGPIPE and turn a valid result into a
+    # failed command substitution.
     find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null |
         LC_ALL=C sort |
-        head -n 1
+        awk 'NR == 1 { first = $0 } END { if (first != "") print first }'
 }
 
 # 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
