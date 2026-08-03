@@ -12,7 +12,8 @@
 
 - `log`、`die`：带时间日志和立即退出。
 - `run_isolated_case`：在子 Shell 中执行函数，隔离变量、环境和工作目录改变。
-- `trim/current_datetime/datetime_to_epoch/normalize_datetime`：字符串和时间处理。
+- `trim/current_datetime/datetime_to_epoch/normalize_datetime`：字符串和常规时间处理。
+- `iotdb_timestamp_to_epoch/format_iotdb_timestamp`：按 `s/ms/us/ns` 精度转换和格式化 IoTDB 时间戳。
 - `safe_rm/sudo_safe_rm/path_is_safe`：仅允许在已知根目录下递归删除。
 - `copy_if_exists`：源不存在时记录并跳过。
 - `set_iotdb_property [FILE] KEY VALUE`：去重更新 properties。

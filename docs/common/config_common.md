@@ -33,6 +33,7 @@ scope=more__workload=query__query=Q4-a1.properties
 
 ## 4. 主要函数
 
+- `get_property_value FILE KEY [DEFAULT]`：读取 properties 文件中最后一个生效值，缺失时返回默认值。
 - `config_build_case_id KEY VALUE...`：生成统一 Case ID。
 - `benchmark_case_config_path CASE_ID`：返回当前场景 Case 文件路径。
 - `install_benchmark_case_config CASE_ID [BM_PATH]`：原子安装 Case 到 Benchmark 的 `conf/config.properties`。

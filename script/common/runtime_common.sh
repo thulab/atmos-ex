@@ -44,6 +44,35 @@ normalize_datetime() {
     printf '%s' "$1" | tr -cd '0-9'
 }
 
+# 功能：按 IoTDB 时间戳精度将数值或日期时间转换为 epoch 秒
+iotdb_timestamp_to_epoch() {
+    local raw_timestamp="$1"
+    local timestamp_precision="${2:-ms}"
+
+    if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
+        case "${timestamp_precision}" in
+            ns) printf '%s\n' $((raw_timestamp / 1000000000)) ;;
+            us) printf '%s\n' $((raw_timestamp / 1000000)) ;;
+            s) printf '%s\n' "${raw_timestamp}" ;;
+            ms|*) printf '%s\n' $((raw_timestamp / 1000)) ;;
+        esac
+    else
+        date -d "${raw_timestamp}" +%s
+    fi
+}
+
+# 功能：按 IoTDB 时间戳精度、偏移量和格式输出日期时间
+format_iotdb_timestamp() {
+    local raw_timestamp="$1"
+    local timestamp_precision="${2:-ms}"
+    local offset_seconds="${3:-0}"
+    local output_format="${4:-+%Y-%m-%dT%H:%M:%S%:z}"
+    local target_epoch=0
+
+    target_epoch="$(iotdb_timestamp_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
+    date -d "@$((target_epoch + offset_seconds))" "${output_format}"
+}
+
 # 功能：检查指定外部命令是否存在，不存在时终止运行
 require_command() {
     command -v "$1" >/dev/null 2>&1 || die "missing command: $1"

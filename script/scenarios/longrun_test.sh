@@ -35,7 +35,7 @@ readonly IOTDB_SSD_DATA_DIR="/ssd_dcpmm/data_dir"
 readonly IOTDB_DATA_DIRS="${IOTDB_HDD_DATA_DIR},${IOTDB_SSD_DATA_DIR}"
 readonly IOTDB_CONF_DIR="/ssd_dcpmm/conf_dir"
 
-readonly -a PROTOCOL_CLASS=(
+readonly -a protocol_class=(
     ""
     "org.apache.iotdb.consensus.simple.SimpleConsensus"
     "org.apache.iotdb.consensus.ratis.RatisConsensus"
@@ -94,6 +94,7 @@ readonly IOTDB_READY_INTERVAL_SECONDS=5
 readonly STARTUP_GRACE_SECONDS=10
 readonly BENCHMARK_WARMUP_SECONDS=60
 readonly BENCHMARK_STOP_WAIT_SECONDS=30
+COPY_IOTDB_ENV=1
 
 result_table="${TABLENAME}"
 TASK_AUTHOR_FILTER_SQL="author != 'Timecho'"
@@ -102,40 +103,6 @@ author=""
 commit_date_time=""
 test_date_time=""
 
-okPoint=0
-okOperation=0
-failPoint=0
-failOperation=0
-throughput=0
-Latency=0
-MIN=0
-P10=0
-P25=0
-MEDIAN=0
-P75=0
-P90=0
-P95=0
-P99=0
-P999=0
-MAX=0
-numOfSe0Level=0
-start_time=""
-end_time=""
-cost_time=0
-numOfUnse0Level=0
-dataFileSize=0
-maxNumofOpenFiles=0
-maxNumofThread=0
-errorLogSize=0
-walFileSize=0
-maxCPULoad=0
-avgCPULoad=0
-maxDiskIOOpsRead=0
-maxDiskIOOpsWrite=0
-maxDiskIOSizeRead=0
-maxDiskIOSizeWrite=0
-m_start_time=0
-m_end_time=0
 TREE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 TABLE_QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
 QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
@@ -220,15 +187,8 @@ init_scenario_state() {
     LONGRUN_TTL_MS=0
 }
 
-# 功能：准备当前测试所需的本地安装目录与运行环境
-set_env() {
-    local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
-
-    [ -d "${source_path}" ] || die "missing tested IoTDB path: ${source_path}"
-    safe_rm "${TEST_IOTDB_PATH}"
-    mkdir -p "${TEST_IOTDB_PATH}/activation"
-    cp -rf -- "${source_path}/." "${TEST_IOTDB_PATH}/"
-    install_iotdb_runtime_config
+# 功能：补充 longrun 分发安装后的专用数据目录
+after_prepare_iotdb_distribution() {
     mkdir -p "${IOTDB_HDD_DATA_DIR}" "${IOTDB_SSD_DATA_DIR}" "${IOTDB_CONF_DIR}"
 }
 
@@ -239,58 +199,27 @@ modify_iotdb_config() {
 
     [ -f "${datanode_env}" ] || die "missing config file: ${datanode_env}"
     [ -f "${properties_file}" ] || die "missing config file: ${properties_file}"
-    sed -i 's/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY="40G"/' "${datanode_env}"
-
-    cat >> "${properties_file}" <<EOF
-enable_seq_space_compaction=true
-enable_unseq_space_compaction=true
-enable_cross_space_compaction=true
-cluster_name=${TEST_TYPE}
-cn_system_dir=${IOTDB_CONF_DIR}/confignode/system
-cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus
-cn_pipe_receiver_file_dir=${IOTDB_CONF_DIR}/confignode/system/pipe/receiver
-dn_system_dir=${IOTDB_SSD_DATA_DIR}/datanode/system
-dn_data_dirs=${IOTDB_DATA_DIRS}
-dn_consensus_dir=${IOTDB_SSD_DATA_DIR}/datanode/consensus
-dn_wal_dirs=${IOTDB_SSD_DATA_DIR}/datanode/wal
-dn_tracing_dir=${IOTDB_SSD_DATA_DIR}/datanode/tracing
-dn_sync_dir=${IOTDB_SSD_DATA_DIR}/datanode/sync
-sort_tmp_dir=${IOTDB_SSD_DATA_DIR}/datanode/tmp
-dn_pipe_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/receiver
-iot_consensus_v2_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/receiver
-iot_consensus_v2_deletion_file_dir=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/deletion
-remote_tsfile_cache_dirs=${IOTDB_SSD_DATA_DIR}/datanode/data/cache
-cn_enable_metric=true
-cn_enable_performance_stat=true
-cn_metric_reporter_list=PROMETHEUS
-cn_metric_level=ALL
-cn_metric_prometheus_reporter_port=9081
-dn_enable_metric=true
-dn_enable_performance_stat=true
-dn_metric_reporter_list=PROMETHEUS
-dn_metric_level=ALL
-dn_metric_prometheus_reporter_port=9091
-EOF
-}
-
-# 功能：根据协议编号设置各共识组使用的协议实现
-set_protocol_class() {
-    local protocol_code="$1"
-    local config_node="${protocol_code:0:1}"
-    local schema_region="${protocol_code:1:1}"
-    local data_region="${protocol_code:2:1}"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    [ "${#protocol_code}" -eq 3 ] || return 1
-    [ -n "${PROTOCOL_CLASS[${config_node}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${schema_region}]:-}" ] || return 1
-    [ -n "${PROTOCOL_CLASS[${data_region}]:-}" ] || return 1
-
-    cat >> "${properties_file}" <<EOF
-config_node_consensus_protocol_class=${PROTOCOL_CLASS[${config_node}]}
-schema_region_consensus_protocol_class=${PROTOCOL_CLASS[${schema_region}]}
-data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
-EOF
+    set_iotdb_heap_memory 40G
+    upsert_properties "${properties_file}" \
+        "enable_seq_space_compaction=true" \
+        "enable_unseq_space_compaction=true" \
+        "enable_cross_space_compaction=true" \
+        "cluster_name=${TEST_TYPE}" \
+        "cn_system_dir=${IOTDB_CONF_DIR}/confignode/system" \
+        "cn_consensus_dir=${IOTDB_CONF_DIR}/confignode/consensus" \
+        "cn_pipe_receiver_file_dir=${IOTDB_CONF_DIR}/confignode/system/pipe/receiver" \
+        "dn_system_dir=${IOTDB_SSD_DATA_DIR}/datanode/system" \
+        "dn_data_dirs=${IOTDB_DATA_DIRS}" \
+        "dn_consensus_dir=${IOTDB_SSD_DATA_DIR}/datanode/consensus" \
+        "dn_wal_dirs=${IOTDB_SSD_DATA_DIR}/datanode/wal" \
+        "dn_tracing_dir=${IOTDB_SSD_DATA_DIR}/datanode/tracing" \
+        "dn_sync_dir=${IOTDB_SSD_DATA_DIR}/datanode/sync" \
+        "sort_tmp_dir=${IOTDB_SSD_DATA_DIR}/datanode/tmp" \
+        "dn_pipe_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/receiver" \
+        "iot_consensus_v2_receiver_file_dirs=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/receiver" \
+        "iot_consensus_v2_deletion_file_dir=${IOTDB_SSD_DATA_DIR}/datanode/system/pipe/consensus/deletion" \
+        "remote_tsfile_cache_dirs=${IOTDB_SSD_DATA_DIR}/datanode/data/cache"
+    apply_iotdb_profile metrics
 }
 
 # 功能：记录长稳测试当前使用的 Benchmark 起始时间
@@ -301,69 +230,6 @@ longrun_start_time_log() {
     mkdir -p "${TEST_IOTDB_PATH}/logs"
     printf '%s\n' "${log_line}" >> "${LONGRUN_START_TIME_LOG}"
     printf '%s\n' "${log_line}" >&2
-}
-
-# 功能：读取并返回指定配置、路径或指标值
-get_benchmark_config_value() {
-    local config_file="$1"
-    local config_key="$2"
-
-    awk -F= -v key="${config_key}" '
-        /^[[:space:]]*#/ { next }
-        {
-            current_key = $1
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", current_key)
-        }
-        current_key == key {
-            value = substr($0, index($0, "=") + 1)
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-            print value
-            exit
-        }
-    ' "${config_file}"
-}
-
-# 功能：读取并返回指定配置、路径或指标值
-get_benchmark_config_value_or_default() {
-    local config_file="$1"
-    local config_key="$2"
-    local default_value="$3"
-    local config_value=""
-
-    config_value="$(get_benchmark_config_value "${config_file}" "${config_key}")"
-    if [ -n "${config_value}" ]; then
-        printf '%s\n' "${config_value}"
-    else
-        printf '%s\n' "${default_value}"
-    fi
-}
-
-# 功能：读取并返回指定配置、路径或指标值
-get_iotdb_timestamp_precision() {
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-    local timestamp_precision=""
-
-    if [ -f "${properties_file}" ]; then
-        timestamp_precision="$(
-            awk -F= '
-                /^[[:space:]]*#/ { next }
-                {
-                    key = $1
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-                }
-                key == "timestamp_precision" {
-                    value = $2
-                }
-                END {
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-                    print value
-                }
-            ' "${properties_file}"
-        )"
-    fi
-
-    [ -n "${timestamp_precision}" ] || timestamp_precision="ms"
-    printf '%s\n' "${timestamp_precision}"
 }
 
 # 功能：查询并返回当前场景需要的数据或状态
@@ -379,17 +245,17 @@ query_last_sensor_time() {
     local cli_output=""
     local cli_status=0
 
-    db_name="$(get_benchmark_config_value_or_default "${config_file}" "DB_NAME" "test")"
-    group_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "GROUP_NAME_PREFIX" "g_")"
-    device_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "DEVICE_NAME_PREFIX" "d_")"
-    sensor_name_prefix="$(get_benchmark_config_value_or_default "${config_file}" "SENSOR_NAME_PREFIX" "s_")"
+    db_name="$(get_property_value "${config_file}" DB_NAME test)"
+    group_name_prefix="$(get_property_value "${config_file}" GROUP_NAME_PREFIX g_)"
+    device_name_prefix="$(get_property_value "${config_file}" DEVICE_NAME_PREFIX d_)"
+    sensor_name_prefix="$(get_property_value "${config_file}" SENSOR_NAME_PREFIX s_)"
     sensor_name="${sensor_name_prefix}0"
     query_sql="select max_time(${sensor_name}) from root.${db_name}.${group_name_prefix}0.${device_name_prefix}0"
 
     longrun_start_time_log "query config=${config_file} db=${db_name} group_prefix=${group_name_prefix} device_prefix=${device_name_prefix} sensor=${sensor_name}"
     longrun_start_time_log "query sql=${query_sql}"
 
-    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)"
+    cli_output="$(iotdb_cli_run -u root -pw "${IOTDB_PASSWORD}" -sql_dialect tree -h 127.0.0.1 -p 6667 -e "${query_sql}" 2>&1)"
     cli_status=$?
     longrun_start_time_log "query cli_status=${cli_status}"
     longrun_start_time_log "query raw_output_begin"
@@ -416,37 +282,6 @@ query_last_sensor_time() {
     printf '%s\n' "${query_result}"
 }
 
-# 功能：检查或处理 IoTDB 服务状态与时间配置
-iotdb_time_to_epoch() {
-    local raw_timestamp="$1"
-    local timestamp_precision="$2"
-
-    if [[ "${raw_timestamp}" =~ ^[0-9]+$ ]]; then
-        case "${timestamp_precision}" in
-            ns) printf '%s\n' $((raw_timestamp / 1000000000)) ;;
-            us) printf '%s\n' $((raw_timestamp / 1000000)) ;;
-            s) printf '%s\n' "${raw_timestamp}" ;;
-            ms|*) printf '%s\n' $((raw_timestamp / 1000)) ;;
-        esac
-    else
-        date -d "${raw_timestamp}" +%s
-    fi
-}
-
-# 功能：将输入值格式化为目标展示或配置格式
-format_iotdb_time() {
-    local raw_timestamp="$1"
-    local timestamp_precision="$2"
-    local offset_seconds="${3:-0}"
-    local output_format="${4:-+%Y-%m-%dT%H:%M:%S%:z}"
-    local target_epoch=0
-
-    target_epoch="$(iotdb_time_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
-    target_epoch=$((target_epoch + offset_seconds))
-
-    date -d "@${target_epoch}" "${output_format}"
-}
-
 # 功能：计算当前测试所需的时间、大小或统计值
 calculate_ttl_ms() {
     local raw_timestamp="$1"
@@ -457,7 +292,7 @@ calculate_ttl_ms() {
     local ttl_seconds=0
 
     [[ "${LONGRUN_TTL_KEEP_DAYS}" =~ ^[0-9]+$ ]] || return 1
-    max_time_epoch="$(iotdb_time_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
+    max_time_epoch="$(iotdb_timestamp_to_epoch "${raw_timestamp}" "${timestamp_precision}" 2>/dev/null)" || return 1
     now_epoch="$(date +%s)"
     keep_seconds=$((LONGRUN_TTL_KEEP_DAYS * 24 * 60 * 60))
     ttl_seconds=$((now_epoch - max_time_epoch + keep_seconds))
@@ -501,7 +336,7 @@ update_benchmark_start_time() {
 
     longrun_start_time_log "update benchmark start time begin, benchmark_path=${benchmark_path}, config=${config_file}"
     last_sensor_time="$(query_last_sensor_time "${config_file}")"
-    timestamp_precision="$(get_iotdb_timestamp_precision)"
+    timestamp_precision="$(get_property_value "${TEST_IOTDB_PATH}/conf/iotdb-system.properties" timestamp_precision ms)"
     longrun_start_time_log "timestamp_precision=${timestamp_precision} last_sensor_time=${last_sensor_time}"
 
     if [ -n "${last_sensor_time}" ]; then
@@ -514,7 +349,7 @@ update_benchmark_start_time() {
             longrun_start_time_log "calculate ttl failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
         fi
 
-        format_output="$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)"
+        format_output="$(format_iotdb_timestamp "${last_sensor_time}" "${timestamp_precision}" 0 '+%Y-%m-%d %H:%M:%S' 2>&1)"
         format_status=$?
         if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
             formatted_max_time="${format_output}"
@@ -522,7 +357,7 @@ update_benchmark_start_time() {
             longrun_start_time_log "format max time failed status=${format_status} raw=${last_sensor_time} precision=${timestamp_precision} output=${format_output}"
         fi
 
-        format_output="$(format_iotdb_time "${last_sensor_time}" "${timestamp_precision}" 3600 2>&1)"
+        format_output="$(format_iotdb_timestamp "${last_sensor_time}" "${timestamp_precision}" 3600 2>&1)"
         format_status=$?
         if [ "${format_status}" -eq 0 ] && [ -n "${format_output}" ]; then
             benchmark_start_time="${format_output}"
@@ -549,15 +384,6 @@ update_benchmark_start_time() {
     longrun_start_time_log "update benchmark start time end, BENCHMARK_START_TIME=${BENCHMARK_START_TIME}, QUERY_MAX_TIME=${formatted_max_time}"
 }
 
-# 功能：应用当前场景提供的配置或扩展钩子
-apply_benchmark_start_time() {
-    local benchmark_path="$1"
-    local config_file="${benchmark_path}/conf/config.properties"
-
-    [ -f "${config_file}" ] || return 0
-    sed -i "s|^START_TIME=.*$|START_TIME=${BENCHMARK_START_TIME}|g" "${config_file}"
-}
-
 # 功能：执行指定测试阶段或外部工具命令
 run_iotdb_sql_for_ttl() {
     local dialect="$1"
@@ -565,7 +391,7 @@ run_iotdb_sql_for_ttl() {
     local cli_output=""
     local cli_status=0
 
-    cli_output="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -sql_dialect "${dialect}" -h 127.0.0.1 -p 6667 -e "${sql}" 2>&1)"
+    cli_output="$(iotdb_cli_run -u root -pw "${IOTDB_PASSWORD}" -sql_dialect "${dialect}" -h 127.0.0.1 -p 6667 -e "${sql}" 2>&1)"
     cli_status=$?
     longrun_start_time_log "set ttl cli_status=${cli_status} dialect=${dialect} sql=${sql}"
 
@@ -636,8 +462,8 @@ set_longrun_ttl() {
         return 0
     fi
 
-    tree_db_name="$(get_benchmark_config_value_or_default "${tree_config}" "DB_NAME" "tree")"
-    table_db_name="$(get_benchmark_config_value_or_default "${table_config}" "DB_NAME" "table")"
+    tree_db_name="$(get_property_value "${tree_config}" DB_NAME tree)"
+    table_db_name="$(get_property_value "${table_config}" DB_NAME table)"
     longrun_start_time_log "set ttl begin ttl_ms=${ttl_ms} tree_db=${tree_db_name} table_db=${table_db_name}"
 
     if ! set_tree_ttl "${tree_db_name}" "${ttl_ms}"; then
@@ -669,9 +495,9 @@ prepare_benchmark_configs() {
 start_benchmarks() {
     update_benchmark_start_time "${BM_PATH_TREE}"
     set_longrun_ttl || log "failed to set TTL, continue benchmark."
-    apply_benchmark_start_time "${BM_PATH_TABLE}"
-    apply_benchmark_start_time "${BM_PATH_TREE_QUERY}"
-    apply_benchmark_start_time "${BM_PATH_TABLE_QUERY}"
+    apply_benchmark_overrides "${BM_PATH_TABLE}" "START_TIME=${BENCHMARK_START_TIME}"
+    apply_benchmark_overrides "${BM_PATH_TREE_QUERY}" "START_TIME=${BENCHMARK_START_TIME}"
+    apply_benchmark_overrides "${BM_PATH_TABLE_QUERY}" "START_TIME=${BENCHMARK_START_TIME}"
 
     start_benchmark "${BM_PATH_TREE}"
     start_benchmark "${BM_PATH_TABLE}"
@@ -696,93 +522,18 @@ monitor_test_status() {
     local output_table="${BM_PATH_TABLE}/data/csvOutput"
     local output_tree_query="${BM_PATH_TREE_QUERY}/data/csvOutput"
     local output_table_query="${BM_PATH_TABLE_QUERY}/data/csvOutput"
-    local now_epoch=0
-    local elapsed=0
-
-    while true; do
-        if [ -d "${output_tree}" ] && [ -d "${output_table}" ] && [ -d "${output_tree_query}" ] && [ -d "${output_table_query}" ]; then
-            end_time="$(current_datetime)"
-            log "longrun benchmark finished."
-            return 0
-        fi
-
-        now_epoch="$(date +%s)"
-        elapsed=$((now_epoch - m_start_time))
-        if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            end_time="$(current_datetime)"
-            log "longrun benchmark timed out, writing stuck results."
-            ensure_output_or_stuck "${BM_PATH_TREE}" INGESTION
-            ensure_output_or_stuck "${BM_PATH_TABLE}" INGESTION
-            ensure_output_or_stuck "${BM_PATH_TREE_QUERY}" "${OP_TYPE_LABELS[@]}"
-            ensure_output_or_stuck "${BM_PATH_TABLE_QUERY}" "${OP_TYPE_LABELS[@]}"
-            return 1
-        fi
-
-        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
-    done
-}
-
-# 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
-log_benchmark_parse_diagnostics() {
-    local benchmark_path="$1"
-    local csv_file="$2"
-    local result_label="$3"
-    local output_dir="${benchmark_path}/data/csvOutput"
-    local csv_size=0
-    local matched_count=0
-    local candidate=""
-
-    log "benchmark parse diagnostic begin path=${benchmark_path} output_dir=${output_dir} label=[${result_label}] selected_csv=${csv_file:-missing}"
-
-    if [ ! -d "${output_dir}" ]; then
-        log "benchmark parse diagnostic output directory missing: ${output_dir}"
-        log "benchmark parse diagnostic end label=[${result_label}]"
+    if wait_for_benchmark_output_dirs \
+        "${MONITOR_TIMEOUT_SECONDS}" "${MONITOR_POLL_INTERVAL_SECONDS}" "${m_start_time}" \
+        "${output_tree}" "${output_table}" "${output_tree_query}" "${output_table_query}"; then
+        log "longrun benchmark finished."
         return 0
     fi
-
-    while IFS= read -r candidate; do
-        log "benchmark parse diagnostic candidate_csv=${candidate}"
-    done < <(find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null | sort)
-
-    if [ -z "${csv_file}" ]; then
-        log "benchmark parse diagnostic no matching *result.csv file"
-        log "benchmark parse diagnostic end label=[${result_label}]"
-        return 0
-    fi
-    if [ ! -f "${csv_file}" ]; then
-        log "benchmark parse diagnostic selected CSV is not a regular file: ${csv_file}"
-        log "benchmark parse diagnostic end label=[${result_label}]"
-        return 0
-    fi
-
-    csv_size="$(wc -c < "${csv_file}" 2>/dev/null || printf '0')"
-    matched_count="$(awk -F, -v label="${result_label}" '
-        {
-            name = $1
-            gsub(/^[ \t\r]+|[ \t\r]+$/, "", name)
-            if (name == label) {
-                count++
-            }
-        }
-        END { print count + 0 }
-    ' "${csv_file}" 2>/dev/null)"
-    log "benchmark parse diagnostic csv_size=${csv_size} matched_rows=${matched_count}"
-
-    awk -F, -v label="${result_label}" '
-        {
-            name = $1
-            gsub(/^[ \t\r]+|[ \t\r]+$/, "", name)
-            if (name == label) {
-                row = $0
-                gsub(/\r/, "\\r", row)
-                printf "line=%d fields=%d content=%s\n", NR, NF, row
-            }
-        }
-    ' "${csv_file}" 2>/dev/null | while IFS= read -r candidate; do
-        log "benchmark parse diagnostic matched_row ${candidate}"
-    done
-
-    log "benchmark parse diagnostic end label=[${result_label}]"
+    log "longrun benchmark timed out, writing stuck results."
+    ensure_output_or_stuck "${BM_PATH_TREE}" INGESTION
+    ensure_output_or_stuck "${BM_PATH_TABLE}" INGESTION
+    ensure_output_or_stuck "${BM_PATH_TREE_QUERY}" "${OP_TYPE_LABELS[@]}"
+    ensure_output_or_stuck "${BM_PATH_TABLE_QUERY}" "${OP_TYPE_LABELS[@]}"
+    return 1
 }
 
 # 功能：将当前测试结果写入结果数据库
@@ -981,7 +732,7 @@ test_operation_impl() {
     fi
 
     m_end_time="$(date +%s)"
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
+    iotdb_cli_exec "flush" 127.0.0.1 6667 root "${IOTDB_PASSWORD}" >/dev/null 2>&1 || true
     disk_id_regex="${DEFAULT_DISK_ID}"
     collect_standard_monitor_snapshot "${TEST_IP}" "$((m_end_time - m_start_time))"
     errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") > 0 ? 1 : 0 ))
@@ -1038,16 +789,19 @@ main() {
 
     log "test round ${test_date_time} finished."
     if [ "${task_failed}" -eq 0 ]; then
-        update_task_status "done"
-        mark_older_commits_skip
+        finish_task_success
     else
-        update_task_status "RError"
+        finish_task_failure
     fi
 }
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/benchmark_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/monitor_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_distribution_common.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/iotdb_service_common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/protocol_common.sh"
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

@@ -8,6 +8,30 @@ config_safe_component() {
     printf '%s' "${value}"
 }
 
+# 功能：读取 properties 文件中最后一个生效的配置值
+get_property_value() {
+    local properties_file="$1"
+    local property_key="$2"
+    local default_value="${3:-}"
+    local property_value=""
+
+    if [ -f "${properties_file}" ]; then
+        property_value="$(awk -F= -v key="${property_key}" '
+            /^[[:space:]]*#/ { next }
+            {
+                current_key = $1
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", current_key)
+                if (current_key == key) {
+                    value = substr($0, index($0, "=") + 1)
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                }
+            }
+            END { print value }
+        ' "${properties_file}")"
+    fi
+    printf '%s\n' "${property_value:-${default_value}}"
+}
+
 # 功能：按 key/value 维度生成统一 Benchmark case 标识
 config_build_case_id() {
     local result=""
