@@ -203,17 +203,12 @@ longrun_author_matches_route() {
     fi
 }
 
-# 功能：同步本地与目标位置的版本或目录内容
-sync_benchmark_path() {
-    sync_benchmark_distribution "${BM_REPOS_PATH}" "$1"
-}
-
 # 功能：比较本地与仓库版本并同步 IoT-Benchmark
 check_benchmark_version() {
-    sync_benchmark_path "${BM_PATH_TREE}"
-    sync_benchmark_path "${BM_PATH_TABLE}"
-    sync_benchmark_path "${BM_PATH_TREE_QUERY}"
-    sync_benchmark_path "${BM_PATH_TABLE_QUERY}"
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH_TREE}"
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH_TABLE}"
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH_TREE_QUERY}"
+    sync_benchmark_distribution "${BM_REPOS_PATH}" "${BM_PATH_TABLE_QUERY}"
 }
 
 # 功能：重置当前测试用例使用的指标和运行状态
@@ -223,47 +218,6 @@ init_scenario_state() {
     QUERY_MAX_TIME="${DEFAULT_QUERY_MAX_TIME}"
     BENCHMARK_START_TIME="${DEFAULT_BENCHMARK_START_TIME}"
     LONGRUN_TTL_MS=0
-}
-
-# 功能：重置当前测试使用的指标或运行状态
-reset_benchmark_metrics() {
-    okPoint=0
-    okOperation=0
-    failPoint=0
-    failOperation=0
-    throughput=0
-    Latency=0
-    MIN=0
-    P10=0
-    P25=0
-    MEDIAN=0
-    P75=0
-    P90=0
-    P95=0
-    P99=0
-    P999=0
-    MAX=0
-}
-
-# 功能：设置当前测试使用的配置值或运行状态
-set_negative_benchmark_metrics() {
-    local value="$1"
-    okPoint="${value}"
-    okOperation="${value}"
-    failPoint="${value}"
-    failOperation="${value}"
-    throughput="${value}"
-    Latency="${value}"
-    MIN="${value}"
-    P10="${value}"
-    P25="${value}"
-    MEDIAN="${value}"
-    P75="${value}"
-    P90="${value}"
-    P95="${value}"
-    P99="${value}"
-    P999="${value}"
-    MAX="${value}"
 }
 
 # 功能：准备当前测试所需的本地安装目录与运行环境
@@ -337,66 +291,6 @@ config_node_consensus_protocol_class=${PROTOCOL_CLASS[${config_node}]}
 schema_region_consensus_protocol_class=${PROTOCOL_CLASS[${schema_region}]}
 data_region_consensus_protocol_class=${PROTOCOL_CLASS[${data_region}]}
 EOF
-}
-
-# 功能：启动当前场景中的 IoTDB 服务
-start_iotdb() {
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-confignode.sh >/dev/null 2>&1 &
-    )
-    sleep "${STARTUP_GRACE_SECONDS}"
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/start-datanode.sh -H "${TEST_IOTDB_PATH}/dn_dump.hprof" >/dev/null 2>&1 &
-    )
-}
-
-# 功能：停止当前场景中的 IoTDB 服务
-stop_iotdb() {
-    if [ ! -d "${TEST_IOTDB_PATH}" ]; then
-        return 0
-    fi
-
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/stop-datanode.sh >/dev/null 2>&1 &
-    )
-    sleep "${STARTUP_GRACE_SECONDS}"
-    (
-        cd "${TEST_IOTDB_PATH}" || exit 1
-        ./sbin/stop-confignode.sh >/dev/null 2>&1 &
-    )
-}
-
-# 功能：轮询 IoTDB 直到服务达到可查询状态
-wait_for_iotdb_ready() {
-    local attempt=0
-    local cli_password=""
-    local iotdb_state=""
-
-    for ((attempt = 1; attempt <= IOTDB_READY_RETRIES; attempt++)); do
-        for cli_password in "" "root" "${IOTDB_PASSWORD}"; do
-            if [ -z "${cli_password}" ]; then
-                iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-            else
-                iotdb_state="$("${TEST_IOTDB_PATH}/sbin/start-cli.sh" -pw "${cli_password}" -e "show cluster" 2>/dev/null | grep -F 'Total line number = 2' || true)"
-            fi
-            [ "${iotdb_state}" = "Total line number = 2" ] && return 0
-        done
-        sleep "${IOTDB_READY_INTERVAL_SECONDS}"
-    done
-
-    return 1
-}
-
-# 功能：检测并设置 IoTDB root 用户密码
-change_root_password() {
-    if "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -e "show cluster" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -e "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}'" >/dev/null 2>&1
 }
 
 # 功能：记录长稳测试当前使用的 Benchmark 起始时间
@@ -771,54 +665,18 @@ prepare_benchmark_configs() {
     install_benchmark_case_config "$(config_build_case_id model tablemode workload query)" "${BM_PATH_TABLE_QUERY}"
 }
 
-# 功能：清理指定 Benchmark 实例的日志和输出数据
-clean_benchmark_runtime() {
-    local benchmark_path="$1"
-    safe_rm "${benchmark_path}/logs"
-    safe_rm "${benchmark_path}/data"
-}
-
-# 功能：执行指定测试阶段或外部工具命令
-run_benchmark() {
-    local benchmark_path="$1"
-
-    (
-        cd "${benchmark_path}" || exit 1
-        ./benchmark.sh >/dev/null 2>&1 &
-    )
-}
-
 # 功能：启动指定服务、工具或测试步骤
 start_benchmarks() {
-    clean_benchmark_runtime "${BM_PATH_TREE}"
-    clean_benchmark_runtime "${BM_PATH_TABLE}"
-    clean_benchmark_runtime "${BM_PATH_TREE_QUERY}"
-    clean_benchmark_runtime "${BM_PATH_TABLE_QUERY}"
-
     update_benchmark_start_time "${BM_PATH_TREE}"
     set_longrun_ttl || log "failed to set TTL, continue benchmark."
     apply_benchmark_start_time "${BM_PATH_TABLE}"
     apply_benchmark_start_time "${BM_PATH_TREE_QUERY}"
     apply_benchmark_start_time "${BM_PATH_TABLE_QUERY}"
 
-    run_benchmark "${BM_PATH_TREE}"
-    run_benchmark "${BM_PATH_TABLE}"
-    run_benchmark "${BM_PATH_TREE_QUERY}"
-    run_benchmark "${BM_PATH_TABLE_QUERY}"
-}
-
-# 功能：为超时或卡死场景生成失败占位结果
-create_stuck_result_csv() {
-    local csv_file="$1"
-    shift
-
-    local label=""
-    mkdir -p "${csv_file%/*}"
-    : > "${csv_file}"
-    for label in "$@"; do
-        echo "${label} ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> "${csv_file}"
-        echo "${label} ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1" >> "${csv_file}"
-    done
+    start_benchmark "${BM_PATH_TREE}"
+    start_benchmark "${BM_PATH_TABLE}"
+    start_benchmark "${BM_PATH_TREE_QUERY}"
+    start_benchmark "${BM_PATH_TABLE_QUERY}"
 }
 
 # 功能：确保当前测试依赖的资源或结果存在
@@ -828,7 +686,7 @@ ensure_output_or_stuck() {
     shift
 
     if [ ! -d "${output_dir}" ]; then
-        create_stuck_result_csv "${output_dir}/Stuck_result.csv" "$@"
+        create_benchmark_stuck_result_csv "${output_dir}/Stuck_result.csv" 2 "$@"
     fi
 }
 
@@ -862,63 +720,6 @@ monitor_test_status() {
 
         sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
     done
-}
-
-# 功能：采集当前测试窗口内的资源和文件指标
-collect_monitor_data() {
-    local ip="$1"
-    local metric_window=$((m_end_time - m_start_time))
-    local maxNumofThread_C=0
-    local maxNumofThread_D=0
-    local datanode_error_log_size=0
-    local confignode_error_log_size=0
-
-    [ "${metric_window}" -gt 0 ] || metric_window=1
-
-    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")"
-    dataFileSize="$(bytes_to_gib "${dataFileSize}")"
-    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
-    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
-    maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    maxNumofThread=$(( $(to_int "${maxNumofThread_C}") + $(to_int "${maxNumofThread_D}") ))
-    maxNumofOpenFiles="$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${metric_window}s])" "${m_end_time}")"
-    walFileSize="$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${metric_window}s])" "${m_end_time}")"
-    walFileSize="$(bytes_to_gib "${walFileSize}")"
-    maxCPULoad="$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    avgCPULoad="$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${metric_window}s])" "${m_end_time}")"
-    maxDiskIOOpsRead="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOOpsWrite="$(get_single_index "sum(rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOSizeRead="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${metric_window}s]))" "${m_end_time}")"
-    maxDiskIOSizeWrite="$(get_single_index "sum(rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${metric_window}s]))" "${m_end_time}")"
-
-    datanode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log")"
-    confignode_error_log_size="$(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log")"
-    if [ "$((datanode_error_log_size + confignode_error_log_size))" -eq 0 ]; then
-        errorLogSize=0
-    else
-        errorLogSize=1
-    fi
-}
-
-# 功能：定位 Benchmark 生成的结果 CSV 文件
-find_longrun_result_csv() {
-    local benchmark_path="$1"
-    local output_dir="${benchmark_path}/data/csvOutput"
-
-    [ -d "${output_dir}" ] || return 1
-
-    # Do not use a shell glob here. GLOBIGNORE and other caller shell state can
-    # filter an existing Benchmark result and make the command substitution
-    # look empty. find uses the same filename rule without inheriting that
-    # filtering; sorting preserves the previous deterministic first-file
-    # behavior when more than one result exists.
-    # Keep the final command reading the complete stream. With pipefail enabled,
-    # head can make sort/find exit on SIGPIPE and turn a valid result into a
-    # failed command substitution.
-    find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null |
-        LC_ALL=C sort |
-        awk 'NR == 1 { first = $0 } END { if (first != "") print first }'
 }
 
 # 功能：记录 Benchmark CSV 解析失败时所需的文件和标签诊断信息
@@ -982,57 +783,6 @@ log_benchmark_parse_diagnostics() {
     done
 
     log "benchmark parse diagnostic end label=[${result_label}]"
-}
-
-# 功能：解析 Benchmark 输出并更新结果指标
-parse_benchmark_result() {
-    local csv_file="$1"
-    local result_label="$2"
-    local throughput_line=""
-    local latency_line=""
-
-    [ -f "${csv_file}" ] || return 1
-
-    throughput_line="$(
-        awk -F, -v label="${result_label}" '
-            {
-                name = $1
-                gsub(/^[ \t]+|[ \t]+$/, "", name)
-            }
-            name == label {
-                for (i = 2; i <= 6; i++) {
-                    gsub(/^[ \t]+|[ \t]+$/, "", $i)
-                    printf "%s%s", $i, (i == 6 ? ORS : OFS)
-                }
-                exit
-            }
-        ' OFS=$'\t' "${csv_file}"
-    )"
-
-    latency_line="$(
-        awk -F, -v label="${result_label}" '
-            {
-                name = $1
-                gsub(/^[ \t]+|[ \t]+$/, "", name)
-            }
-            name == label {
-                count++
-                if (count == 2) {
-                    for (i = 2; i <= 12; i++) {
-                        gsub(/^[ \t]+|[ \t]+$/, "", $i)
-                        printf "%s%s", $i, (i == 12 ? ORS : OFS)
-                    }
-                    exit
-                }
-            }
-        ' OFS=$'\t' "${csv_file}"
-    )"
-
-    [ -n "${throughput_line}" ] || return 1
-    [ -n "${latency_line}" ] || return 1
-
-    IFS=$'\t' read -r okOperation okPoint failOperation failPoint throughput <<< "${throughput_line}"
-    IFS=$'\t' read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "${latency_line}"
 }
 
 # 功能：将当前测试结果写入结果数据库
@@ -1110,15 +860,15 @@ insert_result_from_csv() {
     local result_max_time=""
     local csv_file=""
 
-    reset_benchmark_metrics
+    set_standard_negative_benchmark_metrics 0
     result_max_time="$(get_result_max_time "${current_ts_type}")"
-    csv_file="$(find_longrun_result_csv "${benchmark_path}" || true)"
+    csv_file="$(find_result_csv "${benchmark_path}/data/csvOutput" || true)"
     log "benchmark parse start path=${benchmark_path} label=[${result_label}] selected_csv=${csv_file:-missing}"
 
-    if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
+    if [ -z "${csv_file}" ] || ! parse_standard_benchmark_result "${csv_file}" "${result_label}"; then
         log_benchmark_parse_diagnostics "${benchmark_path}" "${csv_file}" "${result_label}"
         log "failed to parse ${result_label} from ${benchmark_path}, writing negative result."
-        set_negative_benchmark_metrics -2
+        set_standard_negative_benchmark_metrics -2
         insert_result_row "${protocol_code}" "${current_ts_type}" "${current_data_type}" "${current_op_type}" "${result_max_time}"
         return 1
     fi
@@ -1176,7 +926,7 @@ write_start_failure_result() {
     local failure_value="$2"
     local result_max_time=""
 
-    set_negative_benchmark_metrics "${failure_value}"
+    set_standard_negative_benchmark_metrics "${failure_value}"
     result_max_time="$(get_result_max_time "tree")"
     [ -n "${start_time}" ] || start_time="$(current_datetime)"
     [ -n "${end_time}" ] || end_time="$(current_datetime)"
@@ -1232,7 +982,9 @@ test_operation_impl() {
 
     m_end_time="$(date +%s)"
     "${TEST_IOTDB_PATH}/sbin/start-cli.sh" -u root -pw "${IOTDB_PASSWORD}" -h 127.0.0.1 -p 6667 -e "flush" >/dev/null 2>&1 || true
-    collect_monitor_data "${TEST_IP}"
+    disk_id_regex="${DEFAULT_DISK_ID}"
+    collect_standard_monitor_snapshot "${TEST_IP}" "$((m_end_time - m_start_time))"
+    errorLogSize=$(( $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_datanode_error.log") + $(file_size_bytes "${TEST_IOTDB_PATH}/logs/log_confignode_error.log") > 0 ? 1 : 0 ))
     [ -n "${end_time}" ] || end_time="$(current_datetime)"
     cost_time=$(( $(datetime_to_epoch "${end_time}") - $(datetime_to_epoch "${start_time}") ))
 

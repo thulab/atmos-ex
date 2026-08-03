@@ -10,10 +10,11 @@
 
 ## 3. 主要函数
 
-- `prepare_benchmark_runtime/start_benchmark`：删除旧 `logs/data` 后后台运行 `benchmark.sh`。
+- `prepare_benchmark_runtime [PATH]/start_benchmark [PATH]`：删除指定 Benchmark 的旧 `logs/data` 后后台运行 `benchmark.sh`；未传路径时使用 `BM_PATH`。
 - `find_result_csv [DIR]`：返回第一个 `*result.csv`。
 - `sync_benchmark_distribution [SOURCE] [TARGET]`：按 `git.properties` 版本覆盖运行目录。
 - `wait_for_benchmark_result [TIMEOUT] [INTERVAL] [CALLBACK] [START]`：等待 CSV并更新 `BENCHMARK_RESULT_CSV/end_time`。
+- `create_benchmark_stuck_result_csv CSV ROWS LABEL...`：按标签和行数生成通用失败占位 CSV。
 - `create_standard_stuck_result_csv/set_standard_negative_benchmark_metrics/parse_standard_benchmark_result`：标准失败和解析工具。
 
 ## 4. 调用示例

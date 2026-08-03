@@ -2,15 +2,19 @@
 
 # 功能：准备当前步骤所需的目录、配置或测试数据
 prepare_benchmark_runtime() {
-    safe_rm "${BM_PATH}/logs"
-    safe_rm "${BM_PATH}/data"
+    local benchmark_path="${1:-${BM_PATH}}"
+
+    safe_rm "${benchmark_path}/logs"
+    safe_rm "${benchmark_path}/data"
 }
 
 # 功能：清理运行目录并启动 IoT-Benchmark
 start_benchmark() {
-    prepare_benchmark_runtime
+    local benchmark_path="${1:-${BM_PATH}}"
+
+    prepare_benchmark_runtime "${benchmark_path}"
     (
-        cd "${BM_PATH}" || exit 1
+        cd "${benchmark_path}" || exit 1
         ./benchmark.sh >/dev/null 2>&1 &
     )
 }
@@ -18,19 +22,15 @@ start_benchmark() {
 # 功能：定位 Benchmark 生成的结果 CSV 文件
 find_result_csv() {
     local output_dir="${1:-${BM_PATH}/data/csvOutput}"
-    local had_nullglob=0
-    local files=()
 
-    if shopt -q nullglob; then
-        had_nullglob=1
-    else
-        shopt -s nullglob
-    fi
-    files=("${output_dir}/"*result.csv)
-    if [ "${had_nullglob}" -eq 0 ]; then
-        shopt -u nullglob
-    fi
-    [ "${#files[@]}" -eq 0 ] || printf '%s\n' "${files[0]}"
+    [ -d "${output_dir}" ] || return 1
+
+    # Avoid caller glob settings such as GLOBIGNORE. The final awk consumes the
+    # complete stream so pipefail does not turn an early-reader SIGPIPE into a
+    # failed lookup.
+    find "${output_dir}" -maxdepth 1 -type f -name '*result.csv' -print 2>/dev/null |
+        LC_ALL=C sort |
+        awk 'NR == 1 { first = $0 } END { if (first != "") print first }'
 }
 
 # 功能：同步指定 IoT-Benchmark 安装目录到仓库版本
@@ -84,18 +84,29 @@ check_standard_benchmark_version() {
     sync_benchmark_distribution "${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}" "${BM_PATH}"
 }
 
+# 功能：为 Benchmark 超时场景生成失败占位 CSV
+create_benchmark_stuck_result_csv() {
+    local csv_file="$1"
+    local row_count="$2"
+    shift 2
+
+    local result_label=""
+    local index=0
+
+    mkdir -p "${csv_file%/*}"
+    : > "${csv_file}"
+    for result_label in "$@"; do
+        result_label="${result_label%,}"
+        for ((index = 0; index < row_count; index++)); do
+            printf '%s\n' "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
+        done
+    done
+}
+
 # 功能：为标准 Benchmark 超时场景生成失败占位 CSV
 create_standard_stuck_result_csv() {
     local result_label="${1:-${BENCHMARK_DEFAULT_RESULT_LABEL:-INGESTION}}"
-    local csv_file="${BM_PATH}/data/csvOutput/Stuck_result.csv"
-    local index=0
-
-    result_label="${result_label%,}"
-    mkdir -p "${csv_file%/*}"
-    : > "${csv_file}"
-    for ((index = 0; index < 100; index++)); do
-        printf '%s\n' "${result_label}, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1" >> "${csv_file}"
-    done
+    create_benchmark_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" 100 "${result_label}"
 }
 
 # 功能：将标准 Benchmark 指标统一设置为失败值
