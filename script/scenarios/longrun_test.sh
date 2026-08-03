@@ -902,7 +902,7 @@ collect_monitor_data() {
 }
 
 # 功能：定位 Benchmark 生成的结果 CSV 文件
-find_result_csv() {
+find_longrun_result_csv() {
     local benchmark_path="$1"
     local output_dir="${benchmark_path}/data/csvOutput"
 
@@ -1112,7 +1112,7 @@ insert_result_from_csv() {
 
     reset_benchmark_metrics
     result_max_time="$(get_result_max_time "${current_ts_type}")"
-    csv_file="$(find_result_csv "${benchmark_path}" || true)"
+    csv_file="$(find_longrun_result_csv "${benchmark_path}" || true)"
     log "benchmark parse start path=${benchmark_path} label=[${result_label}] selected_csv=${csv_file:-missing}"
 
     if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
