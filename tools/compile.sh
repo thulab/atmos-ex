@@ -25,7 +25,52 @@ fi
 
 mysql_exec() {
 	MYSQL_PWD="${PASSWORD}" mysql -N -B \
+		--connect-timeout="${MYSQL_CONNECT_TIMEOUT_SECONDS:-15}" \
 		-h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "$1"
+}
+
+mysql_query() {
+	local sql="$1"
+	local max_attempts="${MYSQL_QUERY_RETRY_ATTEMPTS:-5}"
+	local retry_interval="${MYSQL_QUERY_RETRY_INTERVAL_SECONDS:-10}"
+	local attempt=1
+	local status=0
+	local output=""
+	local error_output=""
+	local error_file=""
+
+	error_file="$(mktemp "${TMPDIR:-/tmp}/compile-mysql-query.XXXXXX")" || {
+		echo "ERROR: failed to create temporary file for MySQL query." >&2
+		return 1
+	}
+
+	while [ "${attempt}" -le "${max_attempts}" ]; do
+		if output="$(mysql_exec "${sql}" 2>"${error_file}")"; then
+			rm -f -- "${error_file}"
+			printf '%s' "${output}"
+			return 0
+		else
+			status=$?
+		fi
+
+		error_output="$(cat "${error_file}")"
+		if ! printf '%s\n' "${error_output}" | grep -Eq 'ERROR (2002|2003|2006|2013)'; then
+			printf '%s\n' "${error_output}" >&2
+			rm -f -- "${error_file}"
+			return "${status}"
+		fi
+		if [ "${attempt}" -ge "${max_attempts}" ]; then
+			printf '%s\n' "${error_output}" >&2
+			echo "ERROR: MySQL query failed after ${attempt} attempts." >&2
+			rm -f -- "${error_file}"
+			return "${status}"
+		fi
+
+		echo "WARN: transient MySQL connection error on query attempt ${attempt}/${max_attempts}; retrying in ${retry_interval}s." >&2
+		printf '%s\n' "${error_output}" >&2
+		sleep "${retry_interval}"
+		attempt=$((attempt + 1))
+	done
 }
 
 init_items() {
@@ -92,7 +137,7 @@ for (( i = 0; i <= 10; i++))
 do
 	query_sql="select commit_id from ${TABLENAME} where commit_id='${commit_id_list[$i]}'"
 	echo "$query_sql"
-	if ! diff_str=$(mysql_exec "${query_sql}"); then
+	if ! diff_str=$(mysql_query "${query_sql}"); then
 		echo "ERROR: failed to query MySQL; aborting compile task publication." >&2
 		exit 1
 	fi
