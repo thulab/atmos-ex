@@ -10,6 +10,7 @@ TEST_TYPE="${TEST_TYPE:-python_api}"
 INIT_PATH="${INIT_PATH:-/root/zk_test}"
 IOTDB_PATH=${INIT_PATH}/iotdb
 ATMOS_PATH=${INIT_PATH}/atmos-ex
+BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/root}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -38,14 +39,6 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
-log "检查iot-benchmark版本"
-BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
-BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
-if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
-	rm -rf -- "${BM_PATH}"
-	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
-fi
 # 功能：重置当前测试用例使用的指标和运行状态
 init_scenario_state() {
 ############定义监控采集项初始值##########################

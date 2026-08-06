@@ -663,7 +663,7 @@ test_nodejs_native_api_test() {
 	log "准备Node.js原生接口测试环境，Node.js $(node --version)，npm $(npm --version)"
 	safe_rm "${TEST_NODEJS_TOOL_PATH}"
 	mkdir -p "${TEST_NODEJS_TOOL_PATH}"
-	if ! git -C "${NODEJS_TOOL_PATH}" archive --format=tar HEAD | tar -xf - -C "${TEST_NODEJS_TOOL_PATH}"; then
+	if ! git --git-dir="${NODEJS_TOOL_PATH}/.git" --work-tree="${NODEJS_TOOL_PATH}" archive --format=tar HEAD | tar -xf - -C "${TEST_NODEJS_TOOL_PATH}"; then
 		log "复制Node.js原生接口测试工具失败"
 		return 1
 	fi
