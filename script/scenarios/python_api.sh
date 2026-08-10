@@ -11,6 +11,8 @@ INIT_PATH="${INIT_PATH:-/root/zk_test}"
 IOTDB_PATH=${INIT_PATH}/iotdb
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
+PYTHON_API_POLL_INTERVAL_SECONDS="${PYTHON_API_POLL_INTERVAL_SECONDS:-300}"
+PYTHON_API_LOCK_DIR="${PYTHON_API_LOCK_DIR:-${INIT_PATH}/.python_api.lock}"
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/root}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -39,6 +41,51 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
+
+python_api_lock_acquired=0
+python_api_marked_in_progress=0
+
+acquire_python_api_lock() {
+	local owner_pid=""
+
+	if mkdir "${PYTHON_API_LOCK_DIR}" 2>/dev/null; then
+		printf '%s\n' "$$" > "${PYTHON_API_LOCK_DIR}/pid"
+		python_api_lock_acquired=1
+		return 0
+	fi
+
+	owner_pid="$(cat "${PYTHON_API_LOCK_DIR}/pid" 2>/dev/null || true)"
+	if [ -n "${owner_pid}" ] && kill -0 "${owner_pid}" 2>/dev/null; then
+		log "python_api.sh already running, pid=${owner_pid}; skip duplicate instance."
+		return 1
+	fi
+
+	log "remove stale python_api lock: ${PYTHON_API_LOCK_DIR}"
+	safe_rm "${PYTHON_API_LOCK_DIR}"
+	if mkdir "${PYTHON_API_LOCK_DIR}" 2>/dev/null; then
+		printf '%s\n' "$$" > "${PYTHON_API_LOCK_DIR}/pid"
+		python_api_lock_acquired=1
+		return 0
+	fi
+
+	log "failed to acquire python_api lock: ${PYTHON_API_LOCK_DIR}"
+	return 1
+}
+
+cleanup_python_api_state() {
+	local owner_pid=""
+
+	if [ "${python_api_lock_acquired}" -eq 1 ]; then
+		owner_pid="$(cat "${PYTHON_API_LOCK_DIR}/pid" 2>/dev/null || true)"
+		if [ "${owner_pid}" = "$$" ]; then
+			safe_rm "${PYTHON_API_LOCK_DIR}"
+		fi
+	fi
+	if [ "${python_api_marked_in_progress}" -eq 1 ]; then
+		restore_test_type_file
+	fi
+}
+
 write_python_api_result() {
 	insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
 	log "${insert_sql}"
@@ -155,8 +202,12 @@ schedule_task_after_failure() {
 }
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
+	trap cleanup_python_api_state EXIT
     ensure_runtime_dependencies
     check_password
+	acquire_python_api_lock || return 0
+	mark_test_in_progress
+	python_api_marked_in_progress=1
 	pending_commit_id=""
 	pending_run_mode=""
 while true; do
@@ -178,9 +229,9 @@ while true; do
 		pending_commit_id=""
 		pending_run_mode=""
 		log "按失败处理计划执行 commit ${commit_id}，模式：${current_run_mode}。"
-	elif [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
+	elif [ "${last_cid}" = "${commit_id}" ]; then
 		log "无代码更新，当前版本${commit_id}已经执行过测试"
-		sleep 300s
+		sleep "${PYTHON_API_POLL_INTERVAL_SECONDS}"
 		continue
 	else
 		log "当前版本${commit_id}未执行过测试，即将编译后启动"
