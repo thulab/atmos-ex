@@ -39,6 +39,35 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
+write_python_api_result() {
+	insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
+	log "${insert_sql}"
+	mysql_exec "${insert_sql}"
+}
+
+skip_failure_result_for_pending_retry() {
+	if [ -n "${pending_commit_id}" ]; then
+		log "commit ${commit_id} 失败结果暂不写入 MySQL；已安排 ${pending_run_mode} 执行 ${pending_commit_id}。"
+		return 0
+	fi
+	return 1
+}
+
+write_python_api_failure_result() {
+	local failure_value="$1"
+
+	InsertRecord="${failure_value}"
+	InsertRecords="${failure_value}"
+	InsertTablet="${failure_value}"
+	if [ -z "${start_time}" ] || [ "${start_time}" = "-1" ]; then
+		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	fi
+	if [ -z "${end_time}" ] || [ "${end_time}" = "-1" ]; then
+		end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	fi
+	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+	write_python_api_result
+}
 # 功能：重置当前测试用例使用的指标和运行状态
 init_scenario_state() {
 ############定义监控采集项初始值##########################
@@ -158,18 +187,19 @@ while true; do
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		rm -rf -- "${INIT_PATH}/log_python_api"
 		#代码编译
+		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
 		then
 			log "编译完成，准备开始测试！"
 		else
-			log "编译失败，写入负值测试结果！"
-			InsertRecord=-1
-			InsertRecords=-1
-			InsertTablet=-1
-			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-			mysql_exec "${insert_sql}"
+			log "编译失败，先安排重试，暂不写入 MySQL 失败结果。"
+			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 			schedule_task_after_failure "${commit_id}" "${current_run_mode}"
+			if skip_failure_result_for_pending_retry; then
+				continue
+			fi
+			write_python_api_failure_result -1
 			continue
 		fi
 		cd ${IOTDB_PATH}/iotdb-client/client-py
@@ -221,26 +251,16 @@ while true; do
 		fi
 		if [ $flag -eq 0 ]; then
 			#收集测试结果
-			cd "${TEST_TOOL_PATH}" || return 1
 			InsertRecord=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
 			InsertRecords=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
 			InsertTablet=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-			log ${insert_sql}
-			mysql_exec "${insert_sql}"
+			write_python_api_result
+		elif skip_failure_result_for_pending_retry; then
+			:
 		else
-			#收集测试结果
-			cd "${TEST_TOOL_PATH}" || return 1
-			InsertRecord=-3
-			InsertRecords=-3
-			InsertTablet=-3
-			#结果写入mysql
-			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-			#echo "${insert_sql}"
-			mysql_exec "${insert_sql}"
+			write_python_api_failure_result -3
 		fi
 		#备份本次测试
 		case_id="$(backup_build_case_id language python workload session_api)"
