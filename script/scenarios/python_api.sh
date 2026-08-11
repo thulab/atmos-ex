@@ -10,9 +10,6 @@ TEST_TYPE="${TEST_TYPE:-python_api}"
 INIT_PATH="${INIT_PATH:-/root/zk_test}"
 IOTDB_PATH=${INIT_PATH}/iotdb
 ATMOS_PATH=${INIT_PATH}/atmos-ex
-BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
-PYTHON_API_POLL_INTERVAL_SECONDS="${PYTHON_API_POLL_INTERVAL_SECONDS:-300}"
-PYTHON_API_LOCK_DIR="${PYTHON_API_LOCK_DIR:-${INIT_PATH}/.python_api.lock}"
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/root}"
 TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
@@ -41,80 +38,14 @@ for required_command in awk date mysql sed; do
     fi
 done
 unset required_command
-
-python_api_lock_acquired=0
-python_api_marked_in_progress=0
-
-acquire_python_api_lock() {
-	local owner_pid=""
-
-	if mkdir "${PYTHON_API_LOCK_DIR}" 2>/dev/null; then
-		printf '%s\n' "$$" > "${PYTHON_API_LOCK_DIR}/pid"
-		python_api_lock_acquired=1
-		return 0
-	fi
-
-	owner_pid="$(cat "${PYTHON_API_LOCK_DIR}/pid" 2>/dev/null || true)"
-	if [ -n "${owner_pid}" ] && kill -0 "${owner_pid}" 2>/dev/null; then
-		log "python_api.sh already running, pid=${owner_pid}; skip duplicate instance."
-		return 1
-	fi
-
-	log "remove stale python_api lock: ${PYTHON_API_LOCK_DIR}"
-	safe_rm "${PYTHON_API_LOCK_DIR}"
-	if mkdir "${PYTHON_API_LOCK_DIR}" 2>/dev/null; then
-		printf '%s\n' "$$" > "${PYTHON_API_LOCK_DIR}/pid"
-		python_api_lock_acquired=1
-		return 0
-	fi
-
-	log "failed to acquire python_api lock: ${PYTHON_API_LOCK_DIR}"
-	return 1
-}
-
-cleanup_python_api_state() {
-	local owner_pid=""
-
-	if [ "${python_api_lock_acquired}" -eq 1 ]; then
-		owner_pid="$(cat "${PYTHON_API_LOCK_DIR}/pid" 2>/dev/null || true)"
-		if [ "${owner_pid}" = "$$" ]; then
-			safe_rm "${PYTHON_API_LOCK_DIR}"
-		fi
-	fi
-	if [ "${python_api_marked_in_progress}" -eq 1 ]; then
-		restore_test_type_file
-	fi
-}
-
-write_python_api_result() {
-	insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
-	log "${insert_sql}"
-	mysql_exec "${insert_sql}"
-}
-
-skip_failure_result_for_pending_retry() {
-	if [ -n "${pending_commit_id}" ]; then
-		log "commit ${commit_id} 失败结果暂不写入 MySQL；已安排 ${pending_run_mode} 执行 ${pending_commit_id}。"
-		return 0
-	fi
-	return 1
-}
-
-write_python_api_failure_result() {
-	local failure_value="$1"
-
-	InsertRecord="${failure_value}"
-	InsertRecords="${failure_value}"
-	InsertTablet="${failure_value}"
-	if [ -z "${start_time}" ] || [ "${start_time}" = "-1" ]; then
-		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	fi
-	if [ -z "${end_time}" ] || [ "${end_time}" = "-1" ]; then
-		end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	fi
-	cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-	write_python_api_result
-}
+log "检查iot-benchmark版本"
+BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
+BM_NEW=$(cat ${BM_REPOS_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
+BM_OLD=$(cat ${BM_PATH}/git.properties | grep git.commit.id.abbrev | awk -F= '{print $2}')
+if [ "${BM_OLD}" != "cat: git.properties: No such file or directory" ] && [ "${BM_OLD}" != "${BM_NEW}" ]; then
+	rm -rf -- "${BM_PATH}"
+	cp -rf ${BM_REPOS_PATH} ${BM_PATH}
+fi
 # 功能：重置当前测试用例使用的指标和运行状态
 init_scenario_state() {
 ############定义监控采集项初始值##########################
@@ -171,48 +102,12 @@ start_iotdb() { # 启动iotdb
 	data_start=$(./sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof >/dev/null 2>&1 &)
 	cd ~/
 }
-
-# 测试失败后立即同步代码，并安排下一轮任务。
-# 有新提交时测试新提交；没有新提交时仅重试当前提交一次。
-schedule_task_after_failure() {
-	local failed_commit="$1"
-	local failed_run_mode="$2"
-	local updated_commit=""
-
-	log "测试失败，立即更新 IoTDB 代码。"
-	if git_sync_branch "${IOTDB_PATH}" master 100; then
-		updated_commit=$(git_current_commit "${IOTDB_PATH}")
-	else
-		updated_commit="${failed_commit}"
-		log "IoTDB 代码更新失败，按无代码更新处理。"
-	fi
-	if [ "${updated_commit}" != "${failed_commit}" ]; then
-		pending_commit_id="${updated_commit}"
-		pending_run_mode="updated"
-		log "检测到代码更新，将运行下一个 commit ${updated_commit} 的任务。"
-	elif [ "${failed_run_mode}" != "retry" ]; then
-		pending_commit_id="${failed_commit}"
-		pending_run_mode="retry"
-		log "未检测到代码更新，将对当前 commit ${failed_commit} 重新运行一次测试。"
-	else
-		pending_commit_id=""
-		pending_run_mode=""
-		log "当前 commit ${failed_commit} 重试后仍失败，不再重复重试。"
-	fi
-}
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
-	trap cleanup_python_api_state EXIT
     ensure_runtime_dependencies
     check_password
-	acquire_python_api_lock || return 0
-	mark_test_in_progress
-	python_api_marked_in_progress=1
-	pending_commit_id=""
-	pending_run_mode=""
 while true; do
 	init_items
-	current_run_mode="normal"
 	# 获取git commit对比判定是否启动测试
 	#对比判定是否启动测试
 	cd "${IOTDB_PATH}" || return 1
@@ -224,33 +119,27 @@ while true; do
 	# 获取更新后git commit对比判定是否启动测试
 	commit_id=$(git_current_commit "${IOTDB_PATH}")
 	#对比判定是否启动测试
-	if [ -n "${pending_commit_id}" ] && [ "${pending_commit_id}" = "${commit_id}" ]; then
-		current_run_mode="${pending_run_mode}"
-		pending_commit_id=""
-		pending_run_mode=""
-		log "按失败处理计划执行 commit ${commit_id}，模式：${current_run_mode}。"
-	elif [ "${last_cid}" = "${commit_id}" ]; then
+	if [ "${last_cid}" = "${commit_id}" ] && [ "${last_cid1}" = "${commit_id1}" ]; then
 		log "无代码更新，当前版本${commit_id}已经执行过测试"
-		sleep "${PYTHON_API_POLL_INTERVAL_SECONDS}"
+		sleep 300s
 		continue
 	else
 		log "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
 		rm -rf -- "${INIT_PATH}/log_python_api"
 		#代码编译
-		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
 		then
 			log "编译完成，准备开始测试！"
 		else
-			log "编译失败，先安排重试，暂不写入 MySQL 失败结果。"
-			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			schedule_task_after_failure "${commit_id}" "${current_run_mode}"
-			if skip_failure_result_for_pending_retry; then
-				continue
-			fi
-			write_python_api_failure_result -1
+			log "编译失败，写入负值测试结果！"
+			InsertRecord=-1
+			InsertRecords=-1
+			InsertTablet=-1
+			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
+			mysql_exec "${insert_sql}"
+			sleep 600
 			continue
 		fi
 		cd ${IOTDB_PATH}/iotdb-client/client-py
@@ -297,21 +186,28 @@ while true; do
 		end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		#停止IoTDB程序
 		check_iotdb_pid
-		if [ "${flag}" -ne 0 ]; then
-			schedule_task_after_failure "${commit_id}" "${current_run_mode}"
-		fi
 		if [ $flag -eq 0 ]; then
 			#收集测试结果
+			cd "${TEST_TOOL_PATH}" || return 1
 			InsertRecord=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
 			InsertRecords=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
 			InsertTablet=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
-			write_python_api_result
-		elif skip_failure_result_for_pending_retry; then
-			:
+			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
+			log ${insert_sql}
+			mysql_exec "${insert_sql}"
 		else
-			write_python_api_failure_result -3
+			#收集测试结果
+			cd "${TEST_TOOL_PATH}" || return 1
+			InsertRecord=-3
+			InsertRecords=-3
+			InsertTablet=-3
+			#结果写入mysql
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
+			#echo "${insert_sql}"
+			mysql_exec "${insert_sql}"
 		fi
 		#备份本次测试
 		case_id="$(backup_build_case_id language python workload session_api)"
