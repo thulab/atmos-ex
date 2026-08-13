@@ -255,6 +255,77 @@ setup_env_linux() {
 	fi
 	log $pipflag
 }
+extract_count_value() {
+	awk '
+		{
+			line = $0
+			gsub(/\r/, "", line)
+			trimmed = line
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", trimmed)
+			if (trimmed ~ /^\+[-+]+\+$/) {
+				in_table = 1
+				next
+			}
+			if (in_table && trimmed ~ /^\|.*\|$/) {
+				cell_count = 0
+				cell = ""
+				field_count = split(trimmed, fields, /\|/)
+				for (i = 2; i < field_count; i++) {
+					candidate = fields[i]
+					gsub(/^[[:space:]]+|[[:space:]]+$/, "", candidate)
+					if (candidate != "") {
+						cell_count++
+						cell = candidate
+					}
+				}
+				if (cell_count == 1 && cell ~ /^-?[0-9]+$/) {
+					value = cell
+				}
+				next
+			}
+			in_table = 0
+		}
+		END {
+			if (value != "") {
+				print value
+			}
+		}
+	'
+}
+
+log_count_cli_output_once() {
+	local host="$1"
+	local device="$2"
+	local output="$3"
+	local line=""
+
+	if [ "${count_cli_output_logged:-0}" -eq 0 ]; then
+		log "sample count CLI output host=${host} device=d_${device}"
+		while IFS= read -r line; do
+			log "count CLI output: ${line}"
+		done <<< "${output}"
+		count_cli_output_logged=1
+	fi
+}
+
+set_count_value_from_output() {
+	local result_var="$1"
+	local host="$2"
+	local device="$3"
+	local output="$4"
+	local value=""
+
+	value=$(printf '%s\n' "${output}" | extract_count_value)
+	if [[ "${value}" =~ ^-?[0-9]+$ ]]; then
+		printf -v "${result_var}" '%s' "${value}"
+	else
+		if [ "${count_cli_parse_warned:-0}" -eq 0 ]; then
+			log "failed to parse count CLI output host=${host} device=d_${device}, use 0"
+			count_cli_parse_warned=1
+		fi
+		printf -v "${result_var}" '%s' "0"
+	fi
+}
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
 	TEST_IP=$1
@@ -263,6 +334,9 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 		numOfPointsA[${device}]=0
 		numOfPointsB[${device}]=0
 	done
+	count_cli_output_logged=0
+	count_cli_parse_warned=0
+	last_update_time="${start_time}"
 	while true; do
 		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
@@ -299,14 +373,18 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 			for (( device = 0; device < 50; device++ ))
 			do
 				if [ "${ts_type}" = "tablemode" ]; then
-					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					count_output=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\"" 2>&1)
+					log_count_cli_output_once "${IP_list[1]}" "${device}" "${count_output}"
+					set_count_value_from_output str1 "${IP_list[1]}" "${device}" "${count_output}"
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					count_output=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -sql_dialect table -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from test_g_0.table_0 where device_id = 'd_${device}'\"" 2>&1)
+					log_count_cli_output_once "${IP_list[2]}" "${device}" "${count_output}"
+					set_count_value_from_output str2 "${IP_list[2]}" "${device}" "${count_output}"
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
@@ -314,14 +392,18 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
 				else
-					str1=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					count_output=$(ssh ${ACCOUNT}@${IP_list[1]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${IP_list[1]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\"" 2>&1)
+					log_count_cli_output_once "${IP_list[1]}" "${device}" "${count_output}"
+					set_count_value_from_output str1 "${IP_list[1]}" "${device}" "${count_output}"
 					if [[ "${numOfPointsA[${device}]}" == "$str1" ]]; then
 						flagA=$[${flagA}+1]
 					else
 						numOfPointsA[${device}]=$str1
 						last_update_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 					fi
-					str2=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\" | sed -n '4p' | sed s/\|//g | sed 's/[[:space:]]//g' ")
+					count_output=$(ssh ${ACCOUNT}@${IP_list[2]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IOTDB_PASSWORD} -h ${IP_list[2]} -p 6667 -e \"select count(s_0) from root.test.g_0.d_${device}\"" 2>&1)
+					log_count_cli_output_once "${IP_list[2]}" "${device}" "${count_output}"
+					set_count_value_from_output str2 "${IP_list[2]}" "${device}" "${count_output}"
 					if [[ "${numOfPointsB[${device}]}" == "$str2" ]]; then
 						flagB=$[${flagB}+1]
 					else
