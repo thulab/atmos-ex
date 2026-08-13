@@ -8,6 +8,7 @@ ACCOUNT=root
 TEST_TYPE="${TEST_TYPE:-python_api}"
 #初始环境存放路径
 INIT_PATH="${INIT_PATH:-/root/zk_test}"
+PYTHON_API_RESULT_LOG="${PYTHON_API_RESULT_LOG:-${INIT_PATH}/python_api_result.log}"
 IOTDB_PATH=${INIT_PATH}/iotdb
 ATMOS_PATH=${INIT_PATH}/atmos-ex
 #测试数据运行路径
@@ -126,7 +127,7 @@ while true; do
 	else
 		log "当前版本${commit_id}未执行过测试，即将编译后启动"
 		test_date_time=$(date +%Y%m%d%H%M%S)
-		rm -rf -- "${INIT_PATH}/log_python_api"
+		rm -rf -- "${PYTHON_API_RESULT_LOG}"
 		#代码编译
 		comp_mvn=$(timeout 3000s mvn clean package -pl distribution -am -DskipTests)
 		if [ $? -eq 0 ]
@@ -161,12 +162,12 @@ while true; do
 		pip_install=$(pip3 install apache_iotdb-*-py3-none-any.whl >/dev/null 2>&1 &)
 		sleep 20
 		start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-		start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > ${INIT_PATH}/log_python_api)
+		start_test=$(python3 ${ATMOS_PATH}/tools/python_api.py > "${PYTHON_API_RESULT_LOG}")
 		log "开始监控。。。"
 		for (( t_wait = 0; t_wait <= 20; ))
 		do
 			#监控执行情况  
-			ts_status=$(cat ${INIT_PATH}/log_python_api | grep 'All executions done!!'| wc -l)
+			ts_status=$(grep -c 'All executions done!!' "${PYTHON_API_RESULT_LOG}")
 			if [ ${ts_status} -le 0 ]; then
 				now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 				t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
@@ -189,9 +190,9 @@ while true; do
 		if [ $flag -eq 0 ]; then
 			#收集测试结果
 			cd "${TEST_TOOL_PATH}" || return 1
-			InsertRecord=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecord " | awk '{print $5}')
-			InsertRecords=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertRecords " | awk '{print $5}')
-			InsertTablet=$(find ${INIT_PATH}/* -name log_python_api | xargs grep "InsertTablet " | awk '{print $7}')
+			InsertRecord=$(grep "InsertRecord " "${PYTHON_API_RESULT_LOG}" | awk '{print $5}')
+			InsertRecords=$(grep "InsertRecords " "${PYTHON_API_RESULT_LOG}" | awk '{print $5}')
+			InsertTablet=$(grep "InsertTablet " "${PYTHON_API_RESULT_LOG}" | awk '{print $7}')
 			#结果写入mysql
 			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
 			insert_sql="insert into ${TABLENAME} (test_date_time,commit_id,InsertRecord,InsertRecords,InsertTablet,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id}',${InsertRecord},${InsertRecords},${InsertTablet},'${start_time}','${end_time}',${cost_time},'master')"
@@ -213,7 +214,7 @@ while true; do
 		case_id="$(backup_build_case_id language python workload session_api)"
 		backup_begin_case "${case_id}" || return 1
 		backup_add_iotdb_runtime
-		backup_add result "${INIT_PATH}/log_python_api" python-api.log required
+		backup_add result "${PYTHON_API_RESULT_LOG}" python-api.log required
 		if [ "${flag}" -eq 0 ]; then
 			backup_finish_case completed
 		else
