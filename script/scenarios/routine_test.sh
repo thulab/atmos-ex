@@ -113,6 +113,14 @@ check_benchmark_version() {
 init_scenario_state() {
 	ts_type=0; data_type=0; op_type=0
 }
+routine_should_query_after_insert() {
+	case "$1" in
+		seq_w|unseq_w) return 0 ;;
+		*)
+			return 1
+			;;
+	esac
+}
 local_ip=$(ifconfig -a 2>/dev/null | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | tr -d "addr:")
 # 功能：保留或执行测试异常通知逻辑
 sendEmail() {
@@ -300,6 +308,11 @@ test_operation_impl() {
 		stop_iotdb
 		sleep 30
 		check_iotdb_pid
+		if ! routine_should_query_after_insert "${data_type}"; then
+			log "skip query after ${data_type} write"
+			backup_test_data "${data_type}" "${protocol_class_input}"
+			continue
+		fi
 		#查询测试
 		for (( j = 0; j < ${#query_list[*]}; j++ ))
 		do
@@ -355,8 +368,8 @@ test_operation_impl() {
 			sleep 30
             check_iotdb_pid
 		done
+		log "本轮${data_type}时间序列查询测试已结束."
 		backup_test_data "${data_type}" "${protocol_class_input}"
-		log "本轮${query_data_type[${j}]}时间序列查询测试已结束."
 	done
 }
 ##准备开始测试
