@@ -191,11 +191,11 @@ setup_env() {
 		flag=0
 		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
 		do
-		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"show cluster\" | grep 'Total line number = 2'")
+		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh  -e \"show cluster\" | grep 'Total line number = 2'")
 		  if [ "$str1" = "Total line number = 2" ]; then
 			echo "All Nodes is ready"
 			flag=1
-			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -h ${TEST_IP} -p 6667 -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"")
+			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh  -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"")
 			break
 		  else
 			echo "All Nodes is not ready.Please wait ..."
@@ -236,12 +236,12 @@ monitor_test_status() { # 监控测试运行状态
 			if [ "${ts_type}" = "tablemode" ]; then
 				for (( ip = 1; ip < ${#IP_list[*]}; ip++ ))
 				do
-					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -h ${IP_list[${ip}]} -p 6667 -e \"flush\"")
+					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table  -e \"flush\"")
 				done			
 			else
 				for (( ip = 1; ip < ${#IP_list[*]}; ip++ ))
 				do
-					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -h ${IP_list[${ip}]} -p 6667 -e \"flush\"")
+					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"")
 				done
 			fi
 			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
