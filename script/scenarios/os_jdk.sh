@@ -283,16 +283,16 @@ function collect_monitor_data() {
     maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
 }
 backup_test_data() { # 备份测试数据
-	sudo rm -rf "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class_input}"
-	sudo mkdir -p "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class_input}/"
+	sudo rm -rf "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3"
+	sudo mkdir -p "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3"
 	for (( j = 1; j < ${#IP_list[*]}; j++ ))
 	do
 		TEST_IP=${IP_list[$j]}
-		sudo mkdir -p "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class_input}/${TEST_IP}/"
+		sudo mkdir -p "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/${TEST_IP}/"
 		str1=$(ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_IOTDB_PATH}/data" 2>/dev/null)
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH}/ "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class_input}/${TEST_IP}/"
+		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH}/ "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/${TEST_IP}/"
 	done
-	sudo cp -rf "${TEST_BM_PATH}/TestResult/" "${BUCKUP_PATH}/$1/${commit_date_time}_${commit_id}_${protocol_class_input}/"
+	sudo cp -rf "${TEST_BM_PATH}/TestResult/" "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/"
 }
 mv_config_file() { # 移动配置文件
 	rm -rf ${TEST_BM_PATH}/conf/config.properties
@@ -379,7 +379,7 @@ test_operation() {
 		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh")
 	done
 	#备份本次测试
-	backup_test_data "${ts_type}"
+	backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
 }
 ##准备开始测试
 mkdir -p "${INIT_PATH}"
