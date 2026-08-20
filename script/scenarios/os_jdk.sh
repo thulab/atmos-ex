@@ -226,7 +226,7 @@ start_remote_iotdb_node() {
     remote_start_background "${host}" "${start_datanode} -H ${heap_dump}"
     sleep "${STARTUP_GRACE_SECONDS}"
 
-    wait_for_remote_iotdb_cluster "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${IOTDB_READY_NODE_COUNT}" ||
+    wait_for_remote_iotdb_cluster "127.0.0.1" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${IOTDB_READY_NODE_COUNT}" ||
         die "IoTDB is not ready on ${host}"
     change_remote_root_password "${host}" ||
         die "failed to set root password on ${host}"
