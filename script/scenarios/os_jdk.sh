@@ -20,7 +20,7 @@ readonly SCRIPT_DIR
 readonly ATMOS_PATH="${ATMOS_PATH:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 readonly BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
 readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
-readonly JDK_ROOT="${JDK_ROOT:-${INIT_PATH}/jdk}"
+readonly JDK_ROOT="${JDK_ROOT:-/data/atmos/jdk}"
 readonly REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 
 readonly TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos/first-rest-test}"
