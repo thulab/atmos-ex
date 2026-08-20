@@ -1,424 +1,544 @@
 #!/usr/bin/env bash
-#登录用户名
-ACCOUNT=root
-IoTDB_PW=TimechoDB@2021
-test_type=os_jdk
-#初始环境存放路径
-INIT_PATH=/data/atmos/zk_test
-ATMOS_PATH=${INIT_PATH}/atmos-ex
-BM_PATH=${INIT_PATH}/iot-benchmark
-JDK_PATH=${INIT_PATH}/jdk
-BUCKUP_PATH=/nasdata/repository/os_jdk
-REPOS_PATH=/nasdata/repository/master
-#测试数据运行路径
-TEST_INIT_PATH=/data/atmos/first-rest-test
-TEST_IOTDB_PATH=${TEST_INIT_PATH}/apache-iotdb
-TEST_BM_PATH=${TEST_INIT_PATH}/iot-benchmark
-# 1. org.apache.iotdb.consensus.simple.SimpleConsensus
-# 2. org.apache.iotdb.consensus.ratis.RatisConsensus
-# 3. org.apache.iotdb.consensus.iot.IoTConsensus
-# 4. org.apache.iotdb.consensus.iot.IoTConsensusV2
-protocol_class=(0 org.apache.iotdb.consensus.simple.SimpleConsensus org.apache.iotdb.consensus.ratis.RatisConsensus org.apache.iotdb.consensus.iot.IoTConsensus org.apache.iotdb.consensus.iot.IoTConsensusV2)
-protocol_list=(223)
-os_list=(ubuntu22 ubuntu24 centos7 centos8)
-jdk_list=(OpenJDK17 OpenJDK21 TencentKona17 TencentKona21 DragonWell17 DragonWell21)
-ts_list=(aligned tablemode)
-IP_list=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41)
-Control=172.20.70.38
-############mysql信息##########################
-MYSQLHOSTNAME="111.200.37.158" #数据库信息
-PORT="13306"
-USERNAME="iotdbatm"
-PASSWORD=${ATMOS_DB_PASSWORD}
-DBNAME="QA_ATM"  #数据库名称
-TABLENAME="ex_os_jdk_T" #数据库中表的名称
-TASK_TABLENAME="commit_history" #数据库中任务表的名称
-############prometheus##########################
-metric_server="111.200.37.158:19090"
-############公用函数##########################
-if [ "${PASSWORD}" = "" ]; then
-	echo "需要关注密码设置！"
-	exit 1
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
 fi
-#echo "Started at: " date -d today +"%Y-%m-%d %H:%M:%S"
-echo "检查iot-benchmark版本"
-BM_REPOS_PATH=/nasdata/repository/iot-benchmark
-BM_NEW=$(grep git.commit.id.abbrev "${BM_REPOS_PATH}/git.properties" | awk -F= '{print $2}')
-if [ ! -f "${BM_PATH}/git.properties" ]; then
-	rm -rf "${BM_PATH}"
-	cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-else
-	BM_OLD=$(grep git.commit.id.abbrev "${BM_PATH}/git.properties" | awk -F= '{print $2}')
-	if [ "${BM_OLD}" != "${BM_NEW}" ]; then
-		rm -rf "${BM_PATH}"
-		cp -rf "${BM_REPOS_PATH}" "${BM_PATH}"
-	fi
+if shopt -oq posix; then
+    exec bash "${BASH_SOURCE[0]}" "$@"
 fi
-function init_items() {
-    # 定义监控采集项初始值
-    os_type=0; jdk_type=0; ts_type=0; okPoint=0; okOperation=0; failPoint=0; failOperation=0
-    throughput=0; Latency=0; MIN=0; P10=0; P25=0; MEDIAN=0; P75=0; P90=0; P95=0; P99=0; P999=0; MAX=0
-    numOfSe0Level=0; start_time=0; end_time=0; cost_time=0; numOfUnse0Level=0; dataFileSize=0
-    maxNumofOpenFiles=0; maxNumofThread=0; errorLogSize=0; walFileSize=0; maxCPULoad=0; avgCPULoad=0
-    maxDiskIOOpsRead=0; maxDiskIOOpsWrite=0; maxDiskIOSizeRead=0; maxDiskIOSizeWrite=0
+
+set -u
+set -o pipefail
+
+ACCOUNT="${ACCOUNT:-root}"
+readonly IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
+readonly TEST_TYPE="${TEST_TYPE:-os_jdk}"
+readonly BENCHMARK_DEFAULT_RESULT_LABEL="INGESTION"
+
+readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+readonly ATMOS_PATH="${ATMOS_PATH:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+readonly BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
+readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
+readonly JDK_ROOT="${JDK_ROOT:-${INIT_PATH}/jdk}"
+readonly REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
+
+readonly TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos/first-rest-test}"
+readonly TEST_IOTDB_PATH="${TEST_IOTDB_PATH:-${TEST_INIT_PATH}/apache-iotdb}"
+readonly TEST_BM_PATH="${TEST_BM_PATH:-${TEST_INIT_PATH}/iot-benchmark}"
+
+BACKUP_ROOT="${BACKUP_ROOT:-/nasdata/repository/os_jdk}"
+
+readonly MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
+readonly MYSQL_PORT="${MYSQL_PORT:-13306}"
+readonly MYSQL_USERNAME="${MYSQL_USERNAME:-iotdbatm}"
+readonly MYSQL_PASSWORD="${MYSQL_PASSWORD:-${ATMOS_DB_PASSWORD:-}}"
+readonly DBNAME="${DBNAME:-QA_ATM}"
+readonly TABLENAME="${TABLENAME:-ex_os_jdk_T}"
+readonly TASK_TABLENAME="${TASK_TABLENAME:-commit_history}"
+
+readonly METRIC_SERVER="${METRIC_SERVER:-111.200.37.158:19090}"
+readonly DEFAULT_DISK_ID="${DEFAULT_DISK_ID:-sdb}"
+readonly MONITOR_TIMEOUT_SECONDS="${MONITOR_TIMEOUT_SECONDS:-3600}"
+readonly MONITOR_POLL_INTERVAL_SECONDS="${MONITOR_POLL_INTERVAL_SECONDS:-5}"
+readonly REMOTE_REBOOT_GRACE_SECONDS="${REMOTE_REBOOT_GRACE_SECONDS:-120}"
+readonly REMOTE_IOTDB_READY_RETRIES="${REMOTE_IOTDB_READY_RETRIES:-51}"
+readonly REMOTE_IOTDB_READY_INTERVAL_SECONDS="${REMOTE_IOTDB_READY_INTERVAL_SECONDS:-3}"
+readonly IOTDB_READY_NODE_COUNT="${IOTDB_READY_NODE_COUNT:-2}"
+readonly STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-10}"
+readonly IOTDB_SETTLE_SECONDS="${IOTDB_SETTLE_SECONDS:-60}"
+readonly BENCHMARK_WARMUP_SECONDS="${BENCHMARK_WARMUP_SECONDS:-10}"
+
+readonly -a protocol_class=(
+    ""
+    "org.apache.iotdb.consensus.simple.SimpleConsensus"
+    "org.apache.iotdb.consensus.ratis.RatisConsensus"
+    "org.apache.iotdb.consensus.iot.IoTConsensus"
+    "org.apache.iotdb.consensus.iot.IoTConsensusV2"
+)
+readonly -a PROTOCOL_LIST=(223)
+readonly -a OS_LIST=(ubuntu22 ubuntu24 centos7 centos8)
+readonly -a JDK_LIST=(OpenJDK17 OpenJDK21 TencentKona17 TencentKona21 DragonWell17 DragonWell21)
+readonly -a TS_LIST=(aligned tablemode)
+readonly -a IP_LIST=(172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41)
+
+commit_id=""
+author=""
+commit_date_time=""
+test_date_time=""
+protocol_class_input=""
+ts_type=""
+jdk_type=""
+os_type=""
+
+# shellcheck source=script/common/runtime_common.sh
+source "${SCRIPT_DIR}/../common/runtime_common.sh"
+# shellcheck source=script/common/benchmark_common.sh
+source "${SCRIPT_DIR}/../common/benchmark_common.sh"
+# shellcheck source=script/common/monitor_common.sh
+source "${SCRIPT_DIR}/../common/monitor_common.sh"
+# shellcheck source=script/common/remote_common.sh
+source "${SCRIPT_DIR}/../common/remote_common.sh"
+# shellcheck source=script/common/protocol_common.sh
+source "${SCRIPT_DIR}/../common/protocol_common.sh"
+
+# 功能：重置本轮场景执行过程中使用的临时状态变量
+init_scenario_state() {
+    protocol_class_input=""
+    ts_type=""
+    jdk_type=""
+    os_type=""
 }
-local_ip=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
-sendEmail() {
-	"${TOOLS_PATH}/sendEmail.sh" "$1" >/dev/null 2>&1 &
+
+# 功能：校验节点 IP 列表与 OS 列表是否一一对应
+validate_matrix() {
+    [ "${#IP_LIST[@]}" -eq "${#OS_LIST[@]}" ] ||
+        die "IP_LIST and OS_LIST must have the same length"
 }
-check_benchmark_pid() { # 检查benchmark的pid，有就停止
-	monitor_pid=$(jps | grep App | awk '{print $1}')
-	if [ "${monitor_pid}" = "" ]; then
-		echo "未检测到监控程序！"
-	else
-		kill -9 ${monitor_pid}
-		echo "BM程序已停止！"
-	fi
+
+# 功能：清空并重建本地测试目录
+reset_test_dir() {
+    case "${TEST_INIT_PATH}" in
+        ""|/|/data|/nasdata|/root|.) die "refuse to reset unsafe test path: ${TEST_INIT_PATH}" ;;
+    esac
+    rm -rf -- "${TEST_INIT_PATH}"
+    mkdir -p "${TEST_IOTDB_PATH}"
 }
-check_iotdb_pid() { # 检查iotdb的pid，有就停止
-	iotdb_pid=$(jps | grep DataNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到DataNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "DataNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep ConfigNode | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到ConfigNode程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "ConfigNode程序已停止！"
-	fi
-	iotdb_pid=$(jps | grep IoTDB | awk '{print $1}')
-	if [ "${iotdb_pid}" = "" ]; then
-		echo "未检测到IoTDB程序！"
-	else
-		kill -9 ${iotdb_pid}
-		echo "IoTDB程序已停止！"
-	fi
-	echo "程序检测和清理操作已完成！"
+
+# 功能：准备本地 IoTDB 和 benchmark 的运行目录
+set_env() {
+    local source_iotdb="${REPOS_PATH}/${commit_id}/apache-iotdb"
+
+    [ -d "${source_iotdb}" ] || die "missing IoTDB distribution: ${source_iotdb}"
+    reset_test_dir
+    cp -rf -- "${source_iotdb}/." "${TEST_IOTDB_PATH}/"
+    mkdir -p "${TEST_IOTDB_PATH}/activation"
+    prepare_benchmark_runtime "${BM_PATH}"
+    cp -rf -- "${BM_PATH}" "${TEST_INIT_PATH}/"
 }
-set_env() { # 拷贝编译好的iotdb到测试路径
-	if [ ! -d "${TEST_INIT_PATH}" ]; then
-		mkdir -p ${TEST_INIT_PATH}
-		mkdir -p ${TEST_IOTDB_PATH}
-	else
-		rm -rf ${TEST_INIT_PATH}
-		mkdir -p ${TEST_IOTDB_PATH}
-	fi
-	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
-	mkdir -p ${TEST_IOTDB_PATH}/activation
-	cp -rf ${BM_PATH} ${TEST_INIT_PATH}/
+
+# 功能：为 IoTDB 启动脚本替换指定 JDK 路径
+set_iotdb_java_home() {
+    local jdk_name="$1"
+    local java_home="${JDK_ROOT}/${jdk_name}"
+    local config_file=""
+    local -a config_files=(
+        "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
+        "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
+        "${TEST_IOTDB_PATH}/sbin/start-cli.sh"
+    )
+
+    for config_file in "${config_files[@]}"; do
+        [ -f "${config_file}" ] || die "missing config file: ${config_file}"
+        if grep -Eq '^#?[[:space:]]*export JAVA_HOME=' "${config_file}"; then
+            sed -i "s|^#\?[[:space:]]*export JAVA_HOME=.*$|export JAVA_HOME=${java_home}|g" "${config_file}"
+        else
+            printf '\nexport JAVA_HOME=%s\n' "${java_home}" >> "${config_file}"
+        fi
+    done
 }
-modify_iotdb_config() { # iotdb调整内存，关闭合并
-	JAVA_HOME_TEST=/data/atmos/jdk/$1
-	#修改JDK的配置
-	sed -i "s|^# export JAVA_HOME=.*$|export JAVA_HOME=${JAVA_HOME_TEST}|g" "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
-	sed -i "s|^# export JAVA_HOME=.*$|export JAVA_HOME=${JAVA_HOME_TEST}|g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-	sed -i "s|^# export JAVA_HOME=.*$|export JAVA_HOME=${JAVA_HOME_TEST}|g" "${TEST_IOTDB_PATH}/sbin/start-cli.sh"
-	#修改IoTDB的配置
-	sed -i "s|^#ON_HEAP_MEMORY=\"2G\".*$|ON_HEAP_MEMORY=\"20G\"|g" "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-	sed -i "s|^#ON_HEAP_MEMORY=\"2G\".*$|ON_HEAP_MEMORY=\"6G\"|g" "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
-	#清空配置文件
-	# echo "只保留要修改的参数" > ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#关闭影响写入性能的其他功能
-	echo "enable_seq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_unseq_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "enable_cross_space_compaction=false" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#修改集群名称
-	echo "cluster_name=${test_type}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "cn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "cn_metric_prometheus_reporter_port=9081" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	#添加启动监控功能
-	echo "dn_enable_metric=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_enable_performance_stat=true" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_reporter_list=PROMETHEUS" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_level=ALL" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "dn_metric_prometheus_reporter_port=9091" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+
+# 功能：按当前 JDK 方案修改 IoTDB 配置
+modify_iotdb_config() {
+    local current_jdk="$1"
+
+    set_iotdb_java_home "${current_jdk}"
+    set_iotdb_heap_memory 20G 6G
+    apply_iotdb_profile base
 }
-set_protocol_class() { 
-	config_node=$1
-	schema_region=$2
-	data_region=$3
-	#设置协议
-	echo "config_node_consensus_protocol_class=${protocol_class[${config_node}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
-	echo "data_region_consensus_protocol_class=${protocol_class[${data_region}]}" >> ${TEST_IOTDB_PATH}/conf/iotdb-system.properties
+
+# 功能：安装当前时间序列类型对应的 benchmark 配置
+install_benchmark_config() {
+    local current_ts_type="$1"
+
+    install_config_file \
+        "${ATMOS_PATH}/conf/${TEST_TYPE}/benchmark/${current_ts_type}" \
+        "${TEST_BM_PATH}/conf/config.properties"
 }
+
+# 功能：安装单个节点对应的 license 和环境文件
+install_node_runtime_config() {
+    local host="$1"
+    local config_root="${ATMOS_PATH}/conf/${TEST_TYPE}"
+
+    rm -rf -- "${TEST_IOTDB_PATH}/activation"
+    rm -f -- "${TEST_IOTDB_PATH}/.env"
+    mkdir -p "${TEST_IOTDB_PATH}/activation"
+    copy_if_exists "${config_root}/license/${host}" "${TEST_IOTDB_PATH}/activation/license" "${host} license"
+    copy_if_exists "${config_root}/env/${host}" "${TEST_IOTDB_PATH}/.env" "${host} env"
+}
+
+# 功能：重启所有远端测试节点并等待其恢复
+reboot_test_nodes() {
+    local host=""
+
+    log "reset remote os_jdk nodes"
+    for host in "${IP_LIST[@]}"; do
+        remote_reboot "${host}"
+    done
+
+    sleep "${REMOTE_REBOOT_GRACE_SECONDS}"
+    for host in "${IP_LIST[@]}"; do
+        wait_for_remote "${host}" || die "remote host is not available after reboot: ${host}"
+    done
+}
+
+# 功能：向所有远端节点分发测试目录和配置
+deploy_test_nodes() {
+    local current_ts_type="$1"
+    local host=""
+
+    install_benchmark_config "${current_ts_type}"
+    for host in "${IP_LIST[@]}"; do
+        log "deploy ${TEST_TYPE} runtime to ${host}"
+        install_node_runtime_config "${host}"
+        remote_reset_dir "${host}" "${TEST_INIT_PATH}"
+        remote_copy_contents "${TEST_INIT_PATH}" "${host}" "${TEST_INIT_PATH}"
+    done
+}
+
+# 功能：为远端节点设置 root 用户密码
+change_remote_root_password() {
+    local host="$1"
+
+    if remote_iotdb_cli_exec "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "show cluster" -u root -pw "${IOTDB_PASSWORD}" >/dev/null 2>&1; then
+        return 0
+    fi
+    remote_iotdb_cli_exec "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "ALTER USER root SET PASSWORD '${IOTDB_PASSWORD}';" -u root -pw root >/dev/null 2>&1
+}
+
+# 功能：启动单个远端节点的 ConfigNode 和 DataNode
+start_remote_iotdb_node() {
+    local host="$1"
+    local start_confignode=""
+    local start_datanode=""
+    local heap_dump=""
+
+    printf -v start_confignode '%q' "${TEST_IOTDB_PATH}/sbin/start-confignode.sh"
+    printf -v start_datanode '%q' "${TEST_IOTDB_PATH}/sbin/start-datanode.sh"
+    printf -v heap_dump '%q' "${TEST_IOTDB_PATH}/dn_dump.hprof"
+
+    log "starting IoTDB ConfigNode on ${host}"
+    remote_start_background "${host}" "${start_confignode}"
+    sleep 5
+
+    log "starting IoTDB DataNode on ${host}"
+    remote_start_background "${host}" "${start_datanode} -H ${heap_dump}"
+    sleep "${STARTUP_GRACE_SECONDS}"
+
+    wait_for_remote_iotdb_cluster "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "${IOTDB_READY_NODE_COUNT}" ||
+        die "IoTDB is not ready on ${host}"
+    change_remote_root_password "${host}" ||
+        die "failed to set root password on ${host}"
+}
+
+# 功能：执行整轮环境重置、部署和节点启动
 setup_env() {
-	echo "开始重置环境！"
-	for (( j = 1; j < ${#IP_list[*]}; j++ ))
-	do
-		TEST_IP=${IP_list[$j]}
-		ssh ${ACCOUNT}@${TEST_IP} "sudo reboot"
-	done
-	sleep 120
-	for (( i = 1; i < ${#IP_list[*]}; i++ ))
-	do
-		echo "开始部署${IP_list[$i]}！"
-		TEST_IP=${IP_list[$i]}
-		echo "setting env to ${TEST_IP} ..."
-		#删除原有路径下所有
-		ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_INIT_PATH}"
-		ssh ${ACCOUNT}@${TEST_IP} "mkdir -p ${TEST_INIT_PATH}"
-		#准备配置文件和license
-		mv_config_file ${ts_type}
-		rm -rf ${TEST_INIT_PATH}/apache-iotdb/activation
-		mkdir -p ${TEST_INIT_PATH}/apache-iotdb/activation
-		cp -rf ${ATMOS_PATH}/conf/${test_type}/license/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/activation/license
-		cp -rf ${ATMOS_PATH}/conf/${test_type}/env/${TEST_IP} ${TEST_INIT_PATH}/apache-iotdb/.env
-		#复制三项到客户机
-		scp -r ${TEST_INIT_PATH}/* ${ACCOUNT}@${TEST_IP}:${TEST_INIT_PATH}/
-	done	
-	sleep 3
-	for (( i = 1; i < ${#IP_list[*]}; i++ ))
-	do
-		TEST_IP=${IP_list[$i]}
-		#启动ConfigNode节点
-		echo "starting IoTDB ConfigNode on ${TEST_IP} ..."
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-confignode.sh  > /dev/null 2>&1 &")
-		sleep 5
-		#启动DataNode节点
-		echo "starting IoTDB DataNode on ${TEST_IP} ..."
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof   > /dev/null 2>&1 &")
-		#等待10s，让服务器完成前期准备
-		sleep 10
-		flag=0
-		for (( t_wait = 0; t_wait <= 50; t_wait++ ))
-		do
-		  str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh  -e \"show cluster\" | grep 'Total line number = 2'")
-		  if [ "$str1" = "Total line number = 2" ]; then
-			echo "All Nodes is ready"
-			flag=1
-			change_pwd=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/start-cli.sh  -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"")
-			break
-		  else
-			echo "All Nodes is not ready.Please wait ..."
-			sleep 3
-			continue
-		  fi
-		done
-			if [ "$flag" = "0" ]; then
-			  echo "All Nodes is not ready!"
-			  exit 1
-			fi
-	done
+    local current_ts_type="$1"
+    local host=""
+
+    reboot_test_nodes
+    deploy_test_nodes "${current_ts_type}"
+    sleep 3
+
+    for host in "${IP_LIST[@]}"; do
+        start_remote_iotdb_node "${host}"
+    done
 }
-monitor_test_status() { # 监控测试运行状态
-	local active_nodes=$(( ${#IP_list[*]} - 1 ))
-	while true; do
-		now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-		t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
-		flagBM=0
-		for (( m = 1; m < ${#IP_list[*]}; m++ ))
-		do
-			if [ $t_time -ge 3600 ]; then
-				echo "测试失败"  #倒序输入形成负数结果
-				end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-				flagBM=-1
-				cost_time=-1
-				return 1
-			fi
-			str1=$(ssh ${ACCOUNT}@${IP_list[${m}]} "jps | grep -w App | grep -v grep | wc -l" 2>/dev/null)
-			if [ "$str1" = "1" ]; then
-				:
-			else
-				echo "BM写入已结束:${IP_list[${m}]}"
-				flagBM=$((flagBM + 1))
-			fi
-		done
-		if [ "$flagBM" -ge "$active_nodes" ]; then
-			if [ "${ts_type}" = "tablemode" ]; then
-				for (( ip = 1; ip < ${#IP_list[*]}; ip++ ))
-				do
-					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table  -e \"flush\"")
-				done			
-			else
-				for (( ip = 1; ip < ${#IP_list[*]}; ip++ ))
-				do
-					fstr1=$(ssh ${ACCOUNT}@${IP_list[${ip}]} "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"")
-				done
-			fi
-			end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-			cost_time=$(( $(date +%s) - m_start_time ))
-			return 0
-		elif [ "$flagBM" = "-1" ]; then
-			break
-		fi
-		sleep 5
-	done
+
+# 功能：在所有远端节点上启动 benchmark
+start_remote_benchmarks() {
+    local host=""
+
+    for host in "${IP_LIST[@]}"; do
+        log "start benchmark on ${host}"
+        remote_clean_benchmark_runtime "${host}" "${TEST_BM_PATH}"
+        remote_start_benchmark "${host}" "${TEST_BM_PATH}"
+    done
 }
-function get_single_index() {
-    # 获取 prometheus 单个指标的值
-    local end=$2
-    local url="http://${metric_server}/api/v1/query"
-    index_value=$(curl -G -s "$url" --data-urlencode "query=$1" --data-urlencode "time=$end" | jq -r '.data.result[0].value[1] // empty')
-	if [ "$index_value" = "null" ] || [ -z "$index_value" ]; then 
-		index_value=0
-	fi
-	echo "${index_value}"
+
+# 功能：在测试结束后触发各节点 flush 落盘
+flush_test_nodes() {
+    local host=""
+
+    for host in "${IP_LIST[@]}"; do
+        if [ "${ts_type}" = "tablemode" ]; then
+            remote_iotdb_cli_exec "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "flush" -u root -pw "${IOTDB_PASSWORD}" -sql_dialect table >/dev/null 2>&1 ||
+                log "flush failed on ${host}"
+        else
+            remote_iotdb_cli_exec "${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh" "flush" -u root -pw "${IOTDB_PASSWORD}" >/dev/null 2>&1 ||
+                log "flush failed on ${host}"
+        fi
+    done
 }
-function collect_monitor_data() {
-    local ip=$1
-    dataFileSize=$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" $m_end_time)
-    dataFileSize=$(awk 'BEGIN{printf "%.2f\n",'$dataFileSize'/1048576/1024}')
-    numOfSe0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" $m_end_time)
-    numOfUnse0Level=$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" $m_end_time)
-    maxNumofThread_C=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxNumofThread_D=$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    let maxNumofThread=${maxNumofThread_C}+${maxNumofThread_D}
-    maxNumofOpenFiles=$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    walFileSize=$(awk 'BEGIN{printf "%.2f\n",'$walFileSize'/1048576/1024}')
-    maxCPULoad=$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    avgCPULoad=$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsRead=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOOpsWrite=$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeRead=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"read\"}[$((m_end_time-m_start_time))s])" $m_end_time)
-    maxDiskIOSizeWrite=$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"sdb\",type=~\"write\"}[$((m_end_time-m_start_time))s])" $m_end_time)
+
+# 功能：轮询 benchmark 状态并在超时或完成时收口
+monitor_test_status() {
+    local host=""
+    local running_count=0
+    local finished_nodes=0
+    local active_nodes="${#IP_LIST[@]}"
+
+    while true; do
+        if [ $(( $(date +%s) - m_start_time )) -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
+            log "benchmark timed out after ${MONITOR_TIMEOUT_SECONDS}s"
+            end_time="$(current_datetime)"
+            cost_time=-1
+            return 1
+        fi
+
+        finished_nodes=0
+        for host in "${IP_LIST[@]}"; do
+            running_count="$(remote_java_process_count "${host}" App 2>/dev/null || printf '0')"
+            if [ "${running_count:-0}" -eq 0 ]; then
+                finished_nodes=$((finished_nodes + 1))
+            fi
+        done
+
+        if [ "${finished_nodes}" -ge "${active_nodes}" ]; then
+            flush_test_nodes
+            end_time="$(current_datetime)"
+            cost_time=$(( $(date +%s) - m_start_time ))
+            return 0
+        fi
+
+        sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
+    done
 }
-backup_test_data() { # 备份测试数据
-	sudo rm -rf "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3"
-	sudo mkdir -p "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3"
-	for (( j = 1; j < ${#IP_list[*]}; j++ ))
-	do
-		TEST_IP=${IP_list[$j]}
-		sudo mkdir -p "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/${TEST_IP}/"
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "rm -rf ${TEST_IOTDB_PATH}/data" 2>/dev/null)
-		scp -r ${ACCOUNT}@${TEST_IP}:${TEST_IOTDB_PATH}/ "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/${TEST_IP}/"
-	done
-	sudo cp -rf "${TEST_BM_PATH}/TestResult/" "${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/$1/$2/$3/"
+
+# 功能：采集单个节点在监控窗口内的资源指标
+collect_monitor_data() {
+    local host="$1"
+    local monitor_window_seconds=$((m_end_time - m_start_time))
+
+    [ "${monitor_window_seconds}" -gt 0 ] || monitor_window_seconds=1
+    disk_id_regex="^${DEFAULT_DISK_ID}$"
+    collect_standard_monitor_snapshot "${host}" "${monitor_window_seconds}"
 }
-mv_config_file() { # 移动配置文件
-	rm -rf ${TEST_BM_PATH}/conf/config.properties
-	cp -rf ${ATMOS_PATH}/conf/${test_type}/benchmark/$1 ${TEST_BM_PATH}/conf/config.properties
+
+# 功能：拷贝远端节点生成的结果 CSV 到本地
+copy_remote_result_csv() {
+    local host="$1"
+    local output_dir="${TEST_BM_PATH}/TestResult/${host}/csvOutput"
+
+    safe_rm "${output_dir}"
+    mkdir -p "${output_dir}"
+    scp -r -- "$(remote_target "${host}"):${TEST_BM_PATH}/data/csvOutput/*result.csv" "${output_dir}/" >/dev/null 2>&1 ||
+        return 1
+    find_result_csv "${output_dir}"
 }
-clear_expired_file() { # 清理超过七天的文件
-	find $1 -mtime +7 -type d -name "*" -exec rm -rf {} \;
+
+# 功能：将一条测试结果写入 MySQL
+insert_result_row() {
+    local protocol_code="$1"
+    local current_os_type="$2"
+    local current_jdk_type="$3"
+    local current_ts_type="$4"
+    local insert_sql=""
+
+    insert_sql=$(cat <<EOF
+insert into ${TABLENAME} (
+    commit_date_time,test_date_time,commit_id,author,os_type,jdk_type,ts_type,okPoint,okOperation,failPoint,failOperation,
+    throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,
+    numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,
+    maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark
+) values (
+    ${commit_date_time},
+    ${test_date_time},
+    $(sql_quote "${commit_id}"),
+    $(sql_quote "${author}"),
+    $(sql_quote "${current_os_type}"),
+    $(sql_quote "${current_jdk_type}"),
+    $(sql_quote "${current_ts_type}"),
+    ${okPoint},
+    ${okOperation},
+    ${failPoint},
+    ${failOperation},
+    ${throughput},
+    ${Latency},
+    ${MIN},
+    ${P10},
+    ${P25},
+    ${MEDIAN},
+    ${P75},
+    ${P90},
+    ${P95},
+    ${P99},
+    ${P999},
+    ${MAX},
+    ${numOfSe0Level},
+    $(sql_quote "${start_time}"),
+    $(sql_quote "${end_time}"),
+    ${cost_time},
+    ${numOfUnse0Level},
+    ${dataFileSize},
+    ${maxNumofOpenFiles},
+    ${maxNumofThread},
+    ${errorLogSize},
+    ${walFileSize},
+    ${avgCPULoad},
+    ${maxCPULoad},
+    ${maxDiskIOSizeRead},
+    ${maxDiskIOSizeWrite},
+    ${maxDiskIOOpsRead},
+    ${maxDiskIOOpsWrite},
+    ${protocol_code}
+)
+EOF
+)
+
+    mysql_exec "${insert_sql}"
 }
-test_operation() {
-	protocol_class_input=$1
-	ts_type=$2
-	jdk_type=$3
-	echo "开始测试${ts_type}时间序列！"
-	#复制当前程序到执行位置
-	set_env
-	#修改IoTDB的配置
-	modify_iotdb_config "${jdk_type}"
-	if [ "${protocol_class_input}" = "111" ]; then
-		set_protocol_class 1 1 1
-	elif [ "${protocol_class_input}" = "222" ]; then
-		set_protocol_class 2 2 2
-	elif [ "${protocol_class_input}" = "223" ]; then
-		set_protocol_class 2 2 3
-    elif [ "${protocol_class_input}" = "211" ]; then
-        set_protocol_class 2 1 1
-    elif [ "${protocol_class_input}" = "224" ]; then
-        set_protocol_class 2 2 4
-	else
-		echo "协议设置错误！"
-		return
-	fi
-	#启动iotdb
-	setup_env
-	sleep 60
-	#启动写入程序
-	for (( j = 1; j < ${#IP_list[*]}; j++ ))
-	do
-		TEST_IP=${IP_list[$j]}
-		echo "开始写入！"
-		pid3=$(ssh ${ACCOUNT}@${TEST_IP} "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &")
-	done
-	start_time=`date -d today +"%Y-%m-%d %H:%M:%S"`
-	m_start_time=$(date +%s)
-	#等待1分钟
-	sleep 10
-	#监控测试状态，直到所有BM结束
-	monitor_test_status
-	if [ "${cost_time}" = "-1" ]; then
-		for (( i = 1; i < ${#IP_list[*]}; i++ ))
-		do
-			TEST_IP=${IP_list[$i]}
-			ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh" >/dev/null 2>&1
-		done
-		return 1
-	fi
-	#收集启动后基础监控数据
-	m_end_time=$(date +%s)
-	#测试结果收集写入数据库
-	for (( j = 1; j < ${#IP_list[*]}; j++ ))
-	do
-		os_name=${os_list[$((j - 1))]}
-		collect_monitor_data ${IP_list[${j}]}
-		rm -rf ${TEST_BM_PATH}/TestResult/csvOutput/*
-		mkdir -p ${TEST_BM_PATH}/TestResult/csvOutput/
-		scp -r ${ACCOUNT}@${IP_list[${j}]}:${TEST_BM_PATH}/data/csvOutput/*result.csv ${TEST_BM_PATH}/TestResult/csvOutput/
-		#收集启动后基础监控数据
-		csvOutputfile=${TEST_BM_PATH}/TestResult/csvOutput/*result.csv
-		if [ ! -f $csvOutputfile ]; then
-			okOperation=0
-			okPoint=0
-			failOperation=0
-			failPoint=0
-			throughput=0
-		else
-			read okOperation okPoint failOperation failPoint throughput <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '1,1p' | awk -F, '{print $2,$3,$4,$5,$6}')
-			read Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<<$(cat ${csvOutputfile} | grep ^INGESTION | sed -n '2,2p' | awk -F, '{print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}')
-		fi
-		insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,os_type,jdk_type,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${os_name}','${jdk_type}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-		mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${insert_sql}"
-	done
-	for (( i = 1; i < ${#IP_list[*]}; i++ ))
-	do
-		TEST_IP=${IP_list[$i]}
-		str1=$(ssh ${ACCOUNT}@${TEST_IP} "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh")
-	done
-	#备份本次测试
-	backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
+
+# 功能：解析单个节点的结果并写入结果表
+insert_node_result() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_jdk_type="$3"
+    local node_index="$4"
+    local host="${IP_LIST[${node_index}]}"
+    local current_os_type="${OS_LIST[${node_index}]}"
+    local csv_file=""
+
+    collect_monitor_data "${host}"
+    set_standard_negative_benchmark_metrics 0
+    csv_file="$(copy_remote_result_csv "${host}" || true)"
+    if [ -z "${csv_file}" ] || ! parse_standard_benchmark_result "${csv_file}" INGESTION; then
+        log "failed to parse benchmark result on ${host}, writing zero metrics"
+        set_standard_negative_benchmark_metrics 0
+    fi
+
+    insert_result_row "${protocol_code}" "${current_os_type}" "${current_jdk_type}" "${current_ts_type}"
 }
-##准备开始测试
-mkdir -p "${INIT_PATH}"
-echo "ontesting" > "${INIT_PATH}/test_type_file"
-query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} = 'retest' ORDER BY commit_date_time desc limit 1 "
-result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-##查询是否有复测任务
-if [ "${commit_id}" = "" ]; then
-	query_sql="SELECT commit_id,',',author,',',commit_date_time,',' FROM ${TASK_TABLENAME} WHERE ${test_type} is NULL ORDER BY commit_date_time desc limit 1 "
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${query_sql}")
-	commit_id=$(echo $result_string| awk -F, '{print $4}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	author=$(echo $result_string| awk -F, '{print $5}' | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-	commit_date_time=$(echo $result_string | awk -F, '{print $6}' | sed s/-//g | sed s/://g | sed s/[[:space:]]//g | awk '{sub(/^ */, "");sub(/ *$/, "")}1')
-fi
-if [ "${commit_id}" = "" ]; then
-	sleep 60s
-else
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'ontesting' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-    echo "当前版本${commit_id}未执行过测试，即将编译后启动"
-    test_date_time=$(date +%Y%m%d%H%M%S)
-    for protocol in ${protocol_list[@]}; do
-        for jdk in ${jdk_list[@]}; do
-			for ts in ${ts_list[@]}; do
-				init_items
-				echo "开始测试${protocol}协议下的${ts}时间序列在${jdk}环境下写入吞吐！"
-				test_operation $protocol $ts $jdk
-			done
+
+# 功能：批量处理所有节点的测试结果
+insert_all_node_results() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_jdk_type="$3"
+    local node_index=0
+    local failed=0
+
+    for ((node_index = 0; node_index < ${#IP_LIST[@]}; node_index++)); do
+        insert_node_result "${protocol_code}" "${current_ts_type}" "${current_jdk_type}" "${node_index}" || failed=1
+    done
+    return "${failed}"
+}
+
+# 功能：停止所有远端 IoTDB 节点
+stop_remote_iotdb_nodes() {
+    local host=""
+
+    for host in "${IP_LIST[@]}"; do
+        remote_stop_iotdb_node "${host}" "${TEST_IOTDB_PATH}"
+    done
+}
+
+# 功能：备份本轮测试产生的配置、日志和结果
+backup_test_data() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_jdk_type="$3"
+    local host=""
+    local case_id=""
+
+    case_id="$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" jdk "${current_jdk_type}")"
+    backup_begin_case "${case_id}" || return 1
+    backup_add benchmark "${TEST_BM_PATH}/TestResult" test-result optional
+
+    for host in "${IP_LIST[@]}"; do
+        remote_safe_rm "${host}" "${TEST_IOTDB_PATH}/data" || true
+        backup_add_remote "${host}" "${TEST_IOTDB_PATH}" "iotdb-${host}" optional
+        backup_add_remote "${host}" "${TEST_BM_PATH}/logs" benchmark-logs optional
+        backup_add_remote "${host}" "${TEST_BM_PATH}/data/csvOutput" benchmark-csv optional
+    done
+
+    backup_finish_case completed
+}
+
+# 功能：执行单个 protocol / ts / jdk 组合的完整测试流程
+test_operation_impl() {
+    local protocol_code="$1"
+    local current_ts_type="$2"
+    local current_jdk_type="$3"
+    local result_failed=0
+
+    protocol_class_input="${protocol_code}"
+    ts_type="${current_ts_type}"
+    jdk_type="${current_jdk_type}"
+
+    log "start ${TEST_TYPE}: protocol=${protocol_code}, model=${current_ts_type}, jdk=${current_jdk_type}"
+    set_env
+    modify_iotdb_config "${current_jdk_type}"
+    if ! set_protocol_class "${protocol_code}"; then
+        log "invalid protocol code: ${protocol_code}"
+        return 1
+    fi
+
+    setup_env "${current_ts_type}"
+    sleep "${IOTDB_SETTLE_SECONDS}"
+    start_remote_benchmarks
+
+    start_time="$(current_datetime)"
+    m_start_time="$(date +%s)"
+    sleep "${BENCHMARK_WARMUP_SECONDS}"
+
+    if ! monitor_test_status; then
+        stop_remote_iotdb_nodes
+        return 1
+    fi
+
+    m_end_time="$(date +%s)"
+    insert_all_node_results "${protocol_code}" "${current_ts_type}" "${current_jdk_type}" || result_failed=1
+    stop_remote_iotdb_nodes
+    backup_test_data "${protocol_code}" "${current_ts_type}" "${current_jdk_type}" || result_failed=1
+
+    return "${result_failed}"
+}
+
+# 功能：领取任务、执行完整矩阵并完成状态收口
+main() {
+    local protocol=""
+    local jdk=""
+    local ts=""
+    local task_failed=0
+
+    trap restore_test_type_file EXIT
+    ensure_runtime_dependencies
+    check_password
+    validate_matrix
+    mkdir -p "${INIT_PATH}"
+    check_standard_benchmark_version
+
+    mark_test_in_progress
+    log "claim ${TEST_TYPE} task from MySQL"
+    if ! claim_next_task; then
+        log "no ${TEST_TYPE} task found"
+        sleep 60s
+        return 0
+    fi
+
+    log "current commit ${commit_id} is pending, start test"
+    test_date_time="$(date +%Y%m%d%H%M%S)"
+    for protocol in "${PROTOCOL_LIST[@]}"; do
+        for jdk in "${JDK_LIST[@]}"; do
+            for ts in "${TS_LIST[@]}"; do
+                init_items
+                if ! run_isolated_case test_operation_impl "${protocol}" "${ts}" "${jdk}"; then
+                    task_failed=1
+                fi
+            done
         done
     done
-	###############################测试完成###############################
-	echo "本轮测试${test_date_time}已结束."
-	update_sql="update ${TASK_TABLENAME} set ${test_type} = 'done' where commit_id = '${commit_id}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql}")
-	update_sql02="update ${TASK_TABLENAME} set ${test_type} = 'skip' where ${test_type} is NULL and commit_date_time < '${commit_date_time}'"
-	result_string=$(mysql -h${MYSQLHOSTNAME} -P${PORT} -u${USERNAME} -p${PASSWORD} ${DBNAME} -e "${update_sql02}")
+
+    log "test round ${test_date_time} finished"
+    if [ "${task_failed}" -eq 0 ]; then
+        finish_task_success
+    else
+        finish_task_failure
+    fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
 fi
-mkdir -p "${INIT_PATH}"
-echo "${test_type}" > "${INIT_PATH}/test_type_file"
