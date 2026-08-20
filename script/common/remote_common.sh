@@ -13,25 +13,6 @@ remote_exec() {
     ssh "$(remote_target "${host}")" "$@"
 }
 
-# 功能：在远端节点上执行 IoTDB CLI 并附带额外参数
-remote_iotdb_cli_exec() {
-    local host="$1"
-    local cli_path="$2"
-    local sql="$3"
-    local command=""
-    local arg=""
-    local quoted_arg=""
-
-    shift 3
-    printf -v command '%q' "${cli_path}"
-    for arg in "$@"; do
-        printf -v quoted_arg '%q' "${arg}"
-        command="${command} ${quoted_arg}"
-    done
-    command="${command} -e $(printf '%q' "${sql}")"
-    remote_exec "${host}" "${command}"
-}
-
 # 功能：在远程主机上执行受控的部署或检查操作
 remote_path_is_safe() {
     local path="$1"
@@ -140,21 +121,6 @@ remote_reboot_and_wait() {
     remote_reboot "${host}"
     sleep "${REMOTE_REBOOT_GRACE_SECONDS:-30}"
     wait_for_remote "${host}"
-}
-
-# 功能：在远端节点上停止可用的 IoTDB 进程
-remote_stop_iotdb_node() {
-    local host="$1"
-    local iotdb_path="${2:-${TEST_IOTDB_PATH:-}}"
-    local stop_standalone=""
-    local stop_datanode=""
-    local stop_confignode=""
-
-    [ -n "${iotdb_path}" ] || die "iotdb path is required"
-    printf -v stop_standalone '%q' "${iotdb_path}/sbin/stop-standalone.sh"
-    printf -v stop_datanode '%q' "${iotdb_path}/sbin/stop-datanode.sh"
-    printf -v stop_confignode '%q' "${iotdb_path}/sbin/stop-confignode.sh"
-    remote_exec "${host}" "if [ -x ${stop_standalone} ]; then ${stop_standalone}; else [ ! -x ${stop_datanode} ] || ${stop_datanode}; [ ! -x ${stop_confignode} ] || ${stop_confignode}; fi" >/dev/null 2>&1 || true
 }
 
 # 功能：在远程主机上执行受控的部署或检查操作
