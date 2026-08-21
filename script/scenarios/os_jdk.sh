@@ -14,10 +14,15 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../common/runtime_common.sh"
 # shellcheck source=script/common/benchmark_common.sh
 source "${SCRIPT_DIR}/../common/benchmark_common.sh"
+# shellcheck source=script/common/protocol_common.sh
+source "${SCRIPT_DIR}/../common/protocol_common.sh"
+# shellcheck source=script/common/monitor_common.sh
+source "${SCRIPT_DIR}/../common/monitor_common.sh"
 
 readonly ACCOUNT="${ACCOUNT:-root}"
 readonly IoTDB_PW="${IoTDB_PW:-TimechoDB@2021}"
 readonly test_type="${test_type:-os_jdk}"
+readonly TEST_TYPE="${TEST_TYPE:-${test_type}}"
 
 readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
@@ -51,10 +56,11 @@ readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="${DBNAME:-QA_ATM}"
 readonly TABLENAME="${TABLENAME:-ex_os_jdk_T}"
 readonly TASK_TABLENAME="${TASK_TABLENAME:-commit_history}"
-readonly metric_server="${metric_server:-111.200.37.158:19090}"
+readonly METRIC_SERVER="${METRIC_SERVER:-${metric_server:-111.200.37.158:19090}}"
 readonly MONITOR_TIMEOUT_SECONDS="${MONITOR_TIMEOUT_SECONDS:-3600}"
 readonly MONITOR_POLL_INTERVAL_SECONDS="${MONITOR_POLL_INTERVAL_SECONDS:-5}"
 readonly DEFAULT_DISK_ID="${DEFAULT_DISK_ID:-sdb}"
+disk_id_regex="${DEFAULT_DISK_ID}"
 
 commit_id=""
 author=""
@@ -143,10 +149,9 @@ set_env() {
     cp -rf -- "${BM_PATH}" "${TEST_INIT_PATH}/"
 }
 
-# 功能：按指定 JDK 和测试场景修改 IoTDB 配置
-modify_iotdb_config() {
+# 功能：按指定 JDK 设置 IoTDB 运行文件的 JAVA_HOME
+set_java_home() {
     local JAVA_HOME_TEST="/data/atmos/jdk/$1"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
     local config_file=""
     local -a config_files=(
         "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
@@ -165,40 +170,13 @@ modify_iotdb_config() {
             printf '\nexport JAVA_HOME=%s\n' "${JAVA_HOME_TEST}" >> "${config_file}"
         fi
     done
-
-    sed -i 's|^#\?ON_HEAP_MEMORY="2G".*$|ON_HEAP_MEMORY="20G"|' "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
-    sed -i 's|^#\?ON_HEAP_MEMORY="2G".*$|ON_HEAP_MEMORY="6G"|' "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
-
-    cat <<EOF >> "${properties_file}"
-enable_seq_space_compaction=false
-enable_unseq_space_compaction=false
-enable_cross_space_compaction=false
-cluster_name=${test_type}
-cn_enable_metric=true
-cn_enable_performance_stat=true
-cn_metric_reporter_list=PROMETHEUS
-cn_metric_level=ALL
-cn_metric_prometheus_reporter_port=9081
-dn_enable_metric=true
-dn_enable_performance_stat=true
-dn_metric_reporter_list=PROMETHEUS
-dn_metric_level=ALL
-dn_metric_prometheus_reporter_port=9091
-EOF
 }
 
-# 功能：将指定的共识协议组合写入 IoTDB 配置
-set_protocol_class() {
-    local config_node="$1"
-    local schema_region="$2"
-    local data_region="$3"
-    local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
-
-    cat <<EOF >> "${properties_file}"
-config_node_consensus_protocol_class=${protocol_class[${config_node}]}
-schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}
-data_region_consensus_protocol_class=${protocol_class[${data_region}]}
-EOF
+# 功能：按指定 JDK 和测试场景修改 IoTDB 配置
+modify_iotdb_config() {
+    set_java_home "$1"
+    set_iotdb_heap_memory 20G 6G
+    apply_iotdb_profile base
 }
 
 # 功能：重启远端节点、分发测试文件并启动 IoTDB 集群
@@ -309,47 +287,6 @@ monitor_test_status() {
     done
 }
 
-# 功能：从 Prometheus 查询单个指标值
-get_single_index() {
-    local query="$1"
-    local end="$2"
-    local url="http://${metric_server}/api/v1/query"
-    local index_value=""
-
-    index_value="$(curl -G -s "${url}" --data-urlencode "query=${query}" --data-urlencode "time=${end}" | jq -r '.data.result[0].value[1] // empty')"
-    if [ "${index_value}" = "null" ] || [ -z "${index_value}" ]; then
-        index_value=0
-    fi
-
-    printf '%s\n' "${index_value}"
-}
-
-# 功能：采集单个节点在测试窗口内的监控指标
-collect_monitor_data() {
-    local ip="$1"
-    local window_seconds=$((m_end_time - m_start_time))
-    local maxNumofThread_C=0
-    local maxNumofThread_D=0
-
-    [ "${window_seconds}" -gt 0 ] || window_seconds=1
-    dataFileSize="$(get_single_index "sum(file_global_size{instance=~\"${ip}:9091\"})" "${m_end_time}")"
-    dataFileSize="$(awk -v size="${dataFileSize}" 'BEGIN{printf "%.2f\n", size/1048576/1024}')"
-    numOfSe0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"seq\"})" "${m_end_time}")"
-    numOfUnse0Level="$(get_single_index "sum(file_global_count{instance=~\"${ip}:9091\",name=\"unseq\"})" "${m_end_time}")"
-    maxNumofThread_C="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9081\"}[${window_seconds}s])" "${m_end_time}")"
-    maxNumofThread_D="$(get_single_index "max_over_time(process_threads_count{instance=~\"${ip}:9091\"}[${window_seconds}s])" "${m_end_time}")"
-    maxNumofThread=$((maxNumofThread_C + maxNumofThread_D))
-    maxNumofOpenFiles="$(get_single_index "max_over_time(file_count{instance=~\"${ip}:9091\",name=\"open_file_handlers\"}[${window_seconds}s])" "${m_end_time}")"
-    walFileSize="$(get_single_index "max_over_time(file_size{instance=~\"${ip}:9091\",name=~\"wal\"}[${window_seconds}s])" "${m_end_time}")"
-    walFileSize="$(awk -v size="${walFileSize}" 'BEGIN{printf "%.2f\n", size/1048576/1024}')"
-    maxCPULoad="$(get_single_index "max_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${window_seconds}s])" "${m_end_time}")"
-    avgCPULoad="$(get_single_index "avg_over_time(sys_cpu_load{instance=~\"${ip}:9091\"}[${window_seconds}s])" "${m_end_time}")"
-    maxDiskIOOpsRead="$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${window_seconds}s])" "${m_end_time}")"
-    maxDiskIOOpsWrite="$(get_single_index "rate(disk_io_ops{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${window_seconds}s])" "${m_end_time}")"
-    maxDiskIOSizeRead="$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"read\"}[${window_seconds}s])" "${m_end_time}")"
-    maxDiskIOSizeWrite="$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${window_seconds}s])" "${m_end_time}")"
-}
-
 # 功能：备份本轮测试产生的 IoTDB 和 benchmark 数据
 backup_test_data() {
     local ts_value="$1"
@@ -415,7 +352,7 @@ insert_node_result() {
     local csv_output_file=""
     local insert_sql=""
 
-    collect_monitor_data "${host}"
+    collect_standard_monitor_snapshot "${host}" "$((m_end_time - m_start_time))"
     okOperation=0
     okPoint=0
     failOperation=0
@@ -455,19 +392,19 @@ test_operation() {
     modify_iotdb_config "${jdk_type}"
     case "${protocol_class_input}" in
         111)
-            set_protocol_class 1 1 1
+            set_protocol_class 111
             ;;
         222)
-            set_protocol_class 2 2 2
+            set_protocol_class 222
             ;;
         223)
-            set_protocol_class 2 2 3
+            set_protocol_class 223
             ;;
         211)
-            set_protocol_class 2 1 1
+            set_protocol_class 211
             ;;
         224)
-            set_protocol_class 2 2 4
+            set_protocol_class 224
             ;;
         *)
             log "协议设置错误！"
