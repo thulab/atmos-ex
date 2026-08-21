@@ -9,6 +9,12 @@ fi
 set -u
 set -o pipefail
 
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=script/common/runtime_common.sh
+source "${SCRIPT_DIR}/../common/runtime_common.sh"
+# shellcheck source=script/common/benchmark_common.sh
+source "${SCRIPT_DIR}/../common/benchmark_common.sh"
+
 readonly ACCOUNT="${ACCOUNT:-root}"
 readonly IoTDB_PW="${IoTDB_PW:-TimechoDB@2021}"
 readonly test_type="${test_type:-os_jdk}"
@@ -41,7 +47,7 @@ readonly -a IP_list=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41)
 readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
 readonly PORT="${PORT:-13306}"
 readonly USERNAME="${USERNAME:-iotdbatm}"
-readonly PASSWORD="${ATMOS_DB_PASSWORD:-}"
+readonly MYSQL_PASSWORD="${ATMOS_DB_PASSWORD:-}"
 readonly DBNAME="${DBNAME:-QA_ATM}"
 readonly TABLENAME="${TABLENAME:-ex_os_jdk_T}"
 readonly TASK_TABLENAME="${TASK_TABLENAME:-commit_history}"
@@ -64,43 +70,17 @@ cost_time=0
 m_start_time=0
 m_end_time=0
 
-if [ -z "${PASSWORD}" ]; then
-    echo "需要关注密码设置！"
-    exit 1
-fi
-
-sync_benchmark_runtime() {
-    local new_revision=""
-    local old_revision=""
-
-    echo "检查iot-benchmark版本"
-    [ -f "${BM_REPOS_PATH}/git.properties" ] || {
-        echo "缺少iot-benchmark版本文件：${BM_REPOS_PATH}/git.properties"
-        exit 1
-    }
-
-    new_revision="$(awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "${BM_REPOS_PATH}/git.properties")"
-    if [ ! -f "${BM_PATH}/git.properties" ]; then
-        rm -rf -- "${BM_PATH}"
-        cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
-        return 0
-    fi
-
-    old_revision="$(awk -F= '/git.commit.id.abbrev/ {print $2; exit}' "${BM_PATH}/git.properties")"
-    if [ "${old_revision}" != "${new_revision}" ]; then
-        rm -rf -- "${BM_PATH}"
-        cp -rf -- "${BM_REPOS_PATH}" "${BM_PATH}"
-    fi
-}
-
+# 功能：写入测试进行中的状态标记
 mark_test_in_progress() {
     printf 'ontesting\n' > "${INIT_PATH}/test_type_file"
 }
 
+# 功能：在脚本退出时恢复测试类型状态标记
 restore_test_type_file() {
     printf '%s\n' "${test_type}" > "${INIT_PATH}/test_type_file"
 }
 
+# 功能：初始化当前测试组合的结果指标
 init_items() {
     os_type=0
     jdk_type=0
@@ -139,18 +119,20 @@ init_items() {
     maxDiskIOSizeWrite=0
 }
 
+# 功能：校验测试节点和操作系统列表是否一一对应
 validate_matrix() {
     if [ "$(( ${#IP_list[*]} - 1 ))" -ne "${#os_list[*]}" ]; then
-        echo "IP_list和os_list数量不匹配！"
+        log "IP_list和os_list数量不匹配！"
         exit 1
     fi
 }
 
+# 功能：准备当前 commit 对应的 IoTDB 和 benchmark 测试目录
 set_env() {
     local source_iotdb="${REPOS_PATH}/${commit_id}/apache-iotdb"
 
     [ -d "${source_iotdb}" ] || {
-        echo "缺少IoTDB发行包：${source_iotdb}"
+        log "缺少IoTDB发行包：${source_iotdb}"
         exit 1
     }
 
@@ -161,6 +143,7 @@ set_env() {
     cp -rf -- "${BM_PATH}" "${TEST_INIT_PATH}/"
 }
 
+# 功能：按指定 JDK 和测试场景修改 IoTDB 配置
 modify_iotdb_config() {
     local JAVA_HOME_TEST="/data/atmos/jdk/$1"
     local properties_file="${TEST_IOTDB_PATH}/conf/iotdb-system.properties"
@@ -173,7 +156,7 @@ modify_iotdb_config() {
 
     for config_file in "${config_files[@]}"; do
         [ -f "${config_file}" ] || {
-            echo "缺少配置文件：${config_file}"
+            log "缺少配置文件：${config_file}"
             exit 1
         }
         if grep -Eq '^#?[[:space:]]*export JAVA_HOME=' "${config_file}"; then
@@ -204,6 +187,7 @@ dn_metric_prometheus_reporter_port=9091
 EOF
 }
 
+# 功能：将指定的共识协议组合写入 IoTDB 配置
 set_protocol_class() {
     local config_node="$1"
     local schema_region="$2"
@@ -216,12 +200,14 @@ schema_region_consensus_protocol_class=${protocol_class[${schema_region}]}
 data_region_consensus_protocol_class=${protocol_class[${data_region}]}
 EOF
 }
+
+# 功能：重启远端节点、分发测试文件并启动 IoTDB 集群
 setup_env() {
     local host=""
     local i=0
     local t_wait=0
 
-    echo "开始重置环境！"
+    log "开始重置环境！"
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
         ssh "${ACCOUNT}@${host}" "sudo reboot"
@@ -230,8 +216,8 @@ setup_env() {
 
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        echo "开始部署${host}！"
-        echo "setting env to ${host} ..."
+        log "开始部署${host}！"
+        log "setting env to ${host} ..."
         ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_INIT_PATH}"
         ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
         mv_config_file "${ts_type}"
@@ -245,32 +231,33 @@ setup_env() {
     sleep 3
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        echo "starting IoTDB ConfigNode on ${host} ..."
+        log "starting IoTDB ConfigNode on ${host} ..."
         ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &"
         sleep 5
 
-        echo "starting IoTDB DataNode on ${host} ..."
+        log "starting IoTDB DataNode on ${host} ..."
         ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof > /dev/null 2>&1 &"
         sleep 10
 
         for ((t_wait = 0; t_wait <= 50; t_wait++)); do
             if ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"show cluster\" | grep -q 'Total line number = 2'"; then
-                echo "All Nodes is ready"
+                log "All Nodes is ready"
                 ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
                 break
             fi
 
-            echo "All Nodes is not ready.Please wait ..."
+            log "All Nodes is not ready.Please wait ..."
             sleep 3
         done
 
         if [ "${t_wait}" -gt 50 ]; then
-            echo "All Nodes is not ready!"
+            log "All Nodes is not ready!"
             exit 1
         fi
     done
 }
 
+# 功能：轮询远端 benchmark 状态并在结束后执行 flush
 monitor_test_status() {
     local active_nodes=$(( ${#IP_list[*]} - 1 ))
     local elapsed=0
@@ -282,7 +269,7 @@ monitor_test_status() {
     while true; do
         elapsed=$(( $(date +%s) - m_start_time ))
         if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            echo "测试失败"
+            log "测试失败"
             end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
             cost_time=-1
             return 1
@@ -295,7 +282,7 @@ monitor_test_status() {
             if [ "${running_count}" = "1" ]; then
                 :
             else
-                echo "BM写入已结束:${host}"
+                log "BM写入已结束:${host}"
                 finished_nodes=$((finished_nodes + 1))
             fi
         done
@@ -322,6 +309,7 @@ monitor_test_status() {
     done
 }
 
+# 功能：从 Prometheus 查询单个指标值
 get_single_index() {
     local query="$1"
     local end="$2"
@@ -336,6 +324,7 @@ get_single_index() {
     printf '%s\n' "${index_value}"
 }
 
+# 功能：采集单个节点在测试窗口内的监控指标
 collect_monitor_data() {
     local ip="$1"
     local window_seconds=$((m_end_time - m_start_time))
@@ -361,6 +350,7 @@ collect_monitor_data() {
     maxDiskIOSizeWrite="$(get_single_index "rate(disk_io_size{instance=~\"${ip}:9091\",disk_id=~\"${DEFAULT_DISK_ID}\",type=~\"write\"}[${window_seconds}s])" "${m_end_time}")"
 }
 
+# 功能：备份本轮测试产生的 IoTDB 和 benchmark 数据
 backup_test_data() {
     local ts_value="$1"
     local os_value="$2"
@@ -380,12 +370,13 @@ backup_test_data() {
     sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/"
 }
 
+# 功能：安装当前时间序列类型对应的 benchmark 配置
 mv_config_file() {
     local current_ts_type="$1"
     local source_config="${ATMOS_PATH}/conf/${test_type}/benchmark/${current_ts_type}"
 
     [ -f "${source_config}" ] || {
-        echo "缺少benchmark配置：${source_config}"
+        log "缺少benchmark配置：${source_config}"
         exit 1
     }
 
@@ -393,6 +384,7 @@ mv_config_file() {
     cp -rf -- "${source_config}" "${TEST_BM_PATH}/conf/config.properties"
 }
 
+# 功能：停止所有远端 IoTDB 节点
 stop_remote_iotdb_nodes() {
     local host=""
     local i=0
@@ -403,17 +395,19 @@ stop_remote_iotdb_nodes() {
     done
 }
 
+# 功能：在所有远端节点启动 benchmark 写入进程
 start_remote_benchmarks() {
     local host=""
     local i=0
 
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        echo "开始写入！"
+        log "开始写入！"
         ssh "${ACCOUNT}@${host}" "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &" >/dev/null 2>&1
     done
 }
 
+# 功能：解析单个节点的 benchmark 结果并写入 MySQL
 insert_node_result() {
     local node_index="$1"
     local host="${IP_list[$node_index]}"
@@ -446,16 +440,17 @@ insert_node_result() {
     fi
 
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,os_type,jdk_type,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${os_name}','${jdk_type}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
-    mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "${insert_sql}"
+    mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${MYSQL_PASSWORD}" "${DBNAME}" -e "${insert_sql}"
 }
 
+# 功能：执行单个 protocol、时间序列和 JDK 组合的完整测试
 test_operation() {
     protocol_class_input=$1
     ts_type=$2
     jdk_type=$3
     local i=0
 
-    echo "开始测试${ts_type}时间序列！"
+    log "开始测试${ts_type}时间序列！"
     set_env
     modify_iotdb_config "${jdk_type}"
     case "${protocol_class_input}" in
@@ -475,7 +470,7 @@ test_operation() {
             set_protocol_class 2 2 4
             ;;
         *)
-            echo "协议设置错误！"
+            log "协议设置错误！"
             return 1
             ;;
     esac
@@ -504,13 +499,14 @@ test_operation() {
     backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
 }
 
+# 功能：按指定条件获取一条测试任务
 fetch_commit_task() {
     local where_clause="$1"
     local query_sql=""
     local result_string=""
 
     query_sql="SELECT commit_id, author, commit_date_time FROM ${TASK_TABLENAME} WHERE ${where_clause} ORDER BY commit_date_time desc limit 1"
-    result_string="$(mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "${query_sql}")"
+    result_string="$(mysql -N -B -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${MYSQL_PASSWORD}" "${DBNAME}" -e "${query_sql}")"
     if [ -z "${result_string}" ]; then
         return 1
     fi
@@ -520,20 +516,22 @@ fetch_commit_task() {
     commit_date_time="$(printf '%s\n' "${result_string}" | awk -F'\t' 'NR == 1 {gsub(/[- :]/, "", $3); print $3}')"
 }
 
+# 功能：更新测试任务状态
 update_task_status() {
     local task_state="$1"
     local where_clause="${2:-commit_id = '${commit_id}'}"
     local update_sql=""
 
     update_sql="update ${TASK_TABLENAME} set ${test_type} = '${task_state}' where ${where_clause}"
-    mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${PASSWORD}" "${DBNAME}" -e "${update_sql}"
+    mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${MYSQL_PASSWORD}" "${DBNAME}" -e "${update_sql}"
 }
 
+check_password
 mkdir -p "${INIT_PATH}"
 trap restore_test_type_file EXIT
 mark_test_in_progress
 validate_matrix
-sync_benchmark_runtime
+check_standard_benchmark_version
 if ! fetch_commit_task "${test_type} = 'retest'"; then
     if ! fetch_commit_task "${test_type} is NULL"; then
         sleep 60
@@ -542,17 +540,17 @@ if ! fetch_commit_task "${test_type} = 'retest'"; then
 fi
 
 update_task_status "ontesting"
-echo "当前版本${commit_id}未执行过测试，即将编译后启动"
+log "当前版本${commit_id}未执行过测试，即将编译后启动"
 test_date_time=$(date +%Y%m%d%H%M%S)
 for protocol in "${protocol_list[@]}"; do
     for jdk in "${jdk_list[@]}"; do
         for ts in "${ts_list[@]}"; do
             init_items
-            echo "开始测试${protocol}协议下的${ts}时间序列在${jdk}环境下写入吞吐！"
+            log "开始测试${protocol}协议下的${ts}时间序列在${jdk}环境下写入吞吐！"
             test_operation "${protocol}" "${ts}" "${jdk}"
         done
     done
 done
-echo "本轮测试${test_date_time}已结束."
+log "本轮测试${test_date_time}已结束."
 update_task_status "done"
 update_task_status "skip" "${test_type} is NULL and commit_date_time < '${commit_date_time}'"
