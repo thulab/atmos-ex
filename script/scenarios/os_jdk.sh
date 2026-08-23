@@ -305,7 +305,7 @@ monitor_test_status() {
 					log "BM写入已结束:${host}"
 					finished_nodes=$((finished_nodes + 1))
 				else
-					log "${host}测试结果未生成"
+					:
 				fi
 			else
 				running_count="$(ssh "${ACCOUNT}@${host}" "jps | awk '/App/ {count++} END {print count + 0}'" 2>/dev/null || true)"
@@ -359,10 +359,10 @@ backup_test_data() {
         sudo mkdir -p -- "${backup_dir}/${host}/"
 		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
 			ssh "${REMOTE_ACCOUNT}@${host}" "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
-			scp -r -- "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/" "${backup_dir}/${host}/"
+			scp -r -- "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/logs" "${backup_dir}/${host}/"
 		else
 			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
-			scp -r -- "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/" "${backup_dir}/${host}/"
+			scp -r -- "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/logs" "${backup_dir}/${host}/"
 		fi
     done
     sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/"
