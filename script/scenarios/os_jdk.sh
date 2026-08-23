@@ -18,8 +18,11 @@ source "${SCRIPT_DIR}/../common/benchmark_common.sh"
 source "${SCRIPT_DIR}/../common/protocol_common.sh"
 # shellcheck source=script/common/monitor_common.sh
 source "${SCRIPT_DIR}/../common/monitor_common.sh"
+# shellcheck source=script/common/remote_common.sh
+source "${SCRIPT_DIR}/../common/remote_common.sh"
 
 readonly ACCOUNT="${ACCOUNT:-root}"
+readonly REMOTE_ACCOUNT="${REMOTE_ACCOUNT:-Administrator}"
 readonly IoTDB_PW="${IoTDB_PW:-TimechoDB@2021}"
 readonly test_type="${test_type:-os_jdk}"
 readonly TEST_TYPE="${TEST_TYPE:-${test_type}}"
@@ -35,6 +38,10 @@ readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 readonly TEST_INIT_PATH="${TEST_INIT_PATH:-/data/atmos/first-rest-test}"
 readonly TEST_IOTDB_PATH="${TEST_IOTDB_PATH:-${TEST_INIT_PATH}/apache-iotdb}"
 readonly TEST_BM_PATH="${TEST_BM_PATH:-${TEST_INIT_PATH}/iot-benchmark}"
+readonly TEST_INIT_PATH_W="D:\\first-rest-test"
+readonly TEST_IOTDB_PATH_W="D:\\first-rest-test\\apache-iotdb"
+readonly TEST_IOTBM_PATH_W_RP="D:\\first-rest-test\\iot-benchmark\\data\\csvOutput\\*result.csv"
+readonly JDK_PATH_W="D:\\jdk"
 
 readonly -a protocol_class=(
     0
@@ -44,10 +51,10 @@ readonly -a protocol_class=(
     org.apache.iotdb.consensus.iot.IoTConsensusV2
 )
 readonly -a protocol_list=(223)
-readonly -a os_list=(ubuntu22 ubuntu24 centos7 centos8)
+readonly -a os_list=(0 ubuntu22 ubuntu24 centos7 centos8 WIN16 WIN22)
 readonly -a jdk_list=(OpenJDK17 OpenJDK21 TencentKona17 TencentKona21 DragonWell17 DragonWell21)
 readonly -a ts_list=(aligned tablemode)
-readonly -a IP_list=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41)
+readonly -a IP_list=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41 172.20.70.43 172.20.70.50)
 
 readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
 readonly PORT="${PORT:-13306}"
@@ -127,7 +134,7 @@ init_items() {
 
 # 功能：校验测试节点和操作系统列表是否一一对应
 validate_matrix() {
-    if [ "$(( ${#IP_list[*]} - 1 ))" -ne "${#os_list[*]}" ]; then
+    if [ "${#IP_list[*]}" -ne "${#os_list[*]}" ]; then
         log "IP_list和os_list数量不匹配！"
         exit 1
     fi
@@ -152,13 +159,18 @@ set_env() {
 # 功能：按指定 JDK 设置 IoTDB 运行文件的 JAVA_HOME
 set_java_home() {
     local JAVA_HOME_TEST="/data/atmos/jdk/$1"
+    local JAVA_HOME_TEST_W="D:\\\\jdk\\\\$1"
     local config_file=""
     local -a config_files=(
         "${TEST_IOTDB_PATH}/conf/confignode-env.sh"
         "${TEST_IOTDB_PATH}/conf/datanode-env.sh"
         "${TEST_IOTDB_PATH}/sbin/start-cli.sh"
     )
-
+    local -a config_files_w=(
+        "${TEST_IOTDB_PATH}/conf/windows/confignode-env.bat"
+        "${TEST_IOTDB_PATH}/conf/windows/datanode-env.bat"
+        "${TEST_IOTDB_PATH}/sbin/windows/start-cli.bat"
+    )
     for config_file in "${config_files[@]}"; do
         [ -f "${config_file}" ] || {
             log "缺少配置文件：${config_file}"
@@ -169,6 +181,14 @@ set_java_home() {
         else
             printf '\nexport JAVA_HOME=%s\n' "${JAVA_HOME_TEST}" >> "${config_file}"
         fi
+    done
+    for config_file_w in "${config_files_w[@]}"; do
+        [ -f "${config_file_w}" ] || {
+            log "缺少配置文件：${config_file_w}"
+            exit 1
+        }
+        sed -i "s/^@REM set JAVA_HOME=.*$/set JAVA_HOME=${JAVA_HOME_TEST_W}/g" "${config_file_w}"
+	    sed -i "s/^REM set JAVA_HOME=.*$/set JAVA_HOME=${JAVA_HOME_TEST_W}/g" "${config_file_w}"
     done
 }
 
@@ -188,7 +208,11 @@ setup_env() {
     log "开始重置环境！"
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        ssh "${ACCOUNT}@${host}" "sudo reboot"
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			remote_windows_reboot  "${host}"
+		else
+			ssh "${ACCOUNT}@${host}" "sudo reboot"
+		fi
     done
     sleep 120
 
@@ -196,38 +220,56 @@ setup_env() {
         host="${IP_list[$i]}"
         log "开始部署${host}！"
         log "setting env to ${host} ..."
-        ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_INIT_PATH}"
-        ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
         mv_config_file "${ts_type}"
         rm -rf -- "${TEST_INIT_PATH}/apache-iotdb/activation"
         mkdir -p -- "${TEST_INIT_PATH}/apache-iotdb/activation"
         cp -rf -- "${ATMOS_PATH}/conf/${test_type}/license/${host}" "${TEST_INIT_PATH}/apache-iotdb/activation/license"
         cp -rf -- "${ATMOS_PATH}/conf/${test_type}/env/${host}" "${TEST_INIT_PATH}/apache-iotdb/.env"
-        scp -r -- "${TEST_INIT_PATH}/." "${ACCOUNT}@${host}:${TEST_INIT_PATH}/"
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+            #删除原有路径下所有
+            remote_windows_reset_dir "${host}" "${TEST_INIT_PATH_W}"
+            #复制
+            remote_windows_copy_contents "${TEST_INIT_PATH}" "${host}" "${TEST_INIT_PATH_W}"
+		else
+			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_INIT_PATH}"
+			ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
+			scp -r -- "${TEST_INIT_PATH}/." "${ACCOUNT}@${host}:${TEST_INIT_PATH}/"
+		fi
     done
 
     sleep 3
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        log "starting IoTDB ConfigNode on ${host} ..."
-        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &"
-        sleep 5
-
-        log "starting IoTDB DataNode on ${host} ..."
-        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof > /dev/null 2>&1 &"
-        sleep 10
-
-        for ((t_wait = 0; t_wait <= 50; t_wait++)); do
-            if ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"show cluster\" | grep -q 'Total line number = 2'"; then
-                log "All Nodes is ready"
-                ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
-                break
-            fi
-
-            log "All Nodes is not ready.Please wait ..."
-            sleep 3
-        done
-
+        log "starting IoTDB on ${host} ..."
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			pid3=$(remote_windows_run_task "${host}" "run_iotdb")
+			sleep 20
+			for ((t_wait = 0; t_wait <= 50; t_wait++)); do
+				if ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"show cluster\"" | grep -q 'Total line number = 2'; then
+					log "All Nodes is ready"
+					ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
+					break
+				fi
+				log "All Nodes is not ready.Please wait ..."
+				sleep 3
+			done
+		else
+		    log "starting IoTDB ConfigNode on ${host} ..."
+			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &"
+			sleep 5
+			log "starting IoTDB DataNode on ${host} ..."
+			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof > /dev/null 2>&1 &"
+			sleep 10
+			for ((t_wait = 0; t_wait <= 50; t_wait++)); do
+				if ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"show cluster\" | grep -q 'Total line number = 2'"; then
+					log "All Nodes is ready"
+					ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
+					break
+				fi
+				log "All Nodes is not ready.Please wait ..."
+				sleep 3
+			done
+		fi
         if [ "${t_wait}" -gt 50 ]; then
             log "All Nodes is not ready!"
             exit 1
@@ -256,33 +298,47 @@ monitor_test_status() {
         finished_nodes=0
         for ((i = 1; i < ${#IP_list[*]}; i++)); do
             host="${IP_list[$i]}"
-            running_count="$(ssh "${ACCOUNT}@${host}" "jps | awk '/App/ {count++} END {print count + 0}'" 2>/dev/null || true)"
-            if [ "${running_count}" = "1" ]; then
-                :
-            else
-                log "BM写入已结束:${host}"
-                finished_nodes=$((finished_nodes + 1))
-            fi
+
+			if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+				ssh "${REMOTE_ACCOUNT}@${host}" "dir ${TEST_IOTBM_PATH_W_RP}" >/dev/null 2>&1
+				if [ $? -eq 0 ];then
+					log "BM写入已结束:${host}"
+					finished_nodes=$((finished_nodes + 1))
+				else
+					log "${host}测试结果未生成"
+				fi
+			else
+				running_count="$(ssh "${ACCOUNT}@${host}" "jps | awk '/App/ {count++} END {print count + 0}'" 2>/dev/null || true)"
+				if [ "${running_count}" = "1" ]; then
+					:
+				else
+					log "BM写入已结束:${host}"
+					finished_nodes=$((finished_nodes + 1))
+				fi
+			fi
         done
 
         if [ "${finished_nodes}" -ge "${active_nodes}" ]; then
-            if [ "${ts_type}" = "tablemode" ]; then
-                for ((i = 1; i < ${#IP_list[*]}; i++)); do
-                    host="${IP_list[$i]}"
-                    ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush\"" >/dev/null 2>&1
-                done
-            else
-                for ((i = 1; i < ${#IP_list[*]}; i++)); do
-                    host="${IP_list[$i]}"
-                    ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"" >/dev/null 2>&1
-                done
-            fi
-
+			for ((i = 1; i < ${#IP_list[*]}; i++)); do
+				host="${IP_list[$i]}"
+                if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+                    if [ "${ts_type}" = "tablemode" ]; then
+                        ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush;\"" >/dev/null 2>&1
+                    else
+                        ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -e \"flush;\"" >/dev/null 2>&1
+                    fi
+                else
+                    if [ "${ts_type}" = "tablemode" ]; then
+                        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush\"" >/dev/null 2>&1
+                    else
+                        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"" >/dev/null 2>&1
+                    fi
+                fi
+            done
             end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
             cost_time=$(( $(date +%s) - m_start_time ))
             return 0
         fi
-
         sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
     done
 }
@@ -301,8 +357,13 @@ backup_test_data() {
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
         sudo mkdir -p -- "${backup_dir}/${host}/"
-        ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
-        scp -r -- "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/" "${backup_dir}/${host}/"
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			ssh "${REMOTE_ACCOUNT}@${host}" "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
+			scp -r -- "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/" "${backup_dir}/${host}/"
+		else
+			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
+			scp -r -- "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/" "${backup_dir}/${host}/"
+		fi
     done
     sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/"
 }
@@ -328,7 +389,11 @@ stop_remote_iotdb_nodes() {
 
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
-        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh" >/dev/null 2>&1 || true
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\stop-standalone.bat" >/dev/null 2>&1
+		else
+			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh" >/dev/null 2>&1 || true
+		fi
     done
 }
 
@@ -340,7 +405,11 @@ start_remote_benchmarks() {
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
         log "开始写入！"
-        ssh "${ACCOUNT}@${host}" "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &" >/dev/null 2>&1
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			pid3=$(remote_windows_run_task "${host}" "run_test")
+		else
+			ssh "${ACCOUNT}@${host}" "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &" >/dev/null 2>&1
+		fi
     done
 }
 
@@ -348,7 +417,7 @@ start_remote_benchmarks() {
 insert_node_result() {
     local node_index="$1"
     local host="${IP_list[$node_index]}"
-    local os_name="${os_list[$((node_index - 1))]}"
+    local os_name="${os_list[$node_index]}"
     local csv_output_file=""
     local insert_sql=""
 
@@ -428,7 +497,12 @@ test_operation() {
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         rm -rf -- "${TEST_BM_PATH}/TestResult/csvOutput"/*
         mkdir -p -- "${TEST_BM_PATH}/TestResult/csvOutput/"
-        scp -r -- "${ACCOUNT}@${IP_list[$i]}:${TEST_BM_PATH}/data/csvOutput/*result.csv" "${TEST_BM_PATH}/TestResult/csvOutput/"
+
+		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+			scp -r -- "${REMOTE_ACCOUNT}@${IP_list[$i]}:${TEST_IOTBM_PATH_W_RP}" "${TEST_BM_PATH}/TestResult/csvOutput/"
+		else
+			scp -r -- "${ACCOUNT}@${IP_list[$i]}:${TEST_BM_PATH}/data/csvOutput/*result.csv" "${TEST_BM_PATH}/TestResult/csvOutput/"
+		fi
         insert_node_result "${i}"
     done
 

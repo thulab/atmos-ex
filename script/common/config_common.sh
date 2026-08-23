@@ -170,4 +170,11 @@ set_iotdb_heap_memory() {
     if [ -n "${confignode_memory}" ] && [ -f "${confignode_env}" ]; then
         sed -i "s/^#\?ON_HEAP_MEMORY=.*$/ON_HEAP_MEMORY=\"${confignode_memory}\"/" "${confignode_env}"
     fi
+    local datanode_env_w="${TEST_IOTDB_PATH}/conf/windows/datanode-env.bat"
+    local confignode_env_w="${TEST_IOTDB_PATH}/conf/windows/confignode-env.bat"
+    [ -f "${datanode_env_w}" ] || die "missing config file: ${datanode_env_w}"
+    sed -i "s/^@REM set ON_HEAP_MEMORY=.*$/set ON_HEAP_MEMORY=${datanode_memory}/" "${datanode_env_w}"
+    if [ -n "${confignode_memory}" ] && [ -f "${confignode_env_w}" ]; then
+        sed -i "s/^@REM set ON_HEAP_MEMORY=.*$/set ON_HEAP_MEMORY=${confignode_memory}/" "${confignode_env_w}"
+    fi
 }
