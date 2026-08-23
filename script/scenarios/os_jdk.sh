@@ -232,7 +232,7 @@ setup_env() {
             scp -r -- "${TEST_INIT_PATH}" "${REMOTE_ACCOUNT}@${host}:${TEST_INIT_PATH_W}/"
 		else
 			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_INIT_PATH}"
-			ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
+			#ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
 			scp -r -- "${TEST_INIT_PATH}" "${ACCOUNT}@${host}:${TEST_INIT_PATH}/"
 		fi
     done
