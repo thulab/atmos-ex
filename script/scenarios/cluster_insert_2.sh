@@ -196,6 +196,16 @@ else
 	fi
 	init_items
 	test_date_time=`date +%Y%m%d%H%M%S`
+	if [ "${author}" = "FLOW" ]; then
+		log "FLOW author: only run minimal cluster insert tests"
+		test_operation common seq_w 223
+		test_operation aligned seq_w 223
+		test_operation tablemode seq_w 223
+		TASK_SKIP_OLDER_COMMITS=1
+		[ "${author}" != "Timecho" ] || TASK_SKIP_OLDER_COMMITS=0
+		finish_task_success
+		return
+	fi
 	########优先测试
 	log "开始测试普通时间序列顺序写入！"
 	test_operation common seq_w 223
