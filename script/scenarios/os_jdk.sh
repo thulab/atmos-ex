@@ -66,7 +66,12 @@ readonly TASK_TABLENAME="${TASK_TABLENAME:-commit_history}"
 readonly METRIC_SERVER="${METRIC_SERVER:-${metric_server:-111.200.37.158:19090}}"
 readonly MONITOR_TIMEOUT_SECONDS="${MONITOR_TIMEOUT_SECONDS:-3600}"
 readonly MONITOR_POLL_INTERVAL_SECONDS="${MONITOR_POLL_INTERVAL_SECONDS:-5}"
+readonly REMOTE_CONNECT_TIMEOUT_SECONDS="${REMOTE_CONNECT_TIMEOUT_SECONDS:-10}"
+readonly REMOTE_REBOOT_GRACE_SECONDS="${REMOTE_REBOOT_GRACE_SECONDS:-120}"
+readonly REMOTE_READY_RETRIES="${REMOTE_READY_RETRIES:-60}"
+readonly REMOTE_READY_INTERVAL_SECONDS="${REMOTE_READY_INTERVAL_SECONDS:-5}"
 readonly DEFAULT_DISK_ID="${DEFAULT_DISK_ID:-vdc}"
+readonly -a REMOTE_SSH_OPTIONS=(-o BatchMode=yes -o ConnectTimeout="${REMOTE_CONNECT_TIMEOUT_SECONDS}")
 disk_id_regex="${DEFAULT_DISK_ID}"
 
 commit_id=""
@@ -82,6 +87,10 @@ end_time=""
 cost_time=0
 m_start_time=0
 m_end_time=0
+declare -a active_node_indexes=()
+declare -a operation_node_indexes=()
+declare -a running_node_indexes=()
+declare -a completed_node_indexes=()
 
 # 功能：写入测试进行中的状态标记
 mark_test_in_progress() {
@@ -138,6 +147,118 @@ validate_matrix() {
         log "IP_list和os_list数量不匹配！"
         exit 1
     fi
+}
+
+is_windows_node() {
+    local node_index="$1"
+    [ "${os_list[$node_index]}" = "WIN16" ] || [ "${os_list[$node_index]}" = "WIN22" ]
+}
+
+node_label() {
+    local node_index="$1"
+    printf '%s/%s' "${IP_list[$node_index]}" "${os_list[$node_index]}"
+}
+
+node_is_available() {
+    local node_index="$1"
+    local host="${IP_list[$node_index]}"
+
+    if is_windows_node "${node_index}"; then
+        ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" "dir D:" >/dev/null 2>&1
+    else
+        ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" "true" >/dev/null 2>&1
+    fi
+}
+
+node_iotdb_cluster_ready() {
+    local node_index="$1"
+    local host="${IP_list[$node_index]}"
+    local cluster_output=""
+
+    if is_windows_node "${node_index}"; then
+        cluster_output="$(ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+            "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"show cluster\"" \
+            2>/dev/null || true)"
+    else
+        cluster_output="$(ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+            "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"show cluster\"" \
+            2>/dev/null || true)"
+    fi
+    grep -Fq 'Total line number = 2' <<< "${cluster_output}"
+}
+
+wait_for_node_available() {
+    local node_index="$1"
+    local attempts="${REMOTE_READY_RETRIES:-60}"
+    local interval="${REMOTE_READY_INTERVAL_SECONDS:-5}"
+    local attempt=0
+
+    for ((attempt = 1; attempt <= attempts; attempt++)); do
+        if node_is_available "${node_index}"; then
+            return 0
+        fi
+        sleep "${interval}"
+    done
+    return 1
+}
+
+mark_node_inactive() {
+    local failed_node_index="$1"
+    local reason="$2"
+    local node_index=""
+    local -a next_node_indexes=()
+
+    log "skip $(node_label "${failed_node_index}") this round: ${reason}"
+    for node_index in "${active_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
+    active_node_indexes=("${next_node_indexes[@]}")
+
+    next_node_indexes=()
+    for node_index in "${operation_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
+    operation_node_indexes=("${next_node_indexes[@]}")
+
+    next_node_indexes=()
+    for node_index in "${running_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
+    running_node_indexes=("${next_node_indexes[@]}")
+
+    next_node_indexes=()
+    for node_index in "${completed_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
+    completed_node_indexes=("${next_node_indexes[@]}")
+}
+
+mark_node_completed() {
+    local completed_node_index="$1"
+    local node_index=""
+    local -a next_running_node_indexes=()
+
+    for node_index in "${running_node_indexes[@]}"; do
+        [ "${node_index}" = "${completed_node_index}" ] || next_running_node_indexes+=("${node_index}")
+    done
+    running_node_indexes=("${next_running_node_indexes[@]}")
+    if ! contains_value "${completed_node_index}" "${completed_node_indexes[@]}"; then
+        completed_node_indexes+=("${completed_node_index}")
+    fi
+}
+
+discover_active_nodes() {
+    local node_index=0
+
+    active_node_indexes=()
+    for ((node_index = 1; node_index < ${#IP_list[*]}; node_index++)); do
+        if node_is_available "${node_index}"; then
+            active_node_indexes+=("${node_index}")
+        else
+            log "skip $(node_label "${node_index}") this round: server is not reachable"
+        fi
+    done
+    [ "${#active_node_indexes[@]}" -gt 0 ]
 }
 
 # 功能：准备当前 commit 对应的 IoTDB 和 benchmark 测试目录
@@ -202,142 +323,226 @@ modify_iotdb_config() {
 # 功能：重启远端节点、分发测试文件并启动 IoTDB 集群
 setup_env() {
     local host=""
-    local i=0
+    local node_index=""
     local t_wait=0
+    local ready=0
 
-    log "开始重置环境！"
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			remote_windows_reboot  "${host}"
-		else
-			ssh "${ACCOUNT}@${host}" "sudo reboot"
-		fi
-    done
-    sleep 120
-
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-        log "开始部署${host}！"
-        log "setting env to ${host} ..."
-        mv_config_file "${ts_type}"
-        rm -rf -- "${TEST_INIT_PATH}/apache-iotdb/activation"
-        mkdir -p -- "${TEST_INIT_PATH}/apache-iotdb/activation"
-        cp -rf -- "${ATMOS_PATH}/conf/${test_type}/license/${host}" "${TEST_INIT_PATH}/apache-iotdb/activation/license"
-        cp -rf -- "${ATMOS_PATH}/conf/${test_type}/env/${host}" "${TEST_INIT_PATH}/apache-iotdb/.env"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-            #删除原有路径下所有
-            remote_windows_reset_dir "${host}" "${TEST_INIT_PATH_W}"
-            #复制
-            scp -r -- "${TEST_INIT_PATH}" "${REMOTE_ACCOUNT}@${host}:D://"
-		else
-			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_INIT_PATH}"
-			#ssh "${ACCOUNT}@${host}" "mkdir -p ${TEST_INIT_PATH}"
-			scp -r -- "${TEST_INIT_PATH}" "${ACCOUNT}@${host}:${TEST_INIT_PATH}/"
-		fi
-    done
-
-    sleep 3
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-        log "starting IoTDB on ${host} ..."
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			pid3=$(remote_windows_run_task "${host}" "run_iotdb")
-			sleep 20
-			for ((t_wait = 0; t_wait <= 50; t_wait++)); do
-				if ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"show cluster\"" | grep -q 'Total line number = 2'; then
-					log "All Nodes is ready"
-					ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
-					break
-				fi
-				log "All Nodes is not ready.Please wait ..."
-				sleep 3
-			done
-		else
-		    log "starting IoTDB ConfigNode on ${host} ..."
-			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &"
-			sleep 5
-			log "starting IoTDB DataNode on ${host} ..."
-			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof > /dev/null 2>&1 &"
-			sleep 10
-			for ((t_wait = 0; t_wait <= 50; t_wait++)); do
-				if ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"show cluster\" | grep -q 'Total line number = 2'"; then
-					log "All Nodes is ready"
-					ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" >/dev/null 2>&1
-					break
-				fi
-				log "All Nodes is not ready.Please wait ..."
-				sleep 3
-			done
-		fi
-        if [ "${t_wait}" -gt 50 ]; then
-            log "All Nodes is not ready!"
-            exit 1
+    log "reset available node environments"
+    for node_index in "${active_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if is_windows_node "${node_index}"; then
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "shutdown /f /r /t 0" >/dev/null 2>&1 || true
+        else
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "sudo reboot" >/dev/null 2>&1 || true
         fi
     done
+    sleep "${REMOTE_REBOOT_GRACE_SECONDS:-120}"
+
+    for node_index in "${active_node_indexes[@]}"; do
+        if ! wait_for_node_available "${node_index}"; then
+            mark_node_inactive "${node_index}" "server did not return after reboot"
+        fi
+    done
+    [ "${#active_node_indexes[@]}" -gt 0 ] || return 1
+
+    mv_config_file "${ts_type}"
+    for node_index in "${active_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        rm -rf -- "${TEST_IOTDB_PATH}/activation"
+        mkdir -p -- "${TEST_IOTDB_PATH}/activation"
+        if ! cp -rf -- "${ATMOS_PATH}/conf/${test_type}/license/${host}" \
+            "${TEST_IOTDB_PATH}/activation/license" ||
+            ! cp -rf -- "${ATMOS_PATH}/conf/${test_type}/env/${host}" \
+            "${TEST_IOTDB_PATH}/.env"; then
+            mark_node_inactive "${node_index}" "missing node-specific license or environment"
+            continue
+        fi
+        if is_windows_node "${node_index}"; then
+            if ! ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "if exist \"${TEST_INIT_PATH_W}\" rmdir /s /q \"${TEST_INIT_PATH_W}\" & md \"${TEST_INIT_PATH_W}\"" ||
+                ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- "${TEST_INIT_PATH}" \
+                "${REMOTE_ACCOUNT}@${host}:D://"; then
+                mark_node_inactive "${node_index}" "failed to deploy test files"
+            fi
+        else
+            if ! ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "rm -rf -- ${TEST_INIT_PATH}" ||
+                ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- "${TEST_INIT_PATH}" \
+                "${ACCOUNT}@${host}:${TEST_INIT_PATH}/"; then
+                mark_node_inactive "${node_index}" "failed to deploy test files"
+            fi
+        fi
+    done
+
+    [ "${#active_node_indexes[@]}" -gt 0 ] || return 1
+    sleep 3
+    for node_index in "${active_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        ready=0
+        t_wait=0
+        log "starting IoTDB on ${host}"
+        if is_windows_node "${node_index}"; then
+            if ! ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "schtasks /Run /TN \"run_iotdb\"" >/dev/null 2>&1; then
+                mark_node_inactive "${node_index}" "failed to start IoTDB"
+                continue
+            fi
+            sleep 20
+            for ((t_wait = 0; t_wait <= 50; t_wait++)); do
+                if node_iotdb_cluster_ready "${node_index}"; then
+                    ready=1
+                    break
+                fi
+                sleep 3
+            done
+            if [ "${ready}" -eq 1 ]; then
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" \
+                    >/dev/null 2>&1 || true
+            fi
+        else
+            if ! ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "${TEST_IOTDB_PATH}/sbin/start-confignode.sh > /dev/null 2>&1 &"; then
+                mark_node_inactive "${node_index}" "failed to start ConfigNode"
+                continue
+            fi
+            sleep 5
+            if ! ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "${TEST_IOTDB_PATH}/sbin/start-datanode.sh -H ${TEST_IOTDB_PATH}/dn_dump.hprof > /dev/null 2>&1 &"; then
+                mark_node_inactive "${node_index}" "failed to start DataNode"
+                continue
+            fi
+            sleep 10
+            for ((t_wait = 0; t_wait <= 50; t_wait++)); do
+                if node_iotdb_cluster_ready "${node_index}"; then
+                    ready=1
+                    break
+                fi
+                sleep 3
+            done
+            if [ "${ready}" -eq 1 ]; then
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH}/sbin/start-cli.sh -e \"ALTER USER root SET PASSWORD '${IoTDB_PW}';\"" \
+                    >/dev/null 2>&1 || true
+            fi
+        fi
+        if [ "${ready}" -ne 1 ]; then
+            mark_node_inactive "${node_index}" "IoTDB cluster did not become ready"
+        fi
+    done
+
+    [ "${#active_node_indexes[@]}" -gt 0 ]
 }
 
-# 功能：轮询远端 benchmark 状态并在结束后执行 flush
-monitor_test_status() {
-    local active_nodes=$(( ${#IP_list[*]} - 1 ))
-    local elapsed=0
-    local finished_nodes=0
+# 功能：在已完成节点上执行 flush
+flush_completed_nodes() {
+    local node_index=""
     local host=""
-    local i=0
+    local flush_status=0
+
+    for node_index in "${completed_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if ! node_is_available "${node_index}"; then
+            mark_node_inactive "${node_index}" "server became unreachable before flush"
+            continue
+        fi
+        flush_status=0
+        if is_windows_node "${node_index}"; then
+            if [ "${ts_type}" = "tablemode" ]; then
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush;\"" \
+                    >/dev/null 2>&1 || flush_status=$?
+            else
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -e \"flush;\"" \
+                    >/dev/null 2>&1 || flush_status=$?
+            fi
+        else
+            if [ "${ts_type}" = "tablemode" ]; then
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush\"" \
+                    >/dev/null 2>&1 || flush_status=$?
+            else
+                ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                    "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"" \
+                    >/dev/null 2>&1 || flush_status=$?
+            fi
+        fi
+        if [ "${flush_status}" -ne 0 ]; then
+            if node_is_available "${node_index}"; then
+                log "flush failed on ${host}; keep completed result for collection"
+            else
+                mark_node_inactive "${node_index}" "server became unreachable during flush"
+            fi
+        fi
+    done
+    [ "${#completed_node_indexes[@]}" -gt 0 ]
+}
+
+monitor_test_status() {
+    local elapsed=0
+    local host=""
+    local node_index=""
     local running_count=""
 
     while true; do
         elapsed=$(( $(date +%s) - m_start_time ))
         if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
-            log "测试失败"
-            end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+            log "benchmark monitor timed out; dropping unfinished nodes"
+            for node_index in "${running_node_indexes[@]}"; do
+                mark_node_inactive "${node_index}" "benchmark timed out"
+            done
+            m_end_time=$(date +%s)
+            cost_time="${elapsed}"
+            if flush_completed_nodes; then
+                end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+                return 0
+            fi
             cost_time=-1
+            end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
             return 1
         fi
 
-        finished_nodes=0
-        for ((i = 1; i < ${#IP_list[*]}; i++)); do
-            host="${IP_list[$i]}"
+        for node_index in "${running_node_indexes[@]}"; do
+            host="${IP_list[$node_index]}"
+            if ! node_is_available "${node_index}"; then
+                mark_node_inactive "${node_index}" "server became unreachable during benchmark"
+                continue
+            fi
 
-			if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-				ssh "${REMOTE_ACCOUNT}@${host}" "dir ${TEST_IOTBM_PATH_W_RP}" >/dev/null 2>&1
-				if [ $? -eq 0 ];then
-					log "BM写入已结束:${host}"
-					finished_nodes=$((finished_nodes + 1))
-				else
-					:
-				fi
-			else
-				running_count="$(ssh "${ACCOUNT}@${host}" "jps | awk '/App/ {count++} END {print count + 0}'" 2>/dev/null || true)"
-				if [ "${running_count}" = "1" ]; then
-					:
-				else
-					log "BM写入已结束:${host}"
-					finished_nodes=$((finished_nodes + 1))
-				fi
-			fi
-        done
-
-        if [ "${finished_nodes}" -ge "${active_nodes}" ]; then
-			for ((i = 1; i < ${#IP_list[*]}; i++)); do
-				host="${IP_list[$i]}"
-                if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-                    if [ "${ts_type}" = "tablemode" ]; then
-                        ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush;\"" >/dev/null 2>&1
-                    else
-                        ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\start-cli.bat -u root -pw ${IoTDB_PW} -e \"flush;\"" >/dev/null 2>&1
+            if is_windows_node "${node_index}"; then
+                if ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                    "dir ${TEST_IOTBM_PATH_W_RP}" >/dev/null 2>&1; then
+                    log "benchmark finished on ${host}"
+                    mark_node_completed "${node_index}"
+                fi
+            else
+                running_count="$(ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                    "jps | awk '/App/ {count++} END {print count + 0}'" 2>/dev/null || true)"
+                running_count="$(trim "${running_count}")"
+                if [[ "${running_count}" =~ ^[0-9]+$ ]]; then
+                    if [ "${running_count}" -eq 0 ]; then
+                        log "benchmark finished on ${host}"
+                        mark_node_completed "${node_index}"
                     fi
                 else
-                    if [ "${ts_type}" = "tablemode" ]; then
-                        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -sql_dialect table -e \"flush\"" >/dev/null 2>&1
-                    else
-                        ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/start-cli.sh -u root -pw ${IoTDB_PW} -e \"flush\"" >/dev/null 2>&1
-                    fi
+                    mark_node_inactive "${node_index}" "failed to query benchmark status"
                 fi
-            done
+            fi
+        done
+
+        if [ "${#running_node_indexes[@]}" -eq 0 ]; then
+            m_end_time=$(date +%s)
+            cost_time=$((m_end_time - m_start_time))
+            if flush_completed_nodes; then
+                end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+                return 0
+            fi
+            cost_time=-1
             end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            cost_time=$(( $(date +%s) - m_start_time ))
-            return 0
+            return 1
         fi
         sleep "${MONITOR_POLL_INTERVAL_SECONDS}"
     done
@@ -350,25 +555,34 @@ backup_test_data() {
     local jdk_value="$3"
     local backup_dir="${BUCKUP_PATH}/${commit_date_time}_${commit_id}_${protocol_class_input}/${ts_value}/${os_value}/${jdk_value}"
     local host=""
-    local i=0
+    local node_index=""
 
     sudo rm -rf -- "${backup_dir}"
     sudo mkdir -p -- "${backup_dir}"
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
+    for node_index in "${operation_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if ! node_is_available "${node_index}"; then
+            log "skip backup for ${host}: server is not reachable"
+            continue
+        fi
         sudo mkdir -p -- "${backup_dir}/${host}/"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			ssh "${REMOTE_ACCOUNT}@${host}" "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
-			scp -r -- "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/logs" "${backup_dir}/${host}/"
-		else
-			ssh "${ACCOUNT}@${host}" "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
-			scp -r -- "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/logs" "${backup_dir}/${host}/"
-		fi
+        if is_windows_node "${node_index}"; then
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
+            scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/logs" \
+                "${backup_dir}/${host}/" >/dev/null 2>&1 || true
+        else
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
+            scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/logs" \
+                "${backup_dir}/${host}/" >/dev/null 2>&1 || true
+        fi
     done
-    sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/"
+    sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/" >/dev/null 2>&1 || true
 }
 
-# 功能：安装当前时间序列类型对应的 benchmark 配置
 mv_config_file() {
     local current_ts_type="$1"
     local source_config="${ATMOS_PATH}/conf/${test_type}/benchmark/${current_ts_type}"
@@ -382,38 +596,61 @@ mv_config_file() {
     cp -rf -- "${source_config}" "${TEST_BM_PATH}/conf/config.properties"
 }
 
-# 功能：停止所有远端 IoTDB 节点
+# 功能：停止本轮仍可连接的远端 IoTDB 节点
 stop_remote_iotdb_nodes() {
     local host=""
-    local i=0
+    local node_index=""
 
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			ssh "${REMOTE_ACCOUNT}@${host}" "${TEST_IOTDB_PATH_W}\\sbin\\windows\\stop-standalone.bat" >/dev/null 2>&1
-		else
-			ssh "${ACCOUNT}@${host}" "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh" >/dev/null 2>&1 || true
-		fi
+    for node_index in "${operation_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if ! node_is_available "${node_index}"; then
+            log "skip stop for ${host}: server is not reachable"
+            continue
+        fi
+        if is_windows_node "${node_index}"; then
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "${TEST_IOTDB_PATH_W}\\sbin\\windows\\stop-standalone.bat" \
+                >/dev/null 2>&1 || true
+        else
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "${TEST_IOTDB_PATH}/sbin/stop-standalone.sh" \
+                >/dev/null 2>&1 || true
+        fi
     done
 }
 
-# 功能：在所有远端节点启动 benchmark 写入进程
+# 功能：在本轮仍可用的远端节点启动 benchmark
 start_remote_benchmarks() {
     local host=""
-    local i=0
+    local node_index=""
 
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-        log "开始写入！"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			pid3=$(remote_windows_run_task "${host}" "run_test")
-		else
-			ssh "${ACCOUNT}@${host}" "cd ${TEST_BM_PATH};${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &" >/dev/null 2>&1
-		fi
+    running_node_indexes=()
+    completed_node_indexes=()
+    for node_index in "${active_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if ! node_is_available "${node_index}"; then
+            mark_node_inactive "${node_index}" "server is not reachable before benchmark start"
+            continue
+        fi
+        log "start benchmark on ${host}"
+        if is_windows_node "${node_index}"; then
+            if ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "schtasks /Run /TN \"run_test\"" >/dev/null 2>&1; then
+                running_node_indexes+=("${node_index}")
+            else
+                mark_node_inactive "${node_index}" "failed to start benchmark"
+            fi
+        elif ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+            "cd ${TEST_BM_PATH} && ${TEST_BM_PATH}/benchmark.sh > /dev/null 2>&1 &" \
+            >/dev/null 2>&1; then
+            running_node_indexes+=("${node_index}")
+        else
+            mark_node_inactive "${node_index}" "failed to start benchmark"
+        fi
     done
+    [ "${#running_node_indexes[@]}" -gt 0 ]
 }
 
-# 功能：解析单个节点的 benchmark 结果并写入 MySQL
 insert_node_result() {
     local node_index="$1"
     local host="${IP_list[$node_index]}"
@@ -439,75 +676,93 @@ insert_node_result() {
     P999=0
     MAX=0
 
-    csv_output_file="$(find "${TEST_BM_PATH}/TestResult/csvOutput" -maxdepth 1 -type f -name '*result.csv' -print -quit 2>/dev/null || true)"
-    if [ -n "${csv_output_file}" ]; then
-        read -r okOperation okPoint failOperation failPoint throughput <<< "$(awk -F, '/^INGESTION/ {print $2,$3,$4,$5,$6; exit}' "${csv_output_file}")"
-        read -r Latency MIN P10 P25 MEDIAN P75 P90 P95 P99 P999 MAX <<< "$(awk -F, '/^INGESTION/ {count++; if (count == 2) print $2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "${csv_output_file}")"
+    csv_output_file="$(find_result_csv "${TEST_BM_PATH}/TestResult/csvOutput" || true)"
+    if [ -z "${csv_output_file}" ]; then
+        log "missing benchmark result for ${host}"
+        return 1
+    fi
+    if ! parse_standard_benchmark_result "${csv_output_file}"; then
+        log "failed to parse benchmark result for ${host}: ${csv_output_file}"
+        return 1
     fi
 
     insert_sql="insert into ${TABLENAME} (commit_date_time,test_date_time,commit_id,author,os_type,jdk_type,ts_type,okPoint,okOperation,failPoint,failOperation,throughput,Latency,MIN,P10,P25,MEDIAN,P75,P90,P95,P99,P999,MAX,numOfSe0Level,start_time,end_time,cost_time,numOfUnse0Level,dataFileSize,maxNumofOpenFiles,maxNumofThread,errorLogSize,walFileSize,avgCPULoad,maxCPULoad,maxDiskIOSizeRead,maxDiskIOSizeWrite,maxDiskIOOpsRead,maxDiskIOOpsWrite,remark) values(${commit_date_time},${test_date_time},'${commit_id}','${author}','${os_name}','${jdk_type}','${ts_type}',${okPoint},${okOperation},${failPoint},${failOperation},${throughput},${Latency},${MIN},${P10},${P25},${MEDIAN},${P75},${P90},${P95},${P99},${P999},${MAX},${numOfSe0Level},'${start_time}','${end_time}',${cost_time},${numOfUnse0Level},${dataFileSize},${maxNumofOpenFiles},${maxNumofThread},${errorLogSize},${walFileSize},${avgCPULoad},${maxCPULoad},${maxDiskIOSizeRead},${maxDiskIOSizeWrite},${maxDiskIOOpsRead},${maxDiskIOOpsWrite},${protocol_class_input})"
     mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${MYSQL_PASSWORD}" "${DBNAME}" -e "${insert_sql}"
 }
 
-# 功能：执行单个 protocol、时间序列和 JDK 组合的完整测试
+# 功能：执行单个组合，并隔离不可用节点
 test_operation() {
-    protocol_class_input=$1
-    ts_type=$2
-    jdk_type=$3
-    local i=0
+    protocol_class_input="$1"
+    ts_type="$2"
+    jdk_type="$3"
+    local host=""
+    local node_index=""
 
-    log "开始测试${ts_type}时间序列！"
+    if [ "${#active_node_indexes[@]}" -eq 0 ]; then
+        log "no reachable node for ${ts_type}/${jdk_type}; skip this combination"
+        return 0
+    fi
+
+    operation_node_indexes=("${active_node_indexes[@]}")
+    running_node_indexes=()
+    completed_node_indexes=()
+
+    log "start ${ts_type}/${jdk_type} on ${#operation_node_indexes[@]} reachable nodes"
     set_env
     modify_iotdb_config "${jdk_type}"
-    case "${protocol_class_input}" in
-        111)
-            set_protocol_class 111
-            ;;
-        222)
-            set_protocol_class 222
-            ;;
-        223)
-            set_protocol_class 223
-            ;;
-        211)
-            set_protocol_class 211
-            ;;
-        224)
-            set_protocol_class 224
-            ;;
-        *)
-            log "协议设置错误！"
-            return 1
-            ;;
-    esac
+    if ! set_protocol_class "${protocol_class_input}"; then
+        log "invalid protocol ${protocol_class_input}"
+        return 0
+    fi
 
-    setup_env
+    if ! setup_env; then
+        stop_remote_iotdb_nodes
+        backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
+        return 0
+    fi
+
     sleep 60
-    start_remote_benchmarks
+    if ! start_remote_benchmarks; then
+        stop_remote_iotdb_nodes
+        backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
+        return 0
+    fi
+
     start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
     m_start_time=$(date +%s)
     sleep 10
-    monitor_test_status
-    if [ "${cost_time}" = "-1" ]; then
-        stop_remote_iotdb_nodes
-        return 1
-    fi
+    monitor_test_status || true
 
     m_end_time=$(date +%s)
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
+    for node_index in "${completed_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
         rm -rf -- "${TEST_BM_PATH}/TestResult/csvOutput"/*
-        mkdir -p -- "${TEST_BM_PATH}/TestResult/csvOutput/"
+        mkdir -p -- "${TEST_BM_PATH}/TestResult/csvOutput"
 
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
-			scp -r -- "${REMOTE_ACCOUNT}@${IP_list[$i]}:${TEST_IOTBM_PATH_W_RP}" "${TEST_BM_PATH}/TestResult/csvOutput/"
-		else
-			scp -r -- "${ACCOUNT}@${IP_list[$i]}:${TEST_BM_PATH}/data/csvOutput/*result.csv" "${TEST_BM_PATH}/TestResult/csvOutput/"
-		fi
-        insert_node_result "${i}"
+        if is_windows_node "${node_index}"; then
+            if ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${REMOTE_ACCOUNT}@${host}:${TEST_IOTBM_PATH_W_RP}" \
+                "${TEST_BM_PATH}/TestResult/csvOutput/"; then
+                mark_node_inactive "${node_index}" "failed to fetch benchmark result"
+                continue
+            fi
+        elif ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+            "${ACCOUNT}@${host}:${TEST_BM_PATH}/data/csvOutput/*result.csv" \
+            "${TEST_BM_PATH}/TestResult/csvOutput/"; then
+            mark_node_inactive "${node_index}" "failed to fetch benchmark result"
+            continue
+        fi
+
+        if insert_node_result "${node_index}"; then
+            log "stored benchmark result for ${host}"
+        else
+            mark_node_inactive "${node_index}" "result missing, invalid, or database insert failed"
+        fi
     done
 
     stop_remote_iotdb_nodes
     backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
+    return 0
 }
 
 # 功能：按指定条件获取一条测试任务
@@ -551,6 +806,11 @@ if ! fetch_commit_task "${test_type} = 'retest'"; then
 fi
 
 update_task_status "ontesting"
+if ! discover_active_nodes; then
+    log "no reachable OS/JDK node; complete this task without running tests"
+    update_task_status "done"
+    exit 0
+fi
 log "当前版本${commit_id}未执行过测试，即将编译后启动"
 test_date_time=$(date +%Y%m%d%H%M%S)
 for protocol in "${protocol_list[@]}"; do
