@@ -51,10 +51,12 @@ readonly -a protocol_class=(
     org.apache.iotdb.consensus.iot.IoTConsensusV2
 )
 readonly -a protocol_list=(223)
-readonly -a os_list=(0 ubuntu22 ubuntu24 centos7 centos8 WIN16 WIN22)
 readonly -a jdk_list=(OpenJDK17 OpenJDK21 TencentKona17 TencentKona21 DragonWell17 DragonWell21)
 readonly -a ts_list=(aligned tablemode)
-readonly -a IP_list=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41 172.20.70.43 172.20.70.50)
+readonly -a os_list_all=(0 ubuntu22 ubuntu24 centos7 centos8 WIN16 WIN22)
+readonly -a IP_list_all=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41 172.20.70.43 172.20.70.50)
+readonly -a os_list=(0)
+readonly -a IP_list=(0)
 
 readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
 readonly PORT="${PORT:-13306}"
@@ -206,15 +208,25 @@ setup_env() {
     local t_wait=0
 
     log "开始重置环境！"
-    for ((i = 1; i < ${#IP_list[*]}; i++)); do
-        host="${IP_list[$i]}"
-		if [ "${os_list[$i]}" = "WIN16" ] || [ "${os_list[$i]}" = "WIN22" ] ; then
+    for ((i = 1; i < ${#IP_list_all[*]}; i++)); do
+        host="${IP_list_all[$i]}"
+		if [ "${os_list_all[$i]}" = "WIN16" ] || [ "${os_list_all[$i]}" = "WIN22" ] ; then
 			remote_windows_reboot  "${host}"
 		else
 			ssh "${ACCOUNT}@${host}" "sudo reboot"
 		fi
     done
     sleep 120
+    for ((i = 1; i < ${#IP_list_all[*]}; i++)); do
+        host="${IP_list_all[$i]}"
+        if ssh -o BatchMode=yes -o ConnectTimeout=5 ${ACCOUNT}@${ip} "true" >/dev/null 2>&1; then
+            log "远端节点${host}操作系统为${os_list_all[$i]},已就绪."
+            IP_list[${#IP_list[@]}]="${host}"
+            os_list[${#os_list[@]}]="${os_list_all[$i]}"
+        fi
+    done
+    log "远端节点就绪情况：${IP_list[*]}"
+    log "远端节点就绪情况：${os_list[*]}"
 
     for ((i = 1; i < ${#IP_list[*]}; i++)); do
         host="${IP_list[$i]}"
