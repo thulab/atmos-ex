@@ -55,8 +55,8 @@ readonly -a jdk_list=(OpenJDK17 OpenJDK21 TencentKona17 TencentKona21 DragonWell
 readonly -a ts_list=(aligned tablemode)
 readonly -a os_list_all=(0 ubuntu22 ubuntu24 centos7 centos8 WIN16 WIN22)
 readonly -a IP_list_all=(0 172.20.70.37 172.20.70.28 172.20.70.39 172.20.70.41 172.20.70.43 172.20.70.50)
-readonly -a os_list=(0)
-readonly -a IP_list=(0)
+os_list=(0)
+IP_list=(0)
 
 readonly MYSQLHOSTNAME="${MYSQLHOSTNAME:-111.200.37.158}"
 readonly PORT="${PORT:-13306}"
