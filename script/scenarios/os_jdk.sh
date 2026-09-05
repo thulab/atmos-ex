@@ -220,7 +220,7 @@ setup_env() {
     for ((i = 1; i < ${#IP_list_all[*]}; i++)); do
         host="${IP_list_all[$i]}"
 		if [ "${os_list_all[$i]}" = "WIN16" ] || [ "${os_list_all[$i]}" = "WIN22" ] ; then
-			if ssh -o BatchMode=yes -o ConnectTimeout=5 Administrator@${host} "true" >/dev/null 2>&1; then
+            if ssh -o BatchMode=yes -o ConnectTimeout=5 Administrator@${host} "exit 0" >/dev/null 2>&1; then
                 log "远端节点${host}操作系统为${os_list_all[$i]},已就绪."
                 IP_list[${#IP_list[@]}]="${host}"
                 os_list[${#os_list[@]}]="${os_list_all[$i]}"
