@@ -209,59 +209,40 @@ mark_node_inactive() {
     local -a next_node_indexes=()
 
     log "skip $(node_label "${failed_node_index}") this round: ${reason}"
-    if [ "${#active_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${active_node_indexes[@]}"; do
-            [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
-        done
-    fi
+    for node_index in "${active_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
     active_node_indexes=("${next_node_indexes[@]}")
 
     next_node_indexes=()
-    if [ "${#operation_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${operation_node_indexes[@]}"; do
-            [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
-        done
-    fi
+    for node_index in "${operation_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
     operation_node_indexes=("${next_node_indexes[@]}")
 
     next_node_indexes=()
-    if [ "${#running_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${running_node_indexes[@]}"; do
-            [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
-        done
-    fi
+    for node_index in "${running_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
     running_node_indexes=("${next_node_indexes[@]}")
 
     next_node_indexes=()
-    if [ "${#completed_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${completed_node_indexes[@]}"; do
-            [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
-        done
-    fi
+    for node_index in "${completed_node_indexes[@]}"; do
+        [ "${node_index}" = "${failed_node_index}" ] || next_node_indexes+=("${node_index}")
+    done
     completed_node_indexes=("${next_node_indexes[@]}")
 }
 
 mark_node_completed() {
     local completed_node_index="$1"
     local node_index=""
-    local already_completed=0
     local -a next_running_node_indexes=()
 
-    if [ "${#running_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${running_node_indexes[@]}"; do
-            [ "${node_index}" = "${completed_node_index}" ] || next_running_node_indexes+=("${node_index}")
-        done
-    fi
+    for node_index in "${running_node_indexes[@]}"; do
+        [ "${node_index}" = "${completed_node_index}" ] || next_running_node_indexes+=("${node_index}")
+    done
     running_node_indexes=("${next_running_node_indexes[@]}")
-    if [ "${#completed_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${completed_node_indexes[@]}"; do
-            if [ "${node_index}" = "${completed_node_index}" ]; then
-                already_completed=1
-                break
-            fi
-        done
-    fi
-    if [ "${already_completed}" -eq 0 ]; then
+    if ! contains_value "${completed_node_index}" "${completed_node_indexes[@]}"; then
         completed_node_indexes+=("${completed_node_index}")
     fi
 }
@@ -461,7 +442,6 @@ flush_completed_nodes() {
     local host=""
     local flush_status=0
 
-    [ "${#completed_node_indexes[@]}" -gt 0 ] || return 1
     for node_index in "${completed_node_indexes[@]}"; do
         host="${IP_list[$node_index]}"
         if ! node_is_available "${node_index}"; then
@@ -511,25 +491,11 @@ monitor_test_status() {
         elapsed=$(( $(date +%s) - m_start_time ))
         if [ "${elapsed}" -ge "${MONITOR_TIMEOUT_SECONDS}" ]; then
             log "benchmark monitor timed out; dropping unfinished nodes"
-            if [ "${#running_node_indexes[@]}" -gt 0 ]; then
-                for node_index in "${running_node_indexes[@]}"; do
-                    mark_node_inactive "${node_index}" "benchmark timed out"
-                done
-            fi
+            for node_index in "${running_node_indexes[@]}"; do
+                mark_node_inactive "${node_index}" "benchmark timed out"
+            done
             m_end_time=$(date +%s)
             cost_time="${elapsed}"
-            if flush_completed_nodes; then
-                end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-                return 0
-            fi
-            cost_time=-1
-            end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-            return 1
-        fi
-
-        if [ "${#running_node_indexes[@]}" -eq 0 ]; then
-            m_end_time=$(date +%s)
-            cost_time=$((m_end_time - m_start_time))
             if flush_completed_nodes; then
                 end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
                 return 0
@@ -593,29 +559,27 @@ backup_test_data() {
 
     sudo rm -rf -- "${backup_dir}"
     sudo mkdir -p -- "${backup_dir}"
-    if [ "${#operation_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${operation_node_indexes[@]}"; do
-            host="${IP_list[$node_index]}"
-            if ! node_is_available "${node_index}"; then
-                log "skip backup for ${host}: server is not reachable"
-                continue
-            fi
-            sudo mkdir -p -- "${backup_dir}/${host}/"
-            if is_windows_node "${node_index}"; then
-                ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
-                    "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
-                scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
-                    "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/logs" \
-                    "${backup_dir}/${host}/" >/dev/null 2>&1 || true
-            else
-                ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
-                    "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
-                scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
-                    "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/logs" \
-                    "${backup_dir}/${host}/" >/dev/null 2>&1 || true
-            fi
-        done
-    fi
+    for node_index in "${operation_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        if ! node_is_available "${node_index}"; then
+            log "skip backup for ${host}: server is not reachable"
+            continue
+        fi
+        sudo mkdir -p -- "${backup_dir}/${host}/"
+        if is_windows_node "${node_index}"; then
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${REMOTE_ACCOUNT}@${host}" \
+                "rmdir /s /q ${TEST_IOTDB_PATH_W}/data" >/dev/null 2>&1 || true
+            scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${REMOTE_ACCOUNT}@${host}:${TEST_IOTDB_PATH_W}/logs" \
+                "${backup_dir}/${host}/" >/dev/null 2>&1 || true
+        else
+            ssh "${REMOTE_SSH_OPTIONS[@]}" "${ACCOUNT}@${host}" \
+                "rm -rf ${TEST_IOTDB_PATH}/data" >/dev/null 2>&1 || true
+            scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${ACCOUNT}@${host}:${TEST_IOTDB_PATH}/logs" \
+                "${backup_dir}/${host}/" >/dev/null 2>&1 || true
+        fi
+    done
     sudo cp -rf -- "${TEST_BM_PATH}/TestResult/" "${backup_dir}/" >/dev/null 2>&1 || true
 }
 
@@ -637,7 +601,6 @@ stop_remote_iotdb_nodes() {
     local host=""
     local node_index=""
 
-    [ "${#operation_node_indexes[@]}" -gt 0 ] || return 0
     for node_index in "${operation_node_indexes[@]}"; do
         host="${IP_list[$node_index]}"
         if ! node_is_available "${node_index}"; then
@@ -663,7 +626,6 @@ start_remote_benchmarks() {
 
     running_node_indexes=()
     completed_node_indexes=()
-    [ "${#active_node_indexes[@]}" -gt 0 ] || return 1
     for node_index in "${active_node_indexes[@]}"; do
         host="${IP_list[$node_index]}"
         if ! node_is_available "${node_index}"; then
@@ -772,33 +734,31 @@ test_operation() {
     monitor_test_status || true
 
     m_end_time=$(date +%s)
-    if [ "${#completed_node_indexes[@]}" -gt 0 ]; then
-        for node_index in "${completed_node_indexes[@]}"; do
-            host="${IP_list[$node_index]}"
-            rm -rf -- "${TEST_BM_PATH}/TestResult/csvOutput"/*
-            mkdir -p -- "${TEST_BM_PATH}/TestResult/csvOutput"
+    for node_index in "${completed_node_indexes[@]}"; do
+        host="${IP_list[$node_index]}"
+        rm -rf -- "${TEST_BM_PATH}/TestResult/csvOutput"/*
+        mkdir -p -- "${TEST_BM_PATH}/TestResult/csvOutput"
 
-            if is_windows_node "${node_index}"; then
-                if ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
-                    "${REMOTE_ACCOUNT}@${host}:${TEST_IOTBM_PATH_W_RP}" \
-                    "${TEST_BM_PATH}/TestResult/csvOutput/"; then
-                    mark_node_inactive "${node_index}" "failed to fetch benchmark result"
-                    continue
-                fi
-            elif ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
-                "${ACCOUNT}@${host}:${TEST_BM_PATH}/data/csvOutput/*result.csv" \
+        if is_windows_node "${node_index}"; then
+            if ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+                "${REMOTE_ACCOUNT}@${host}:${TEST_IOTBM_PATH_W_RP}" \
                 "${TEST_BM_PATH}/TestResult/csvOutput/"; then
                 mark_node_inactive "${node_index}" "failed to fetch benchmark result"
                 continue
             fi
+        elif ! scp "${REMOTE_SSH_OPTIONS[@]}" -r -- \
+            "${ACCOUNT}@${host}:${TEST_BM_PATH}/data/csvOutput/*result.csv" \
+            "${TEST_BM_PATH}/TestResult/csvOutput/"; then
+            mark_node_inactive "${node_index}" "failed to fetch benchmark result"
+            continue
+        fi
 
-            if insert_node_result "${node_index}"; then
-                log "stored benchmark result for ${host}"
-            else
-                mark_node_inactive "${node_index}" "result missing, invalid, or database insert failed"
-            fi
-        done
-    fi
+        if insert_node_result "${node_index}"; then
+            log "stored benchmark result for ${host}"
+        else
+            mark_node_inactive "${node_index}" "result missing, invalid, or database insert failed"
+        fi
+    done
 
     stop_remote_iotdb_nodes
     backup_test_data "${ts_type}" "${os_type}" "${jdk_type}"
