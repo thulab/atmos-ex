@@ -219,7 +219,7 @@ setup_env() {
     sleep 120
     for ((i = 1; i < ${#IP_list_all[*]}; i++)); do
         host="${IP_list_all[$i]}"
-        if ssh -o BatchMode=yes -o ConnectTimeout=5 ${ACCOUNT}@${ip} "true" >/dev/null 2>&1; then
+        if ssh -o BatchMode=yes -o ConnectTimeout=5 ${ACCOUNT}@${host} "true" >/dev/null 2>&1; then
             log "远端节点${host}操作系统为${os_list_all[$i]},已就绪."
             IP_list[${#IP_list[@]}]="${host}"
             os_list[${#os_list[@]}]="${os_list_all[$i]}"
