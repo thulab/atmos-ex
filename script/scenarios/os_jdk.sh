@@ -97,6 +97,8 @@ restore_test_type_file() {
 
 # 功能：初始化当前测试组合的结果指标
 init_items() {
+    os_list=(0)
+    IP_list=(0)
     os_type=0
     jdk_type=0
     ts_type=0
