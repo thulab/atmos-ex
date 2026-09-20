@@ -561,7 +561,9 @@ run_ts_type() {
 
     log "start ts_type: protocol=${protocol_code}, ts_type=${current_ts_type}"
     cleanup_processes
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config
 
     if ! set_protocol_class "${protocol_code}"; then

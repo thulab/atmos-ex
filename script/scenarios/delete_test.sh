@@ -599,14 +599,16 @@ set_env() {
     local source_path="${REPOS_PATH}/${commit_id}/apache-iotdb"
     local license_file="$(scenario_config_root)/iotdb/activation/license"
 
-    if [ ! -d "${source_path}" ]; then
-        append_remark "missing test version path: ${source_path}"
+    if ! validate_iotdb_distribution_layout "${source_path}"; then
+        mark_environment_deployment_error "environment deployment check failed for ${source_path}"
         return 1
     fi
 
     safe_rm "${TEST_IOTDB_PATH}"
+    if ! copy_iotdb_distribution "${source_path}" "${TEST_IOTDB_PATH}"; then
+        return 1
+    fi
     mkdir -p "${TEST_IOTDB_PATH}/activation"
-    cp -rf "${source_path}/." "${TEST_IOTDB_PATH}/"
     if [ -f "${license_file}" ]; then
         cp -rf "${license_file}" "${TEST_IOTDB_PATH}/license"
     else
@@ -1160,6 +1162,7 @@ main() {
         sleep 60
         return 0
     fi
+    validate_claimed_iotdb_distribution || return 0
 
     update_task_status "ontesting"
     if [ "${author}" = "Timecho" ]; then

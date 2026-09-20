@@ -699,7 +699,9 @@ test_operation_impl() {
     log "start ${TEST_TYPE}: protocol=${protocol_code}"
     init_items
     cleanup_processes
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config
 
     if ! set_protocol_class "${protocol_code}"; then
@@ -771,6 +773,7 @@ main() {
         sleep 60
         return 0
     fi
+    validate_claimed_iotdb_distribution || return 0
 
     if ! longrun_author_matches_route; then
         log "ERROR: task author ${author} does not match route ${TASK_AUTHOR_FILTER_SQL}; refuse to claim commit ${commit_id}"

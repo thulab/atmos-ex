@@ -71,7 +71,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		mkdir -p ${TEST_PATH}
 		mkdir -p ${TEST_PATH}/apache-iotdb
 	fi
-	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	copy_iotdb_distribution "${REPOS_PATH}/${commit_id}/apache-iotdb" "${TEST_IOTDB_PATH}" || return 1
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	install_iotdb_runtime_config
 }
@@ -185,7 +185,9 @@ test_operation_impl() {
 	do
 		#复制当前程序到执行位置
 		data_type=${insert_list[${i}]}
-		set_env
+		if ! set_env; then
+			return 1
+		fi
 		modify_iotdb_config
 		if [ "${protocol_class}" = "111" ]; then
 			set_protocol_class 1 1 1

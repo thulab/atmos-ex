@@ -90,7 +90,9 @@ test_operation_impl() {
     log "开始测试${ts_type}时间序列！"
     check_benchmark_pid
     check_iotdb_pid
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config
     if ! set_protocol_class "${protocol_class_input}"; then
         log "协议设置错误：${protocol_class_input}"

@@ -409,7 +409,9 @@ test_operation() {
 
 	log "开始测试${protocol_id}协议下的${ts_type}时间序列"
 	check_iotdb_pid
-	set_env
+	if ! set_env; then
+		return 1
+	fi
 	modify_iotdb_config
 	if ! set_protocol_class "${protocol_id}"; then
 		log "协议设置错误: ${protocol_id}"
@@ -447,6 +449,7 @@ main() {
 		sleep 60
 		return 0
 	fi
+	validate_claimed_iotdb_distribution || return 0
 
 	update_task_status "ontesting"
 	log "当前版本${commit_id}未执行过测试，即将启动"

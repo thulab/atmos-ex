@@ -148,14 +148,15 @@ validate_matrix() {
 set_env() {
     local source_iotdb="${REPOS_PATH}/${commit_id}/apache-iotdb"
 
-    [ -d "${source_iotdb}" ] || {
-        log "缺少IoTDB发行包：${source_iotdb}"
-        exit 1
-    }
+    if ! validate_iotdb_distribution_layout "${source_iotdb}"; then
+        mark_environment_deployment_error "environment deployment check failed for ${source_iotdb}"
+        return 1
+    fi
 
     rm -rf -- "${TEST_INIT_PATH}"
-    mkdir -p -- "${TEST_IOTDB_PATH}"
-    cp -rf -- "${source_iotdb}/." "${TEST_IOTDB_PATH}/"
+    if ! copy_iotdb_distribution "${source_iotdb}" "${TEST_IOTDB_PATH}"; then
+        return 1
+    fi
     mkdir -p -- "${TEST_IOTDB_PATH}/activation"
     cp -rf -- "${BM_PATH}" "${TEST_INIT_PATH}/"
 }
@@ -481,7 +482,9 @@ test_operation() {
     local i=0
 
     log "开始测试${ts_type}时间序列！"
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config "${jdk_type}"
     case "${protocol_class_input}" in
         111)
@@ -556,8 +559,12 @@ update_task_status() {
     local task_state="$1"
     local where_clause="${2:-commit_id = '${commit_id}'}"
     local update_sql=""
+    local status_guard=""
 
-    update_sql="update ${TASK_TABLENAME} set ${test_type} = '${task_state}' where ${where_clause}"
+    if [ "${task_state}" != "SErr" ]; then
+        status_guard=" and coalesce(${test_type}, '') <> 'SErr'"
+    fi
+    update_sql="update ${TASK_TABLENAME} set ${test_type} = '${task_state}' where ${where_clause}${status_guard}"
     mysql -h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" -p"${MYSQL_PASSWORD}" "${DBNAME}" -e "${update_sql}"
 }
 
@@ -573,6 +580,8 @@ if ! fetch_commit_task "${test_type} = 'retest'"; then
         exit 0
     fi
 fi
+
+validate_claimed_iotdb_distribution || exit 0
 
 update_task_status "ontesting"
 log "当前版本${commit_id}未执行过测试，即将编译后启动"

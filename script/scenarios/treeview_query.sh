@@ -473,7 +473,9 @@ test_operation_impl() {
     for current_suite_type in "${QUERY_DATA_TYPES[@]}"; do
         log "start protocol=${protocol_code}, suite=${current_suite_type}"
         cleanup_processes
-        set_env
+        if ! set_env; then
+            return 1
+        fi
         modify_iotdb_config
 
         if ! set_protocol_class "${protocol_code}"; then
@@ -588,6 +590,7 @@ main() {
         sleep 60
         return 0
     fi
+    validate_claimed_iotdb_distribution || return 0
 
     if [ "${author}" = "Timecho" ]; then
         result_table_name="${TABLENAME_T}"

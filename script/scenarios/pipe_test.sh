@@ -106,7 +106,7 @@ set_env() { # 拷贝编译好的iotdb到测试路径
 		rm -rf -- "${TEST_INIT_PATH}"
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
-	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	copy_iotdb_distribution "${REPOS_PATH}/${commit_id}/apache-iotdb" "${TEST_IOTDB_PATH}" || return 1
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	cp -rf ${BM_PATH} ${TEST_INIT_PATH}/
 }
@@ -541,7 +541,9 @@ test_operation_impl() {
 	pipflag=0
 	log "开始测试${ts_type}时间序列！"
 	#复制当前程序到执行位置
-	set_env
+	if ! set_env; then
+		return 1
+	fi
 	#修改IoTDB的配置
 	modify_iotdb_config
 	if [ "${protocol_class}" = "111" ]; then

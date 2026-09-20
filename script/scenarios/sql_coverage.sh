@@ -86,7 +86,7 @@ set_env() {
 		rm -rf -- "${TEST_IOTDB_PATH}"
 		mkdir -p ${TEST_IOTDB_PATH}
 	fi
-	cp -rf ${REPOS_PATH}/${commit_id}/apache-iotdb/* ${TEST_IOTDB_PATH}/
+	copy_iotdb_distribution "${REPOS_PATH}/${commit_id}/apache-iotdb" "${TEST_IOTDB_PATH}" || return 1
 	mkdir -p ${TEST_IOTDB_PATH}/activation
 	install_iotdb_runtime_config
 	# 拷贝工具到测试路径
@@ -190,7 +190,9 @@ else
 	check_iotdb_pid
 	check_sql_test_pid
 	#复制当前程序到执行位置
-	set_env
+	if ! set_env; then
+		return 1
+	fi
 	#IoTDB 调整内存，关闭合并
 	modify_iotdb_config
 	set_protocol_class 2 2 3

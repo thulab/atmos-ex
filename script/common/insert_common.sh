@@ -471,7 +471,9 @@ test_operation_impl() {
     log "开始测试协议 ${protocol_code} 下的 ${current_ts_type} 时间序列。"
     init_items
     cleanup_processes
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config
     apply_iotdb_config_hook "${protocol_code}" "${current_ts_type}" "${current_api_type}"
 

@@ -19,7 +19,71 @@ sql_quote() {
 # 功能：更新当前提交在任务表中的测试状态
 update_task_status() {
     local status="$1"
-    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")"
+    local status_guard=""
+
+    # Keep an environment deployment failure terminal for the claimed task.
+    if [ "${status}" != "SErr" ]; then
+        status_guard=" and coalesce(${TEST_TYPE}, '') <> 'SErr'"
+    fi
+    mysql_exec "update ${TASK_TABLENAME} set ${TEST_TYPE} = $(sql_quote "${status}") where commit_id = $(sql_quote "${commit_id}")${status_guard}"
+}
+
+# 功能：校验待测 IoTDB 发行包至少包含可运行所需的目录
+validate_iotdb_distribution_layout() {
+    local distribution_path="$1"
+    local required_dir=""
+
+    if [ ! -d "${distribution_path}" ]; then
+        log "missing IoTDB distribution: ${distribution_path}"
+        return 1
+    fi
+
+    for required_dir in lib sbin conf; do
+        if [ ! -d "${distribution_path}/${required_dir}" ]; then
+            log "incomplete IoTDB distribution, missing ${required_dir}: ${distribution_path}"
+            return 1
+        fi
+    done
+}
+
+# 功能：将环境部署失败记录为终态 SErr
+mark_environment_deployment_error() {
+    local message="$1"
+
+    log "${message}; mark task ${commit_id} as SErr"
+    update_task_status "SErr"
+    return 1
+}
+
+# 功能：校验当前任务对应的发行包，失败时将任务标记为 SErr
+validate_claimed_iotdb_distribution() {
+    local source_path="${REPOS_PATH:-}/${commit_id}/apache-iotdb"
+
+    validate_iotdb_distribution_layout "${source_path}" || \
+        mark_environment_deployment_error "environment deployment check failed for ${source_path}"
+}
+
+# 功能：复制并复核当前任务对应的 IoTDB 发行包
+copy_iotdb_distribution() {
+    local source_path="$1"
+    local target_path="$2"
+
+    if ! validate_iotdb_distribution_layout "${source_path}"; then
+        mark_environment_deployment_error "missing or incomplete IoTDB distribution: ${source_path}"
+        return 1
+    fi
+    if ! mkdir -p "${target_path}"; then
+        mark_environment_deployment_error "failed to create IoTDB target directory: ${target_path}"
+        return 1
+    fi
+    if ! cp -rf -- "${source_path}/." "${target_path}/"; then
+        mark_environment_deployment_error "failed to copy IoTDB distribution to ${target_path}"
+        return 1
+    fi
+    if ! validate_iotdb_distribution_layout "${target_path}"; then
+        mark_environment_deployment_error "copied IoTDB distribution is incomplete: ${target_path}"
+        return 1
+    fi
 }
 
 # 功能：更新当前任务或测试的状态标记
@@ -63,6 +127,7 @@ fetch_next_commit() {
 claim_next_task() {
     fetch_next_commit || return 1
     update_task_status "ontesting"
+    validate_claimed_iotdb_distribution || return 1
 }
 
 # 功能：完成当前任务并按配置跳过更旧提交

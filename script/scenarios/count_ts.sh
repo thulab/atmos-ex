@@ -398,7 +398,9 @@ test_operation_impl() {
 	log "start count_ts protocol ${protocol_code}"
 	init_items
 	cleanup_processes
-	set_env
+	if ! set_env; then
+		return 1
+	fi
 	modify_iotdb_config
 	if ! set_protocol_class "${protocol_code}"; then
 		log "invalid protocol: ${protocol_code}"
@@ -473,6 +475,7 @@ main() {
 		sleep 60
 		return 0
 	fi
+	validate_claimed_iotdb_distribution || return 0
 
 	update_task_status "ontesting"
 	log "current commit ${commit_id} starts ${TEST_TYPE}"

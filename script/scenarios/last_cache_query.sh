@@ -258,7 +258,9 @@ test_operation_impl() {
     log "start ${TEST_TYPE}: protocol=${protocol_code}, ts_type=${current_ts_type}"
     init_items
     cleanup_processes
-    set_env
+    if ! set_env; then
+        return 1
+    fi
     modify_iotdb_config
     enable_last_cache
 

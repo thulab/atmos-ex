@@ -317,7 +317,9 @@ test_operation() {
 
 	log "start ${TEST_TYPE}: protocol=${protocol_id}, ts=${ts_type}, data=${data_type}"
 	check_iotdb_pid
-	set_env
+	if ! set_env; then
+		return 1
+	fi
 	modify_iotdb_config
 	prepare_test_data
 
@@ -348,6 +350,7 @@ main() {
 		sleep 60
 		return 0
 	fi
+	validate_claimed_iotdb_distribution || return 0
 
 	update_task_status "ontesting"
 	log "current commit ${commit_id} starts ${TEST_TYPE}"
