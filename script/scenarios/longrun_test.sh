@@ -434,9 +434,6 @@ set_table_ttl() {
 
     ttl_sqls=(
         "ALTER DATABASE ${db_name} SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER DATABASE ${db_name} SET PROPERTIES (TTL=${ttl_ms})"
-        "ALTER DATABASE ${db_name} WITH (TTL=${ttl_ms})"
-        "ALTER DATABASE ${db_name} SET TTL=${ttl_ms}"
         "ALTER TABLE table_g_0.table_0 SET PROPERTIES TTL=${ttl_ms}"
         "ALTER TABLE table_g_0.table_1 SET PROPERTIES TTL=${ttl_ms}"
         "ALTER TABLE table_g_0.table_2 SET PROPERTIES TTL=${ttl_ms}"
@@ -450,9 +447,7 @@ set_table_ttl() {
     )
 
     for ttl_sql in "${ttl_sqls[@]}"; do
-        if run_iotdb_sql_for_ttl "table" "${ttl_sql}"; then
-            return 0
-        fi
+        run_iotdb_sql_for_ttl "table" "${ttl_sql}"
     done
 
     return 1
