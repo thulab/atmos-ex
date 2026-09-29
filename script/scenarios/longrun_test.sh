@@ -412,10 +412,10 @@ set_tree_ttl() {
     local ttl_ms="$2"
     local ttl_path=""
 
-    if [[ "${db_name}" == root.* ]]; then
+    if [[ "${db_name}" == root.** ]]; then
         ttl_path="${db_name}"
     else
-        ttl_path="root.${db_name}"
+        ttl_path="root.${db_name}.**"
     fi
 
     run_iotdb_sql_for_ttl "tree" "SET TTL TO ${ttl_path} ${ttl_ms}"
@@ -462,15 +462,15 @@ set_longrun_ttl() {
         return 0
     fi
 
-    tree_db_name="$(get_property_value "${tree_config}" DB_NAME tree)"
-    table_db_name="$(get_property_value "${table_config}" DB_NAME table)"
+    tree_db_name="tree.g_0"
+    table_db_name="table_g_0"
     longrun_start_time_log "set ttl begin ttl_ms=${ttl_ms} tree_db=${tree_db_name} table_db=${table_db_name}"
 
     if ! set_tree_ttl "${tree_db_name}" "${ttl_ms}"; then
         failed=1
     fi
 
-    if ! set_tree_ttl "${table_db_name}" "${ttl_ms}" && ! set_table_ttl "${table_db_name}" "${ttl_ms}"; then
+    if ! set_table_ttl "${table_db_name}" "${ttl_ms}"; then
         failed=1
     fi
 
