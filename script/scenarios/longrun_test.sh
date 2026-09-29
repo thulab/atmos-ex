@@ -437,18 +437,16 @@ set_table_ttl() {
         "ALTER DATABASE ${db_name} SET PROPERTIES (TTL=${ttl_ms})"
         "ALTER DATABASE ${db_name} WITH (TTL=${ttl_ms})"
         "ALTER DATABASE ${db_name} SET TTL=${ttl_ms}"
-
-        "ALTER TABLE ${db_name}.table_0 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_1 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_2 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_3 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_4 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_5 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_6 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_7 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_8 SET PROPERTIES TTL=${ttl_ms}"
-        "ALTER TABLE ${db_name}.table_9 SET PROPERTIES TTL=${ttl_ms}"
-
+        "ALTER TABLE table_g_0.table_0 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_1 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_2 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_3 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_4 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_5 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_6 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_7 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_8 SET PROPERTIES TTL=${ttl_ms}"
+        "ALTER TABLE table_g_0.table_9 SET PROPERTIES TTL=${ttl_ms}"
     )
 
     for ttl_sql in "${ttl_sqls[@]}"; do
