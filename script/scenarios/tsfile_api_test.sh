@@ -13,12 +13,14 @@ TSFILE_PATH=${INIT_PATH}/tsfile
 JAVA_TOOL_PATH=${INIT_PATH}/java-tsfile-api-test
 CPP_TOOL_PATH=${INIT_PATH}/cpp-tsfile-api-test
 PYTHON_TOOL_PATH=${INIT_PATH}/python-tsfile-api-test
+GO_TOOL_PATH=${INIT_PATH}/go-tsfile-api-test
 BK_PATH=${INIT_PATH}/tsfile_api_test_report
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/qa}"
 TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-tsfile-api-test
 TEST_CPP_TOOL_PATH=${TEST_INIT_PATH}/cpp-tsfile-api-test
 TEST_PYTHON_TOOL_PATH=${TEST_INIT_PATH}/python-tsfile-api-test
+TEST_GO_TOOL_PATH=${TEST_INIT_PATH}/go-tsfile-api-test
 ############mysql信息##########################
 MYSQL_HOST="${MYSQL_HOST:-111.200.37.158}"
 MYSQL_PORT="${MYSQL_PORT:-13306}"
@@ -278,6 +280,118 @@ EOF
 #	git push -f
 }
 # 功能：执行指定语言、接口或测试场景
+test_go_tsfile_api_test() { # 测试Go
+	# 拷贝Go工具到测试路径
+	if [ ! -d "${TEST_GO_TOOL_PATH}" ]; then
+		mkdir -p ${TEST_GO_TOOL_PATH}
+	else
+		rm -rf -- "${TEST_GO_TOOL_PATH}"
+		mkdir -p ${TEST_GO_TOOL_PATH}
+	fi
+	cp -rf ${GO_TOOL_PATH}/* ${TEST_GO_TOOL_PATH}/
+	# 清理历史产物，避免读到陈旧 build/reports
+	rm -rf -- "${TEST_GO_TOOL_PATH}/build" "${TEST_GO_TOOL_PATH}/reports"
+	# 编译工具（go build + go test -c；cgo 编译期链接 ${TSFILE_PATH}/cpp/target/build 产物）
+	cd "${TEST_GO_TOOL_PATH}" || return 1
+	export GO_BIN="${GO_BIN:-/data/iotdb-test/tools/go/go1.22.12/bin/go}"
+	export GOPATH="${GOPATH:-/data/iotdb-test/tools/go/gopath}"
+	export GOCACHE="${GOCACHE:-/data/iotdb-test/tools/go/gocache}"
+	export GOPROXY="${GOPROXY:-https://mirrors.aliyun.com/goproxy,https://goproxy.cn,direct}"
+	export GOSUMDB="${GOSUMDB:-sum.golang.google.cn}"
+	export GOTOOLCHAIN="${GOTOOLCHAIN:-local}"
+	compile=$(timeout 3600s bash -c "sh start.sh prepare")
+	if [ $? -eq 0 ]
+	then
+		log "编译Go完成，准备开始测试！"
+	else
+		log "编译Go失败，写入负值测试结果！"
+		tests_num=-2
+		errors_num=-2
+		failures_num=-2
+		skipped_num=-2
+		successRate=-2
+		insert_sql_go="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'GO')"
+		mysql_exec "${insert_sql_go}"
+		return 1
+	fi
+	log "开始测试Go接口"
+	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	start_test=$(timeout 7200s bash -c "sh start.sh all")
+	for (( t_wait = 0; t_wait <= 20; ))
+	do
+		cd "${TEST_GO_TOOL_PATH}" || return 1
+		result_file=${TEST_GO_TOOL_PATH}/reports/all.xml
+		if [ ! -f "$result_file" ]; then
+			now_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+			t_time=$(($(date +%s -d "${now_time}") - $(date +%s -d "${start_time}")))
+			if [ $t_time -ge 14400 ]; then
+				log "Go测试失败"
+				flag=1
+				break
+			fi
+			sleep 10
+			continue
+		else
+			log "Go测试完成"
+			break
+		fi
+	done
+	end_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
+	# 防止测试报告文档内容还未生成完全，导致脚本获取空值
+	sleep 60
+	if [ $flag -eq 0 ]; then
+		#收集测试结果
+		cd "${TEST_GO_TOOL_PATH}" || return 1
+		# 从JUnit XML报告中提取Go测试结果（go test 无独立 error 分类，errors 恒为 0）
+		suite_line=$(grep -o '<testsuite [^>]*>' ${TEST_GO_TOOL_PATH}/reports/all.xml | head -1)
+		tests_num=$(printf '%s' "$suite_line" | grep -o 'tests="[0-9]*"' | grep -o '[0-9]*')
+		failures_num=$(printf '%s' "$suite_line" | grep -o 'failures="[0-9]*"' | grep -o '[0-9]*')
+		skipped_num=$(printf '%s' "$suite_line" | grep -o 'skipped="[0-9]*"' | grep -o '[0-9]*')
+		errors_num=0
+		successRate=$(awk -v t="$tests_num" -v e="$errors_num" -v f="$failures_num" -v s="$skipped_num" 'BEGIN{printf "%.2f", t?((t-e-f-s)*100/t):0}')
+		#结果写入mysql
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql_go="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'GO')"
+		mysql_exec "${insert_sql_go}"
+		if [ $? -ne 0 ]; then
+			log "执行mysql命令失败"
+			#收集测试结果
+			tests_num=-5
+			errors_num=-5
+			failures_num=-5
+			skipped_num=-5
+			successRate=-5
+			#结果写入mysql
+			cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+			sql=$(cat <<EOF
+			insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark,insert_sql) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'GO',"${insert_sql_go}")
+EOF
+			)
+			mysql_exec "$sql"
+			log "备份Go测试报告"
+			backup_api_failure go "${last_cid_TsFile}" "${failures_num}" "${TEST_GO_TOOL_PATH}/reports"
+			return 1
+		fi
+	else
+		#收集测试结果
+		cd "${TEST_GO_TOOL_PATH}" || return 1
+		tests_num=-4
+		errors_num=-4
+		failures_num=-4
+		skipped_num=-4
+		successRate=-4
+		#结果写入mysql
+		cost_time=$(($(date +%s -d "${end_time}") - $(date +%s -d "${start_time}")))
+		insert_sql_go="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'GO')"
+		mysql_exec "${insert_sql_go}"
+	fi
+	#备份本次测试
+	log "备份Go测试报告"
+	mkdir -p "${BK_PATH}/go"
+	rm -rf -- "${BK_PATH:?}/go/"*
+	cp -rf ${TEST_GO_TOOL_PATH}/reports/* ${BK_PATH}/go
+}
+# 功能：执行指定语言、接口或测试场景
 test_python_tsfile_api_test() { # 测试Python
 	# Python代码编译
 	log "编译python"
@@ -433,11 +547,14 @@ cd "${CPP_TOOL_PATH}" || return 1
 git_pull_repository "${CPP_TOOL_PATH}" 100
 cd "${PYTHON_TOOL_PATH}" || return 1
 git_pull_repository "${PYTHON_TOOL_PATH}" 100
+cd "${GO_TOOL_PATH}" || return 1
+git_pull_repository "${GO_TOOL_PATH}" 100
 # 对比判定是否启动测试
 if [ "${last_cid_TsFile}" != "${commit_id_TsFile}" ]; then
 	run_api_test_suite \
 		"Java:test_java_tsfile_api_test" \
 		"Cpp:test_cpp_tsfile_api_test" \
+		"Go:test_go_tsfile_api_test" \
 		"Python:test_python_tsfile_api_test" || true
 	###############################测试完成###############################
 	log "本轮测试${test_date_time}已结束."
