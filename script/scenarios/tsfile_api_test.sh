@@ -15,6 +15,13 @@ CPP_TOOL_PATH=${INIT_PATH}/cpp-tsfile-api-test
 PYTHON_TOOL_PATH=${INIT_PATH}/python-tsfile-api-test
 GO_TOOL_PATH=${INIT_PATH}/go-tsfile-api-test
 BK_PATH=${INIT_PATH}/tsfile_api_test_report
+#TsFile C++依赖离线缓存：预置依赖归档（维护脚本 script/common/prewarm_tsfile_deps.sh）
+#缓存目录存在且已有归档时，Cpp/Python 构建启用离线依赖模式，避免联网下载依赖超时
+TSFILE_DEPS_CACHE="${TSFILE_DEPS_CACHE:-${INIT_PATH}/deps-local}"
+TSFILE_DEPS_OPTS=""
+if [ -d "${TSFILE_DEPS_CACHE}" ] && compgen -G "${TSFILE_DEPS_CACHE}/*.tar.gz" >/dev/null; then
+	TSFILE_DEPS_OPTS="-Dtsfile.dependency.cache=${TSFILE_DEPS_CACHE} -Dtsfile.dependency.offline=true"
+fi
 #测试数据运行路径
 TEST_INIT_PATH="${TEST_INIT_PATH:-/data/qa}"
 TEST_JAVA_TOOL_PATH=${TEST_INIT_PATH}/java-tsfile-api-test
@@ -160,7 +167,7 @@ test_cpp_tsfile_api_test() {
 	# C++代码编译
 	log "编译C++"
 	cd "${TSFILE_PATH}" || return 1
-	comp_cpp=$(timeout 7200s  bash -c "mvn clean install -P with-cpp -DskipTests")
+	comp_cpp=$(timeout 7200s  bash -c "mvn clean install -P with-cpp -DskipTests ${TSFILE_DEPS_OPTS}")
 	if [ $? -eq 0 ]; then
 		log "编译C++完成，准备开始测试！"
 	else
@@ -396,7 +403,7 @@ test_python_tsfile_api_test() { # 测试Python
 	# Python代码编译
 	log "编译python"
 	cd "${TSFILE_PATH}" || return 1
-	comp_python=$(timeout 7200s  bash -c "mvn clean install -P with-python -DskipTests")
+	comp_python=$(timeout 7200s  bash -c "mvn clean install -P with-python -DskipTests ${TSFILE_DEPS_OPTS}")
 	if [ $? -eq 0 ]; then
 		log "编译Python完成，准备开始测试！"
 	else
