@@ -26,7 +26,7 @@ readonly IOTDB_PASSWORD="${IOTDB_PASSWORD:-TimechoDB@2021}"
 readonly INIT_PATH="${INIT_PATH:-/data/atmos/zk_test}"
 readonly ATMOS_PATH="${ATMOS_PATH:-${INIT_PATH}/atmos-ex}"
 readonly BM_PATH="${BM_PATH:-${INIT_PATH}/iot-benchmark}"
-readonly DATA_PATH="${DATA_PATH:-/data/atmos/DataSet}"
+DATA_PATH=""
 readonly REPOS_PATH="${REPOS_PATH:-/nasdata/repository/master}"
 readonly BM_REPOS_PATH="${BM_REPOS_PATH:-/nasdata/repository/iot-benchmark}"
 
@@ -631,8 +631,10 @@ main() {
     log "current commit ${commit_id} is pending, start query test."
 
     if [ "${author}" = "Timecho" ]; then
+        DATA_PATH="/data/atmos/timecho/DataSet"
         result_table="${TABLENAME_T}"
     else
+        DATA_PATH="/data/atmos/opensource/DataSet"
         result_table="${TABLENAME}"
     fi
 
