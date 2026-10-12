@@ -66,9 +66,26 @@ test_java_tsfile_api_test() { # 测试Java
 		mkdir -p ${TEST_JAVA_TOOL_PATH}
 	fi
 	cp -rf ${JAVA_TOOL_PATH}/* ${TEST_JAVA_TOOL_PATH}/
+	# 解析产品版本并编译安装 TsFile JAR（java 工具 pom 的 tsfile 依赖为 ${tsfile.version} 占位，需构建产品 JAR 后注入）
+	tsfile_ver=$(python3 -c "import xml.etree.ElementTree as ET;root=ET.parse('${TSFILE_PATH}/pom.xml').getroot();vals=[e.text for e in list(root) if e.tag.split('}')[-1]=='version'];print(vals[0] if vals else '')" 2>/dev/null)
+	log "编译TsFile JAR（版本：${tsfile_ver}）"
+	cd "${TSFILE_PATH}" || return 1
+	compile_ts=$(timeout 1800s bash -c "mvn clean install -P with-java -DskipTests -Dspotless.check.skip=true")
+	if [ $? -ne 0 ]
+	then
+		log "编译TsFile JAR失败，写入负值测试结果！"
+		tests_num=-2
+		errors_num=-2
+		failures_num=-2
+		skipped_num=-2
+		successRate=-2
+		insert_sql_java="insert into ${TABLENAME} (test_date_time,commit_id,tests_num,errors_num,failures_num,skipped_num,successRate,start_time,end_time,cost_time,remark) values(${test_date_time},'${commit_id_TsFile}',${tests_num},${errors_num},${failures_num},${skipped_num},${successRate},'${start_time}','${end_time}',${cost_time},'JAVA')"
+		mysql_exec "${insert_sql_java}"
+		return 1
+	fi
 	# 编译工具
 	cd "${TEST_JAVA_TOOL_PATH}" || return 1
-	compile=$(timeout 300s mvn clean install -P with-java -DskipTests)
+	compile=$(timeout 300s mvn -Dtsfile.version="${tsfile_ver}" clean install -P with-java -DskipTests)
 	if [ $? -eq 0 ]
 	then
 		log "编译Java完成，准备开始测试！"
@@ -85,7 +102,7 @@ test_java_tsfile_api_test() { # 测试Java
 	fi
 	log "开始测试Java接口"
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
-	start_test=$(nohup mvn surefire-report:report > /dev/null 2>&1 &)
+	start_test=$(nohup mvn -Dtsfile.version="${tsfile_ver}" surefire-report:report > /dev/null 2>&1 &)
 	for (( t_wait = 0; t_wait <= 20; ))
 	do
 		cd "${TEST_JAVA_TOOL_PATH}" || return 1
