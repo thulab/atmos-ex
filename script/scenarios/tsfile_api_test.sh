@@ -470,6 +470,9 @@ test_python_tsfile_api_test() { # 测试Python
 	fi
 	# 开始测试
 	log "Python开始测试"
+	# pytest 访问本地故障注入 HTTP 服务（127.0.0.1），需绕过全局 HTTP(S)_PROXY，否则 urllib 经代理返回 502
+	export no_proxy="127.0.0.1,localhost"
+	export NO_PROXY="${no_proxy}"
 	cd ${TEST_PYTHON_TOOL_PATH}/tests
 	start_time=$(date -d today +"%Y-%m-%d %H:%M:%S")
 	start_test=$(timeout 7200s bash -c "pytest --html=../reports/report.html")
