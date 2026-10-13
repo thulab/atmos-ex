@@ -16,7 +16,7 @@ readonly TEST_TYPE="longrun_test"
 readonly DATA_TYPE="unseq_rw"
 readonly DEFAULT_QUERY_MAX_TIME="2020-12-31 23:00:00"
 readonly DEFAULT_BENCHMARK_START_TIME="2021-01-01T00:00:00+08:00"
-readonly LONGRUN_TTL_KEEP_DAYS="${LONGRUN_TTL_KEEP_DAYS:-40}"
+readonly LONGRUN_TTL_KEEP_DAYS="${LONGRUN_TTL_KEEP_DAYS:-90}"
 
 readonly INIT_PATH="/data/atmos/zk_test"
 readonly ATMOS_PATH="${INIT_PATH}/atmos-ex"
