@@ -227,7 +227,7 @@ do
 		check_config_num=$[${check_config_num}+1]
 		break
 	  else
-		log "ConfigNode has not been started on PC:${C_IP_list[${j}]}"
+		log "ConfigNode[$str1] has not been started on PC:${C_IP_list[${j}]}"
 		sleep 30
 		continue
 	  fi

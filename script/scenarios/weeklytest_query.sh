@@ -116,9 +116,10 @@ collect_monitor_data() { # 收集iotdb数据大小，顺、乱序文件数量
 # 功能：归档测试日志、配置、数据或结果文件
 backup_test_data() { # 备份测试数据
 	local case_id=""
+	local test_status="${2:-completed}"
 
 	case_id="$(backup_build_case_id protocol "${protocol_class}" suite "$1")"
-	backup_standard_case "${case_id}"
+	backup_standard_case "${case_id}" "${TEST_IOTDB_PATH}" "${BM_PATH}" "${test_status}"
 }
 # 功能：执行单个测试组合并收集、解析和保存结果
 test_operation() {
@@ -196,6 +197,9 @@ test_operation_impl() {
 						mysql_exec "${insert_sql}"
 						update_sql="update ${TASK_TABLENAME} set ${TEST_TYPE} = 'RError' where commit_id = '${commit_id}'"
 						result_string=$(mysql_exec "${update_sql}")
+						if ! backup_test_data "${path_new}" failed; then
+							log "IoTDB startup failure logs backup failed: suite=${path_new}, query=${query_list[${i}]}, sensor=${sensor_type}"
+						fi
 						return
 					fi
 					
