@@ -238,6 +238,7 @@ append_iotdb_case_properties() {
     local properties_file="$1"
     cat >> "${properties_file}" <<EOF
 series_slot_num=10000
+query_timeout_threshold=6000000
 EOF
 }
 
