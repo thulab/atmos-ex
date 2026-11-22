@@ -542,13 +542,13 @@ test_operation_impl() {
     insert_result_row "${protocol_code}" "${current_ts_type}" "${current_api_type}"
     
     # 在插入结果后，调用监控函数检查是否报警
-    if (( $(echo "$throughput > 0" | bc -l 2>/dev/null) )); then
-        if ! check_current_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"; then
-            log "当前测试结果触发监控警报，但测试流程继续"
-        else
-            log "当前测试结果吞吐符合规律"
-        fi
-    fi
+    #if (( $(echo "$throughput > 0" | bc -l 2>/dev/null) )); then
+    #    if ! check_current_throughput_monitor "${commit_date_time}" "${throughput}" "${protocol_code}" "${current_ts_type}" "${current_api_type}"; then
+    #        log "当前测试结果触发监控警报，但测试流程继续"
+    #    else
+    #        log "当前测试结果吞吐符合规律"
+    #    fi
+    #fi
 
     stop_iotdb
     sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
