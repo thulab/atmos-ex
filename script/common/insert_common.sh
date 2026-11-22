@@ -465,6 +465,7 @@ test_operation_impl() {
     local current_api_type="$3"
     local csv_file=""
     local monitor_failed=0
+    local failure_reason=""
     # throughput / cost_time 的负值是约定好的哨兵值，用来在结果表中区分
     # 启动失败、鉴权失败、结果解析失败等不同异常场景。
 
@@ -488,6 +489,8 @@ test_operation_impl() {
         throughput=-3
         insert_result_row "${protocol_code}" "${current_ts_type}" "${current_api_type}"
         cleanup_processes
+        backup_failure_snapshot "IoTDB startup/readiness check failed" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" api "${current_api_type}")" || \
+            log "failed to archive IoTDB startup diagnostics"
         return 1
     fi
 
@@ -497,6 +500,8 @@ test_operation_impl() {
         throughput=-4
         insert_result_row "${protocol_code}" "${current_ts_type}" "${current_api_type}"
         cleanup_processes
+        backup_failure_snapshot "IoTDB root password setup failed" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" api "${current_api_type}")" || \
+            log "failed to archive IoTDB authentication diagnostics"
         return 1
     fi
 
@@ -508,6 +513,7 @@ test_operation_impl() {
 
     if ! monitor_test_status "${current_ts_type}"; then
         monitor_failed=1
+        failure_reason="${failure_reason:+${failure_reason}; }Benchmark timed out or did not produce a result"
     fi
 
     m_end_time="$(date +%s)"
@@ -517,6 +523,7 @@ test_operation_impl() {
     csv_file="$(find_result_csv || true)"
     if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}"; then
         log "benchmark 结果解析失败，写入负值测试结果。"
+        failure_reason="${failure_reason:+${failure_reason}; }Benchmark result missing or parse failed"
         [ -n "${end_time}" ] || end_time="$(current_datetime)"
         cost_time=-2
         throughput=-2
@@ -524,7 +531,9 @@ test_operation_impl() {
         stop_iotdb
         sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
         cleanup_processes
-        [ -d "${TEST_IOTDB_PATH}" ] && backup_test_data "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+        if [ -d "${TEST_IOTDB_PATH}" ]; then
+            backup_failure_snapshot "${failure_reason:-Benchmark result missing or parse failed}" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" api "${current_api_type}")"
+        fi
         return 1
     fi
 
@@ -544,7 +553,13 @@ test_operation_impl() {
     stop_iotdb
     sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
     cleanup_processes
-    [ -d "${TEST_IOTDB_PATH}" ] && backup_test_data "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+    if [ -d "${TEST_IOTDB_PATH}" ]; then
+        if [ "${monitor_failed}" -ne 0 ]; then
+            backup_failure_snapshot "${failure_reason:-Benchmark monitoring failed}" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" api "${current_api_type}")"
+        else
+            backup_test_data "${protocol_code}" "${current_ts_type}" "${current_api_type}"
+        fi
+    fi
 
     return "${monitor_failed}"
 }

@@ -499,6 +499,7 @@ run_query_case() {
     local result_label="${QUERY_RESULT_LABELS[${query_index}]}"
     local csv_file=""
     local case_failed=0
+    local failure_reason=""
 
     reset_benchmark_metrics
     log "start query: protocol=${protocol_code}, ts_type=${current_ts_type}, query=${query_name}"
@@ -506,6 +507,7 @@ run_query_case() {
     sleep 1
     if ! start_iotdb_and_wait; then
         log "IoTDB failed to start, writing negative result."
+        failure_reason="IoTDB startup/readiness check failed"
         start_time="0"
         end_time="0"
         cost_time=-3
@@ -513,6 +515,8 @@ run_query_case() {
         insert_result_row "${protocol_code}" "${current_ts_type}" "${query_name}"
         update_task_status "RError"
         cleanup_processes
+        backup_failure_snapshot "${failure_reason}" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" query "${query_name}")" || \
+            log "failed to archive IoTDB startup diagnostics"
         return 1
     fi
 
@@ -526,6 +530,7 @@ run_query_case() {
 
     if ! monitor_test_status "${query_name}" "${result_label}"; then
         case_failed=1
+        failure_reason="${failure_reason:+${failure_reason}; }Benchmark timed out or did not produce a result"
     fi
 
     m_end_time="$(date +%s)"
@@ -533,6 +538,7 @@ run_query_case() {
     csv_file="$(find_result_csv || true)"
     if [ -z "${csv_file}" ] || ! parse_benchmark_result "${csv_file}" "${result_label}"; then
         log "failed to parse ${result_label} from benchmark result, writing negative result."
+        failure_reason="${failure_reason:+${failure_reason}; }Benchmark result missing or parse failed"
         set_negative_benchmark_metrics -2
         case_failed=1
     fi
@@ -547,6 +553,10 @@ run_query_case() {
     sleep "${BENCHMARK_STOP_WAIT_SECONDS}"
     cleanup_processes
     sleep 5
+    if [ "${case_failed}" -ne 0 ]; then
+        backup_failure_snapshot "${failure_reason:-query case failed}" "$(backup_build_case_id protocol "${protocol_code}" model "${current_ts_type}" query "${query_name}")" || \
+            log "failed to archive Benchmark failure diagnostics"
+    fi
 
     return "${case_failed}"
 }

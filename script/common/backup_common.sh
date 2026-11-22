@@ -185,11 +185,25 @@ backup_standard_case() {
     local iotdb_path="${2:-${TEST_IOTDB_PATH:-}}"
     local benchmark_path="${3:-${BM_PATH:-}}"
     local test_status="${4:-completed}"
+    local failure_reason="${5:-}"
 
     backup_begin_case "${case_id}" || return 1
+    if [ -n "${failure_reason}" ]; then
+        backup_write_metadata failure_reason "${failure_reason}"
+        printf '%s\n' "${failure_reason}" > "${BACKUP_CASE_STAGING_DIR}/failure-reason.txt"
+    fi
     backup_add_iotdb_runtime "${iotdb_path}"
     backup_add_benchmark_runtime "${benchmark_path}"
     backup_finish_case "${test_status}"
+}
+
+backup_failure_snapshot() {
+    local failure_reason="$1"
+    local case_id=""
+
+    log "failure diagnostics: ${failure_reason}"
+    case_id="$(backup_build_case_id failure "${2:-test}" time "$(date '+%Y%m%dT%H%M%S')-${BASHPID}")" || return 1
+    backup_standard_case "${case_id}" "${TEST_IOTDB_PATH:-}" "${BM_PATH:-}" failed "${failure_reason}"
 }
 
 # 功能：按统一规范保存 API 测试失败报告和 IoTDB 诊断现场

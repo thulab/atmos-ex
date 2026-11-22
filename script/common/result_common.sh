@@ -51,6 +51,10 @@ mark_environment_deployment_error() {
     local message="$1"
 
     log "${message}; mark task ${commit_id} as SErr"
+    if declare -F backup_failure_snapshot >/dev/null 2>&1; then
+        backup_failure_snapshot "environment deployment failed: ${message}" deployment || \
+            log "failed to archive environment deployment diagnostics"
+    fi
     update_task_status "SErr"
     return 1
 }
