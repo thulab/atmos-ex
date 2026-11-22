@@ -9,7 +9,7 @@ fi
 set -u
 set -o pipefail
 
-readonly TEST_IP="11.101.17.153"
+readonly TEST_IP="172.20.31.5"
 readonly TEST_TYPE="insert_records"
 readonly -a PROTOCOL_LIST=(223)
 readonly -a TS_LIST=(
