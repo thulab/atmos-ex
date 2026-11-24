@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# 场景名称：weeklytest insert
+# 测试目的：执行周期性写入回归测试并记录结果。
+# 具体步骤：
+# 步骤一：准备测试所需的 IoTDB 环境、配置和数据。
+# 步骤二：部署并启动目标 IoTDB 服务及相关测试工具。
+# 步骤三：调用当前场景实现执行指定测试负载。
+# 步骤四：监控测试过程并收集运行状态和结果数据。
+# 步骤五：保存测试结果、更新任务状态并清理测试现场。
 set -o pipefail
 
 if [ -z "${BASH_VERSION:-}" ]; then
@@ -55,6 +63,7 @@ MONITOR_POLL_INTERVAL_SECONDS=${MONITOR_POLL_INTERVAL_SECONDS:-10}
 # -------------------- 公用函数 --------------------
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
+    # 功能：生成周期性写入测试超时对应的结果记录
     weekly_insert_timeout_result() {
         create_standard_stuck_result_csv INGESTION
     }

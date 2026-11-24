@@ -284,6 +284,7 @@ create_stuck_result_csv() {
 monitor_test_status() {
     local query_name="$1"
     local result_label="$2"
+    # 功能：将查询超时转换为 Stuck 结果文件供后续结果处理
     query_timeout_result() {
         log "${query_name} query timed out."
         create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv" "${result_label}"

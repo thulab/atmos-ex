@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# 场景名称：routine test
+# 测试目的：验证存储过程任务的执行、查询及状态处理。
+# 具体步骤：
+# 步骤一：准备测试所需的 IoTDB 环境、配置和数据。
+# 步骤二：部署并启动目标 IoTDB 服务及相关测试工具。
+# 步骤三：调用当前场景实现执行指定测试负载。
+# 步骤四：监控测试过程并收集运行状态和结果数据。
+# 步骤五：保存测试结果、更新任务状态并清理测试现场。
 if [ -z "${BASH_VERSION:-}" ]; then
 	exec bash "$0" "$@"
 fi
@@ -113,6 +121,7 @@ check_benchmark_version() {
 init_scenario_state() {
 	ts_type=0; data_type=0; op_type=0
 }
+# 功能：根据当前存储过程用例配置判断是否执行后续查询
 routine_should_query_after_insert() {
 	case "$1" in
 		seq_w|unseq_w) return 0 ;;
@@ -191,6 +200,7 @@ start_benchmark() { # 启动benchmark
 }
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+	# 功能：生成存储过程测试超时对应的结果记录
 	routine_timeout_result() {
 		create_standard_stuck_result_csv INGESTION
 	}

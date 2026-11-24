@@ -251,6 +251,7 @@ create_stuck_result_csv() {
 # 功能：轮询测试进程和结果文件，处理完成或超时状态
 monitor_test_status() {
     local current_ts_type="$1"
+    # 功能：将写入 Benchmark 超时转换为 Stuck 结果文件
     insert_timeout_result() {
         log "${current_ts_type} benchmark timed out."
         create_stuck_result_csv "${BM_PATH}/data/csvOutput/Stuck_result.csv"
@@ -301,6 +302,7 @@ backup_test_data() {
 # -------------------- 公共结果解析和入库函数 --------------------
 # 功能：生成写入场景 Benchmark 配置的统一 case 标识；特定场景可覆盖
 if ! declare -F insert_benchmark_case_id >/dev/null 2>&1; then
+    # 功能：按数据模型和写入 API 生成稳定的 Benchmark 用例标识
     insert_benchmark_case_id() {
         local current_ts_type="$1"
         local current_api_type="$2"

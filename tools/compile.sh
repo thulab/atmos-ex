@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 功能：查询待测提交、编译 IoTDB 并更新构建结果
 #登录用户名
 ACCOUNT=atmos
 test_type=compile
@@ -23,11 +24,15 @@ if [ -z "${PASSWORD}" ]; then
 	exit 1
 fi
 
+# 功能：执行单条 MySQL 命令并返回命令结果
+
 mysql_exec() {
 	MYSQL_PWD="${PASSWORD}" mysql -N -B \
 		--connect-timeout="${MYSQL_CONNECT_TIMEOUT_SECONDS:-15}" \
 		-h"${MYSQLHOSTNAME}" -P"${PORT}" -u"${USERNAME}" "${DBNAME}" -e "$1"
 }
+
+# 功能：重试可恢复连接错误并执行 MySQL 查询
 
 mysql_query() {
 	local sql="$1"
@@ -73,6 +78,8 @@ mysql_query() {
 	done
 }
 
+# 功能：初始化提交元数据和各测试场景构建结果字段
+
 init_items() {
 commit_date_time=0
 commit_id=0
@@ -101,6 +108,7 @@ treeview_query=0
 longrun_test=0
 remark=0
 }
+# 功能：根据拉取或编译错误类型发送通知邮件
 sendEmail() {
 	error_type=$1
 	date_time=`date +%Y%m%d%H%M%S`

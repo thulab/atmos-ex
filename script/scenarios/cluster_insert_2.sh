@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-
+# 场景名称：双集群写入测试
+# 测试目的：验证双集群环境下写入负载运行期间的数据处理和集群协同表现。
+# 具体步骤：
+# 步骤一：准备两个集群节点及远程执行环境。
+# 步骤二：部署并启动双集群 IoTDB 服务。
+# 步骤三：调用兼容场景实现执行写入测试。
+# 步骤四：收集测试运行状态和结果数据。
+# 步骤五：完成任务状态更新及测试现场收尾。
 set -o pipefail
 
 TEST_TYPE="cluster_insert_2"
@@ -24,8 +31,8 @@ TABLENAME_QUERY="ex_cluster_insert_2_query"
 TABLENAME_QUERY_T="ex_cluster_insert_2_query_T"
 CLUSTER_NAME="Apache-IoTDB-2"
 
-# 功能：按当前测试场景修改 IoTDB 配置
-modify_iotdb_config() { # iotdb调整内存，关闭合并
+# 功能：为双集群写入测试调整 IoTDB 内存、集群名、监控和数据目录配置
+modify_iotdb_config() {
 	#修改IoTDB的配置
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"20G\"/g" ${TEST_DATANODE_PATH}/conf/datanode-env.sh
 	sed -i "s/^#ON_HEAP_MEMORY=\"2G\".*$/ON_HEAP_MEMORY=\"6G\"/g" ${TEST_CONFIGNODE_PATH}/conf/confignode-env.sh
@@ -55,8 +62,8 @@ modify_iotdb_config() { # iotdb调整内存，关闭合并
 	set_iotdb_property "${TEST_DATANODE_PATH}/conf/iotdb-system.properties" "dn_wal_dirs" "/ssd/datanode/wal"
 }
 
-# 功能：轮询测试进程和结果文件，处理完成或超时状态
-monitor_test_status() { # 监控测试运行状态，获取最大打开文件数量和最大线程数
+# 功能：轮询远程 Benchmark 进程，处理完成状态与超时结果
+monitor_test_status() {
 	while true; do
 		flag=0
 		for (( j = 1; j <= 1; j++ ))
@@ -92,12 +99,12 @@ monitor_test_status() { # 监控测试运行状态，获取最大打开文件数
 	done
 }
 
-# 功能：执行单个测试组合并收集、解析和保存结果
+# 功能：隔离执行一种数据模型、写入模式和共识协议的测试
 test_operation() {
 	run_isolated_case test_operation_impl "$@"
 }
 
-# 功能：执行单轮集群写入测试；由 test_operation 隔离运行状态
+# 功能：部署双集群写入负载、监控运行过程并记录测试结果
 test_operation_impl() {
 	ts_type=$1
 	data_type=$2
@@ -177,7 +184,7 @@ test_operation_impl() {
 	backup_finish_case completed
 }
 
-# 功能：校验运行环境并编排当前脚本的完整测试流程
+# 功能：检查运行环境并按配置编排双集群写入测试
 main() {
 	ensure_runtime_dependencies
 	check_password

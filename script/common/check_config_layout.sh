@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# 功能：检查工程配置目录结构是否符合约定
 
 set -u
 set -o pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 error_count=0
+
+# 功能：记录配置目录检查错误并更新错误计数
 
 report_error() {
     printf 'config layout error: %s\n' "$*" >&2

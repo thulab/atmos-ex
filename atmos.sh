@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 功能：根据工程参数分发并启动对应的测试场景
 
 if [ -z "${BASH_VERSION:-}" ]; then
     echo "atmos.sh requires bash" >&2

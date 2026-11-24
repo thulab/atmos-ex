@@ -1,4 +1,5 @@
 #!/bin/bash
+# 功能：提供任务字段检查及任务状态操作辅助函数
 operation_list=("RETEST" "retest")
 app_name_list=("all" "api_insert" "cluster_insert" "compaction" "config_insert" "routine_test" "se_insert" "se_query" "sql_coverage" "ts_performance" "unse_insert" "unse_query" "weeklytest_insert" "weeklytest_query")
 ############mysql信息##########################

@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# 场景名称：python api
+# 测试目的：验证 Python API 的连接与数据操作能力。
+# 具体步骤：
+# 步骤一：准备测试所需的 IoTDB 环境、配置和数据。
+# 步骤二：部署并启动目标 IoTDB 服务及相关测试工具。
+# 步骤三：调用当前场景实现执行指定测试负载。
+# 步骤四：监控测试过程并收集运行状态和结果数据。
+# 步骤五：保存测试结果、更新任务状态并清理测试现场。
 set -o pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"

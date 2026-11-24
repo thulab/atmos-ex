@@ -9,6 +9,8 @@ start_iotdb_component() {
     )
 }
 
+# 功能：根据当前部署配置启动 IoTDB 服务
+
 start_iotdb() {
     if declare -F before_iotdb_start >/dev/null 2>&1; then
         before_iotdb_start

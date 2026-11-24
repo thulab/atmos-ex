@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 功能：提供测试运行及用例产物的分层归档能力
 
 if [ -z "${BASH_VERSION:-}" ]; then
     printf '[ERROR] backup_common.sh requires bash\n' >&2
@@ -196,6 +197,8 @@ backup_standard_case() {
     backup_add_benchmark_runtime "${benchmark_path}"
     backup_finish_case "${test_status}"
 }
+
+# 功能：收集并归档测试失败时的现场信息
 
 backup_failure_snapshot() {
     local failure_reason="$1"

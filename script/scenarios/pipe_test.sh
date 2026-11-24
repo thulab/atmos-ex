@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# 场景名称：pipe test
+# 测试目的：验证 Pipe 数据同步和传输过程。
+# 具体步骤：
+# 步骤一：准备测试所需的 IoTDB 环境、配置和数据。
+# 步骤二：部署并启动目标 IoTDB 服务及相关测试工具。
+# 步骤三：调用当前场景实现执行指定测试负载。
+# 步骤四：监控测试过程并收集运行状态和结果数据。
+# 步骤五：保存测试结果、更新任务状态并清理测试现场。
 set -o pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../common/runtime_common.sh"
@@ -255,6 +263,7 @@ setup_env_linux() {
 	fi
 	log $pipflag
 }
+# 功能：从 Pipe 命令输出中提取计数值
 extract_count_value() {
 	awk '
 		{
@@ -293,6 +302,8 @@ extract_count_value() {
 	'
 }
 
+# 功能：执行 IoTDB CLI 计数查询并记录命令输出
+
 log_count_cli_output_once() {
 	local host="$1"
 	local device="$2"
@@ -307,6 +318,8 @@ log_count_cli_output_once() {
 		count_cli_output_logged=1
 	fi
 }
+
+# 功能：从 CLI 输出中解析计数值并更新场景变量
 
 set_count_value_from_output() {
 	local result_var="$1"

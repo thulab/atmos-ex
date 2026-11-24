@@ -1,4 +1,5 @@
 #!/bin/sh
+# 功能：拉取并编译指定分支代码，维护构建任务状态
 #登录用户名
 ACCOUNT=atmos
 #初始环境存放路径
@@ -18,6 +19,7 @@ TABLENAME="ex_commit_history" #数据库中表的名称
 if [ "${PASSWORD}" = "" ]; then
 echo "需要关注密码设置！"
 fi
+# 功能：初始化待跟踪的提交信息和各测试场景结果字段
 init_items() {
 commit_date_time=0
 commit_id=0
@@ -46,6 +48,7 @@ benchants=0
 helishi_test=0
 remark=0
 }
+# 功能：根据分支编译错误类型发送通知邮件
 sendEmail() {
 	error_type=$1
 	date_time=`date +%Y%m%d%H%M%S`
