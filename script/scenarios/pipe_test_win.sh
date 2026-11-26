@@ -607,6 +607,7 @@ test_operation_impl() {
 # 功能：校验运行环境并编排当前脚本的完整测试流程
 main() {
 	ensure_runtime_dependencies
+	log "backup settings: BACKUP_ROOT=${BACKUP_ROOT} TEST_TYPE=${TEST_TYPE} BACKUP_LEVEL=${BACKUP_LEVEL} RUN_ID=${ATMOS_BACKUP_RUN_ID}"
 	check_password
 	sync_benchmark_path
 	mkdir -p "${INIT_PATH}"

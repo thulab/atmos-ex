@@ -44,15 +44,30 @@ backup_build_case_id() {
 backup_begin_run() {
     local scenario=""
     local current_commit=""
+    local mkdir_status=0
+    local chmod_status=0
 
     scenario="$(backup_safe_component "${TEST_TYPE:-unknown}")"
     current_commit="$(backup_safe_component "${commit_id:-unknown}")"
     BACKUP_RUN_DIR="${BACKUP_ROOT}/${scenario}/${current_commit}/${ATMOS_BACKUP_RUN_ID}"
+    log "backup run path: BACKUP_ROOT=${BACKUP_ROOT} TEST_TYPE=${TEST_TYPE:-unknown} commit_id=${commit_id:-unknown} run_id=${ATMOS_BACKUP_RUN_ID} path=${BACKUP_RUN_DIR}"
 
     if [ ! -d "${BACKUP_RUN_DIR}" ]; then
-        sudo mkdir -p -- "${BACKUP_RUN_DIR}/cases" "${BACKUP_RUN_DIR}/summary" || return 1
-        sudo chmod 0777 "${BACKUP_RUN_DIR}" "${BACKUP_RUN_DIR}/cases" "${BACKUP_RUN_DIR}/summary" || return 1
-        backup_write_env_file "${BACKUP_RUN_DIR}/manifest.env" \
+        if sudo mkdir -p -- "${BACKUP_RUN_DIR}/cases" "${BACKUP_RUN_DIR}/summary"; then
+            log "backup mkdir succeeded: ${BACKUP_RUN_DIR}/cases ${BACKUP_RUN_DIR}/summary"
+        else
+            mkdir_status=$?
+            log "ERROR: backup mkdir failed (exit=${mkdir_status}): ${BACKUP_RUN_DIR}"
+            return "${mkdir_status}"
+        fi
+        if sudo chmod 0777 "${BACKUP_RUN_DIR}" "${BACKUP_RUN_DIR}/cases" "${BACKUP_RUN_DIR}/summary"; then
+            log "backup chmod succeeded: ${BACKUP_RUN_DIR}"
+        else
+            chmod_status=$?
+            log "ERROR: backup chmod failed (exit=${chmod_status}): ${BACKUP_RUN_DIR}"
+            return "${chmod_status}"
+        fi
+        if ! backup_write_env_file "${BACKUP_RUN_DIR}/manifest.env" \
             format_version 1 \
             scenario "${TEST_TYPE:-unknown}" \
             commit_id "${commit_id:-unknown}" \
@@ -60,7 +75,12 @@ backup_begin_run() {
             host "$(hostname 2>/dev/null || printf unknown)" \
             started_at "$(date -Iseconds)" \
             backup_level "${BACKUP_LEVEL}" \
-            status running || return 1
+            status running; then
+            log "ERROR: failed to write backup run manifest: ${BACKUP_RUN_DIR}/manifest.env"
+            return 1
+        fi
+    else
+        log "backup run directory already exists: ${BACKUP_RUN_DIR}"
     fi
     export BACKUP_RUN_DIR
 }
@@ -76,17 +96,32 @@ backup_begin_case() {
     BACKUP_CASE_FAILED=0
 
     if [ -e "${BACKUP_CASE_DIR}" ] || [ -e "${BACKUP_CASE_STAGING_DIR}" ]; then
-        log "backup case already exists: ${BACKUP_CASE_DIR}"
+        log "ERROR: backup case already exists: ${BACKUP_CASE_DIR}"
         return 1
     fi
-    sudo mkdir -p -- "${BACKUP_CASE_STAGING_DIR}" || return 1
-    sudo chmod 0777 "${BACKUP_CASE_STAGING_DIR}" || return 1
-    backup_write_env_file "${BACKUP_CASE_STAGING_DIR}/manifest.env" \
+    if sudo mkdir -p -- "${BACKUP_CASE_STAGING_DIR}"; then
+        log "backup case mkdir succeeded: ${BACKUP_CASE_STAGING_DIR}"
+    else
+        local mkdir_status=$?
+        log "ERROR: backup case mkdir failed (exit=${mkdir_status}): ${BACKUP_CASE_STAGING_DIR}"
+        return "${mkdir_status}"
+    fi
+    if sudo chmod 0777 "${BACKUP_CASE_STAGING_DIR}"; then
+        log "backup case chmod succeeded: ${BACKUP_CASE_STAGING_DIR}"
+    else
+        local chmod_status=$?
+        log "ERROR: backup case chmod failed (exit=${chmod_status}): ${BACKUP_CASE_STAGING_DIR}"
+        return "${chmod_status}"
+    fi
+    if ! backup_write_env_file "${BACKUP_CASE_STAGING_DIR}/manifest.env" \
         format_version 1 \
         case_id "${case_id}" \
         started_at "$(date -Iseconds)" \
         test_status running \
-        backup_status running || return 1
+        backup_status running; then
+        log "ERROR: failed to write backup case manifest: ${BACKUP_CASE_STAGING_DIR}/manifest.env"
+        return 1
+    fi
     printf 'type\tsource\ttarget\trequired\tmode\tstatus\n' > "${BACKUP_CASE_STAGING_DIR}/artifacts.tsv"
     export BACKUP_CASE_DIR BACKUP_CASE_STAGING_DIR
 }
